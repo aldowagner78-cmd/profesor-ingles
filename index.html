@@ -219,7 +219,7 @@
                             <i data-lucide="check" class="w-10 h-10 text-white"></i>
                         </div>
                         <h3 id="feedback-title" class="text-2xl font-black text-white mb-2">¡Encontrado!</h3>
-                        <div id="feedback-msg" class="text-slate-300 text-sm font-medium leading-relaxed mb-6">Has encontrado una Silla.</div>
+                        <div id="feedback-msg" class="text-slate-300 text-sm font-medium leading-relaxed mb-6">Analizando...</div>
                         
                         <div class="flex gap-3 justify-center flex-wrap">
                             <button onclick="closeFeedback()" class="px-6 py-3 bg-slate-700 text-white font-bold rounded-xl active:scale-95 transition-transform text-sm">
@@ -423,6 +423,13 @@
             console.log('User response:', outcome);
             deferredPrompt = null;
             document.getElementById('install-btn').classList.add('hidden');
+        }
+
+        function resetApp() {
+            if(confirm("¿Estás seguro de borrar todo tu progreso? Esta acción no se puede deshacer.")) {
+                localStorage.removeItem('profesor_ia_state');
+                location.reload();
+            }
         }
 
         // --- MANEJO DE ERRORES GLOBAL ---
@@ -774,11 +781,15 @@
                             <i data-lucide="scan-line" class="w-4 h-4"></i> Escanear Otro
                         </button>
                     `;
+                } else {
+                    feedback.classList.add('hidden');
+                    showToast("No pude identificar el objeto. Intenta de nuevo.", 'error');
                 }
 
                 lucide.createIcons();
 
             } catch (e) { 
+                document.getElementById('camera-feedback').classList.add('hidden');
                 showToast("No pude analizar la imagen. Intenta de nuevo.", 'error');
             }
             btn.classList.remove('scale-90', 'opacity-50');
@@ -928,9 +939,12 @@
                         </div>
                     `;
                     lucide.createIcons();
+                } else {
+                    throw new Error("Formato incorrecto");
                 }
             } catch(e) {
-                content.innerHTML = `<div class="text-center py-8"><p class="text-red-500 font-bold">Error cargando detalles.</p><button onclick="closeModal()" class="mt-4 text-slate-400 underline">Cerrar</button></div>`;
+                console.error(e);
+                content.innerHTML = `<div class="text-center py-8"><p class="text-red-500 font-bold">Error cargando detalles.</p><p class="text-xs text-slate-400 mt-2">${e.message}</p><button onclick="closeModal()" class="mt-4 text-slate-400 underline">Cerrar</button></div>`;
             }
         }
 
@@ -1128,6 +1142,8 @@
                     html += `<button onclick="checkQuiz('${opt}', '${data.answer}')" class="block w-full text-left p-2 rounded border mb-1 hover:bg-blue-50">${opt}</button>`;
                 });
                 addMsg(html, 'bot');
+            } else {
+                addMsg("Lo siento, hubo un error en la respuesta. Intenta de nuevo.", 'bot');
             }
         }
 
@@ -1142,28 +1158,39 @@
         }
 
         async function requestLesson() {
-            addMsg("Generando lección...", 'bot');
+            const id = addMsg("Generando lección...", 'bot');
             try {
                 const prompt = `Lección corta sobre ${getCurrentTopic()} (${getCurrentLevel().name}). JSON type "lesson", field "content" (markdown).`;
                 const data = await callGemini(prompt);
+                document.getElementById(id).remove();
                 handleResponse(data);
-            } catch(e) { addMsg("Error.", 'bot'); }
+            } catch(e) { 
+                document.getElementById(id).innerText = "Error de conexión."; 
+            }
         }
 
         async function requestQuiz() {
-            addMsg("Generando examen...", 'bot');
+            const id = addMsg("Generando examen...", 'bot');
             try {
                 const prompt = `Pregunta opción múltiple ${getCurrentTopic()}. JSON type "quiz", fields: question, options[], answer.`;
                 const data = await callGemini(prompt);
+                document.getElementById(id).remove();
                 handleResponse(data);
-            } catch(e) { addMsg("Error.", 'bot'); }
+            } catch(e) { 
+                document.getElementById(id).innerText = "Error de conexión."; 
+            }
         }
 
         async function startRoleplay() {
-            addMsg("Let's start!", 'bot');
-            const prompt = `Roleplay ${getCurrentTopic()}. JSON type "eval", reply="Start phrase", feedback="Roleplay", correction=null.`;
-            const data = await callGemini(prompt);
-            handleResponse(data);
+            const id = addMsg("Iniciando Roleplay...", 'bot');
+            try {
+                const prompt = `Roleplay ${getCurrentTopic()}. JSON type "eval", reply="Start phrase", feedback="Roleplay", correction=null.`;
+                const data = await callGemini(prompt);
+                document.getElementById(id).remove();
+                handleResponse(data);
+            } catch(e) { 
+                document.getElementById(id).innerText = "Error de conexión."; 
+            }
         }
 
         function checkMission() {
