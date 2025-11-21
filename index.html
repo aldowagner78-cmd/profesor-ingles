@@ -121,55 +121,92 @@
     <!-- CONTENIDO PRINCIPAL -->
     <main class="flex-1 relative overflow-hidden">
 
-        <!-- VISTA 1: CÁMARA (Juego de Búsqueda) -->
-        <div id="view-camera" class="absolute inset-0 flex flex-col p-3 hidden bg-slate-900">
+        <!-- VISTA 1: CÁMARA (Multimodo) -->
+        <div id="view-camera" class="absolute inset-0 flex flex-col hidden bg-slate-900">
             
-            <!-- Banner de Misión -->
-            <div id="mission-banner" class="absolute top-4 left-4 right-4 z-20 bg-white/90 backdrop-blur rounded-2xl p-4 shadow-lg border-2 border-blue-400 flex flex-col items-center text-center transition-all">
-                <span class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">TU MISIÓN</span>
-                <h2 id="mission-text" class="text-2xl font-black text-slate-800 leading-none mb-1">...</h2>
-                <p id="mission-sub" class="text-xs text-slate-500 font-bold">Cargando misión...</p>
+            <!-- Selector de Modo -->
+            <div class="absolute top-4 left-0 right-0 flex justify-center z-30 px-4">
+                <div class="bg-white/90 backdrop-blur p-1 rounded-xl flex shadow-lg border border-blue-100 w-full max-w-xs">
+                    <button onclick="setCameraMode('game')" id="btn-mode-game" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-blue-600 text-white shadow-sm flex items-center justify-center gap-1">
+                        <i data-lucide="gamepad-2" class="w-3 h-3"></i> Juego
+                    </button>
+                    <button onclick="setCameraMode('explore')" id="btn-mode-explore" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-slate-500 hover:bg-slate-100 flex items-center justify-center gap-1">
+                        <i data-lucide="search" class="w-3 h-3"></i> Explorar
+                    </button>
+                </div>
             </div>
 
-            <div class="flex-1 relative bg-black rounded-3xl overflow-hidden shadow-lg border-2 border-slate-700 group mt-20 mb-4">
-                <video id="camera-feed" autoplay playsinline class="absolute inset-0 w-full h-full object-cover opacity-80"></video>
+            <!-- Banner de Misión (Solo Juego) -->
+            <div id="mission-banner" class="absolute top-20 left-4 right-4 z-20 bg-white/95 backdrop-blur rounded-2xl p-3 shadow-xl border-l-4 border-blue-500 flex items-center gap-3 transition-all">
+                <div class="bg-blue-100 p-2 rounded-full text-blue-600">
+                    <i data-lucide="target" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">BUSCA:</span>
+                    <h2 id="mission-text" class="text-xl font-black text-slate-800 leading-none">...</h2>
+                    <p id="mission-sub" class="text-xs text-blue-600 font-bold">...</p>
+                </div>
+                <button onclick="nextMission()" class="p-2 text-slate-400 hover:text-blue-600">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Área de Cámara -->
+            <div class="flex-1 relative overflow-hidden group">
+                <video id="camera-feed" autoplay playsinline class="absolute inset-0 w-full h-full object-cover opacity-90"></video>
                 <canvas id="photo-canvas" class="hidden"></canvas>
                 
-                <!-- Guía de Enfoque -->
-                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div class="w-64 h-64 border-2 border-dashed border-white/50 rounded-3xl relative">
-                        <div class="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-blue-500 -mt-1 -ml-1 rounded-tl-lg"></div>
-                        <div class="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-blue-500 -mt-1 -mr-1 rounded-tr-lg"></div>
-                        <div class="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-blue-500 -mb-1 -ml-1 rounded-bl-lg"></div>
-                        <div class="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-blue-500 -mb-1 -mr-1 rounded-br-lg"></div>
+                <!-- Guía de Enfoque (Juego) -->
+                <div id="guide-game" class="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300">
+                    <div class="w-64 h-64 border-2 border-dashed border-white/60 rounded-3xl relative">
+                        <div class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-blue-500 -mt-1 -ml-1 rounded-tl-xl"></div>
+                        <div class="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-blue-500 -mt-1 -mr-1 rounded-tr-xl"></div>
+                        <div class="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-blue-500 -mb-1 -ml-1 rounded-bl-xl"></div>
+                        <div class="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-blue-500 -mb-1 -mr-1 rounded-br-xl"></div>
                     </div>
                 </div>
 
-                <!-- Feedback Visual -->
-                <div id="camera-feedback" class="absolute inset-0 bg-black/80 flex items-center justify-center z-30 hidden">
-                    <div class="text-center p-6">
-                        <div id="feedback-icon" class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/50">
+                <!-- Guía de Enfoque (Explorar) -->
+                <div id="guide-explore" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300">
+                    <div class="w-full h-1 bg-white/30 absolute top-1/2 -translate-y-1/2"></div>
+                    <div class="h-full w-1 bg-white/30 absolute left-1/2 -translate-x-1/2"></div>
+                    <i data-lucide="scan" class="w-16 h-16 text-white/50"></i>
+                </div>
+
+                <!-- Feedback Visual (Overlay) -->
+                <div id="camera-feedback" class="absolute inset-0 bg-black/85 flex items-center justify-center z-30 hidden backdrop-blur-sm">
+                    <div class="text-center p-6 max-w-xs w-full">
+                        <div id="feedback-icon" class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/50 animate-bounce">
                             <i data-lucide="check" class="w-10 h-10 text-white"></i>
                         </div>
                         <h3 id="feedback-title" class="text-2xl font-black text-white mb-2">¡Encontrado!</h3>
-                        <p id="feedback-msg" class="text-slate-300 text-sm">Has encontrado una Silla.</p>
-                        <button onclick="nextMission()" class="mt-6 px-8 py-3 bg-white text-slate-900 font-bold rounded-xl active:scale-95 transition-transform">
-                            Siguiente Misión
-                        </button>
+                        <p id="feedback-msg" class="text-slate-300 text-sm font-medium leading-relaxed mb-6">Has encontrado una Silla.</p>
+                        
+                        <div class="flex gap-3 justify-center">
+                            <button onclick="closeFeedback()" class="px-6 py-3 bg-slate-700 text-white font-bold rounded-xl active:scale-95 transition-transform text-sm">
+                                Cerrar
+                            </button>
+                            <button id="btn-next-mission" onclick="nextMission()" class="px-6 py-3 bg-white text-blue-600 font-bold rounded-xl active:scale-95 transition-transform text-sm shadow-lg shadow-blue-500/20">
+                                Siguiente
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="h-24 flex items-center justify-center gap-6">
-                <button onclick="startCamera()" class="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-white border border-slate-700 active:scale-95">
-                    <i data-lucide="refresh-ccw" class="w-5 h-5"></i>
-                </button>
-                <button id="capture-btn" onclick="checkMission()" class="w-20 h-20 bg-white rounded-full border-[6px] border-blue-500 shadow-xl shadow-blue-900/50 flex items-center justify-center active:scale-90 transition-transform btn-pulse">
+            <!-- Controles Inferiores -->
+            <div class="h-32 bg-gradient-to-t from-black/80 to-transparent absolute bottom-0 left-0 right-0 flex items-center justify-center gap-8 pb-4">
+                
+                <!-- Botón Captura Juego -->
+                <button id="btn-capture-game" onclick="checkMission()" class="w-20 h-20 bg-white rounded-full border-[6px] border-blue-500 shadow-xl shadow-blue-600/40 flex items-center justify-center active:scale-90 transition-transform btn-pulse relative z-10">
                     <i data-lucide="camera" class="w-8 h-8 text-blue-600"></i>
                 </button>
-                <button onclick="skipMission()" class="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-white border border-slate-700 active:scale-95">
-                    <i data-lucide="skip-forward" class="w-5 h-5"></i>
+
+                <!-- Botón Captura Explorar -->
+                <button id="btn-capture-explore" onclick="analyzeImage()" class="hidden w-20 h-20 bg-white rounded-full border-[6px] border-purple-500 shadow-xl shadow-purple-600/40 flex items-center justify-center active:scale-90 transition-transform relative z-10">
+                    <i data-lucide="search" class="w-8 h-8 text-purple-600"></i>
                 </button>
+
             </div>
         </div>
 
@@ -405,12 +442,43 @@
 
         // --- CÁMARA & JUEGO ---
         let currentMission = null;
+        let cameraMode = 'game'; // 'game' | 'explore'
+        
         const COMMON_OBJECTS = [
             {es: "Silla", en: "Chair"}, {es: "Mesa", en: "Table"}, {es: "Taza", en: "Cup"}, 
             {es: "Computadora", en: "Computer"}, {es: "Teléfono", en: "Phone"}, {es: "Lápiz", en: "Pencil"},
             {es: "Libro", en: "Book"}, {es: "Zapato", en: "Shoe"}, {es: "Puerta", en: "Door"},
             {es: "Ventana", en: "Window"}, {es: "Botella", en: "Bottle"}, {es: "Planta", en: "Plant"}
         ];
+
+        function setCameraMode(mode) {
+            cameraMode = mode;
+            
+            // UI Updates
+            document.getElementById('btn-mode-game').className = mode === 'game' 
+                ? "flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-blue-600 text-white shadow-sm flex items-center justify-center gap-1"
+                : "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-slate-500 hover:bg-slate-100 flex items-center justify-center gap-1";
+            
+            document.getElementById('btn-mode-explore').className = mode === 'explore'
+                ? "flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-purple-600 text-white shadow-sm flex items-center justify-center gap-1"
+                : "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-slate-500 hover:bg-slate-100 flex items-center justify-center gap-1";
+
+            // Toggle Elements
+            if(mode === 'game') {
+                document.getElementById('mission-banner').classList.remove('hidden');
+                document.getElementById('guide-game').classList.remove('opacity-0');
+                document.getElementById('guide-explore').classList.add('opacity-0');
+                document.getElementById('btn-capture-game').classList.remove('hidden');
+                document.getElementById('btn-capture-explore').classList.add('hidden');
+                if(!currentMission) nextMission();
+            } else {
+                document.getElementById('mission-banner').classList.add('hidden');
+                document.getElementById('guide-game').classList.add('opacity-0');
+                document.getElementById('guide-explore').classList.remove('opacity-0');
+                document.getElementById('btn-capture-game').classList.add('hidden');
+                document.getElementById('btn-capture-explore').classList.remove('hidden');
+            }
+        }
 
         async function startCamera() {
             const video = document.getElementById('camera-feed');
@@ -428,7 +496,7 @@
                     alert("No pudimos acceder a la cámara. Verifica los permisos."); 
                 }
             }
-            if(!currentMission) nextMission();
+            setCameraMode(cameraMode); // Refresh UI
         }
         
         function stopCamera() { if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null; }
@@ -446,10 +514,14 @@
             nextMission();
         }
 
-        async function checkMission() {
+        function closeFeedback() {
+            document.getElementById('camera-feedback').classList.add('hidden');
+        }
+
+        async function analyzeImage() {
             const video = document.getElementById('camera-feed');
             const canvas = document.getElementById('photo-canvas');
-            const btn = document.getElementById('capture-btn');
+            const btn = document.getElementById('btn-capture-explore');
             
             if(!stream) { await startCamera(); return; }
 
@@ -458,7 +530,49 @@
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1]; // Calidad reducida para velocidad
+            const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
+
+            try {
+                const prompt = `Analiza esta imagen. Dime qué objeto principal ves. Responde con JSON type "analysis".`;
+                const data = await callGemini(prompt, base64);
+                
+                const feedback = document.getElementById('camera-feedback');
+                const icon = document.getElementById('feedback-icon');
+                const title = document.getElementById('feedback-title');
+                const msg = document.getElementById('feedback-msg');
+                const btnNext = document.getElementById('btn-next-mission');
+                
+                feedback.classList.remove('hidden');
+                btnNext.classList.add('hidden'); // No hay "siguiente misión" en explorar
+
+                icon.className = "w-20 h-20 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/50";
+                icon.innerHTML = '<i data-lucide="search" class="w-10 h-10 text-white"></i>';
+                title.innerText = data.word_en;
+                title.className = "text-2xl font-black text-purple-400 mb-2";
+                msg.innerText = `${data.word_es}\n"${data.sentence}"`;
+                
+                speakText(data.word_en, 'en');
+                lucide.createIcons();
+
+            } catch (e) { 
+                alert("Error analizando imagen."); 
+            }
+            btn.classList.remove('scale-90', 'opacity-50');
+        }
+
+        async function checkMission() {
+            const video = document.getElementById('camera-feed');
+            const canvas = document.getElementById('photo-canvas');
+            const btn = document.getElementById('btn-capture-game');
+            
+            if(!stream) { await startCamera(); return; }
+
+            btn.classList.add('scale-90', 'opacity-50');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
 
             try {
                 const prompt = `
@@ -478,8 +592,10 @@
                 const icon = document.getElementById('feedback-icon');
                 const title = document.getElementById('feedback-title');
                 const msg = document.getElementById('feedback-msg');
+                const btnNext = document.getElementById('btn-next-mission');
                 
                 feedback.classList.remove('hidden');
+                btnNext.classList.remove('hidden');
 
                 if(data.type === 'mission_success' || (data.type === 'analysis' && data.word_en.toLowerCase().includes(currentMission.en.toLowerCase()))) {
                     icon.className = "w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/50";
@@ -487,7 +603,10 @@
                     title.innerText = "¡Excelente!";
                     title.className = "text-2xl font-black text-green-400 mb-2";
                     msg.innerText = data.message || `¡Encontraste: ${currentMission.en}!`;
-                    speakText(`Great! You found the ${currentMission.en}.`, 'en');
+                    
+                    // FEEDBACK EN ESPAÑOL (SOLICITADO POR USUARIO)
+                    speakText(data.message || "¡Muy bien! Lo encontraste.", 'es');
+                    
                     addPoints(50);
                     triggerConfetti();
                 } else {
@@ -496,7 +615,9 @@
                     title.innerText = "Intenta de nuevo";
                     title.className = "text-2xl font-black text-red-400 mb-2";
                     msg.innerText = data.message || `Eso parece ser: ${data.word_en || "otra cosa"}.`;
-                    speakText(`That is not a ${currentMission.en}. Try again.`, 'en');
+                    
+                    // FEEDBACK EN ESPAÑOL (SOLICITADO POR USUARIO)
+                    speakText(data.message || "Intenta de nuevo.", 'es');
                 }
                 lucide.createIcons();
 
