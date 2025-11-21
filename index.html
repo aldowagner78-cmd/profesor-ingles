@@ -262,6 +262,9 @@
                         <button onclick="requestQuiz()" class="px-4 py-2 bg-purple-50 text-purple-700 rounded-xl text-xs font-bold border border-purple-100 active:bg-purple-100 whitespace-nowrap">
                             📝 Examen
                         </button>
+                        <button onclick="startRoleplay()" class="px-4 py-2 bg-pink-50 text-pink-700 rounded-xl text-xs font-bold border border-pink-100 active:bg-pink-100 whitespace-nowrap">
+                            🎭 Roleplay
+                        </button>
                         <button onclick="nextTopic()" class="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-100 active:bg-emerald-100 whitespace-nowrap">
                             ⏭️ Siguiente Tema
                         </button>
@@ -278,6 +281,27 @@
                 <p class="text-slate-400 text-sm mb-6">Estudiante VIP</p>
                 <div class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400 mb-2" id="profile-score">0</div>
                 <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Puntos XP</p>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="book-image" class="w-5 h-5 text-purple-500"></i> Mi Colección
+                </h3>
+                <div id="collection-grid" class="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1">
+                    <!-- Se llena con JS -->
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
+                <h3 class="font-bold text-slate-800 mb-4">Configuración</h3>
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-sm font-bold text-slate-600">Velocidad de Voz</span>
+                    <select onchange="state.speechRate = parseFloat(this.value); updateUI()" class="bg-slate-100 border-none rounded-lg text-sm font-bold text-slate-600 py-1 px-3">
+                        <option value="0.7">Lenta (0.7x)</option>
+                        <option value="0.9" selected>Normal (0.9x)</option>
+                        <option value="1.1">Rápida (1.1x)</option>
+                    </select>
+                </div>
             </div>
 
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
@@ -355,13 +379,18 @@
         let state = {
             score: 0,
             levelIdx: 0,
-            topicIdx: 0
+            topicIdx: 0,
+            collection: [], // [{wordEn, wordEs, icon, date}]
+            speechRate: 0.9
         };
 
         // Cargar estado
         try {
             const savedState = localStorage.getItem('profesor_ia_state');
-            if (savedState) state = JSON.parse(savedState);
+            if (savedState) {
+                const parsed = JSON.parse(savedState);
+                state = { ...state, ...parsed }; // Merge para asegurar nuevos campos
+            }
         } catch(e) { console.log("Error cargando estado"); }
 
         let currentWordEn = "";
@@ -390,6 +419,7 @@
             document.getElementById('level-display').innerText = getCurrentLevel().name;
             document.getElementById('topic-msg').innerText = getCurrentTopic();
             localStorage.setItem('profesor_ia_state', JSON.stringify(state));
+            renderCollection();
         }
 
         function nextTopic() {
@@ -570,6 +600,7 @@
                 msg.innerText = `${data.word_es}\n"${data.sentence}"`;
                 
                 speakText(data.word_en, 'en');
+                addToCollection(data.word_en, data.word_es, data.emoji);
                 lucide.createIcons();
 
             } catch (e) { 
@@ -625,6 +656,7 @@
                     // FEEDBACK EN INGLÉS (ÉXITO)
                     speakText(cleanTextForSpeech(data.message || `Perfect! You found the ${currentMission.en}.`), 'en');
                     
+                    addToCollection(currentMission.en, currentMission.es, data.emoji);
                     addPoints(50);
                     triggerConfetti();
                 } else {
@@ -648,12 +680,22 @@
 
         // --- CLASE Y CHAT ---
         async function requestLesson() {
-            const prompt = `Genera una lección corta y divertida para el Nivel: ${getCurrentLevel().name}, Tema: ${getCurrentTopic()}. Incluye ejemplos.`;
-            sendQuickMsg(prompt, true); // true = ocultar mensaje usuario
+            const prompt = `Genera una lección completa y estructurada para el Nivel: ${getCurrentLevel().name}, Tema: ${getCurrentTopic()}. 
+            Estructura requerida:
+            1. Explicación clara del concepto.
+            2. Un diálogo corto de ejemplo (A: ... B: ...).
+            3. Lista de 3-5 palabras clave de vocabulario.
+            4. Un 'Tip' gramatical o de pronunciación.`;
+            sendQuickMsg(prompt, true); 
         }
 
         async function requestQuiz() {
-            const prompt = `Genera una pregunta de examen (quiz) sobre: ${getCurrentTopic()}.`;
+            const prompt = `Genera una pregunta de examen (quiz) desafiante sobre: ${getCurrentTopic()}. Usa 4 opciones de respuesta.`;
+            sendQuickMsg(prompt, true);
+        }
+
+        async function startRoleplay() {
+            const prompt = `Genera una situación de Roleplay corta para practicar ${getCurrentTopic()}. Describe la situación y dime qué debo decir o hacer. Responde con JSON type "roleplay".`;
             sendQuickMsg(prompt, true);
         }
 
@@ -700,6 +742,24 @@
                     </div>`;
                 addBubble(html, 'bot', false, true);
                 speakText(data.question_es, 'es');
+            }
+            else if (data.type === 'roleplay') {
+                const html = `
+                    <div class="bg-gradient-to-br from-pink-50 to-white border border-pink-100 p-4 rounded-xl shadow-sm">
+                        <span class="text-[10px] font-black bg-pink-100 text-pink-600 px-2 py-1 rounded uppercase">Roleplay</span>
+                        <h3 class="font-bold text-lg mt-2 text-pink-700 leading-tight">Situación:</h3>
+                        <p class="text-sm text-slate-600 mb-2">${data.scenario_es}</p>
+                        <p class="text-xs italic text-slate-400 mb-4 border-l-2 border-pink-200 pl-2">${data.scenario_en}</p>
+                        <div class="bg-white p-3 rounded-lg border border-pink-100">
+                            <p class="text-xs font-bold text-slate-500 uppercase mb-1">Tu Misión:</p>
+                            <p class="text-sm font-bold text-slate-800">${data.task}</p>
+                        </div>
+                        <button onclick="speakText('${cleanTextForSpeech(data.scenario_en).replace(/'/g, "\\'")}', 'en')" class="w-full mt-3 py-2 bg-white border border-pink-100 rounded-lg text-pink-600 font-bold text-xs flex items-center justify-center gap-2 hover:bg-pink-50">
+                            <i data-lucide="volume-2" class="w-4 h-4"></i> Escuchar Escenario
+                        </button>
+                    </div>`;
+                addBubble(html, 'bot', false, true);
+                speakText("¡Hora de actuar! " + data.task, 'es');
             }
             else if (data.type === 'eval') {
                 let html = "";
@@ -756,22 +816,25 @@
             
             MODOS DE RESPUESTA:
             1. ANÁLISIS DE FOTO (General):
-            {"type":"analysis", "word_en":"[Nombre Inglés]", "word_es":"[Nombre Español]", "sentence":"[Frase simple en inglés]", "pronunciation":"/pronunciación/"}
+            {"type":"analysis", "word_en":"[Nombre Inglés]", "word_es":"[Nombre Español]", "sentence":"[Frase simple en inglés]", "pronunciation":"/pronunciación/", "emoji":"[Emoji representativo]"}
             
             2. MISIÓN DE BÚSQUEDA (Juego):
-            - Si encuentra el objeto (ÉXITO): {"type":"mission_success", "word_en":"[Objeto]", "message":"Perfect! You found the [Objeto]. Example: [Frase corta en inglés con la palabra]."}
+            - Si encuentra el objeto (ÉXITO): {"type":"mission_success", "word_en":"[Objeto]", "message":"Perfect! You found the [Objeto]. Example: [Frase corta en inglés con la palabra].", "emoji":"[Emoji]"}
             - Si NO lo encuentra (FALLO): {"type":"mission_fail", "word_en":"[Lo que ves]", "message":"Eso parece ser un [Lo que ves en Español]. Sigue buscando un [Objeto buscado]."}
             
-            3. LECCIÓN (Explicación corta):
-            {"type":"lesson", "title":"[Título]", "content":"[Explicación en Markdown, usa emojis]"}
+            3. LECCIÓN (Explicación detallada):
+            {"type":"lesson", "title":"[Título]", "content":"[Explicación en Markdown. Incluye: 1. Definición. 2. Diálogo corto de ejemplo. 3. Lista de vocabulario. 4. Tip gramatical. Usa emojis.]"}
             
-            4. QUIZ (Pregunta):
-            {"type":"quiz", "question_es":"[Pregunta ES]", "question_en":"[Pregunta EN]", "options":["A","B","C"], "answer":"[Respuesta Correcta]"}
+            4. QUIZ (Pregunta compleja):
+            {"type":"quiz", "question_es":"[Pregunta ES]", "question_en":"[Pregunta EN]", "options":["A","B","C","D"], "answer":"[Respuesta Correcta]"}
             
             5. EVALUACIÓN (Feedback):
             {"type":"eval", "is_correct":true/false, "feedback":"[Mensaje en Español fluido]", "phonetic_advice":"[Consejo si aplica]"}
             
-            6. CHAT (Conversación):
+            6. ROLEPLAY (Situación):
+            {"type":"roleplay", "scenario_es":"[Descripción situación ES]", "scenario_en":"[Descripción EN]", "task":"[Tarea para el usuario]"}
+            
+            7. CHAT (Conversación):
             {"type":"chat", "text_es":"[Respuesta ES]", "text_en":"[Respuesta EN]"}`;
 
             const parts = imageBase64 
@@ -871,7 +934,7 @@
         function speakText(text, lang) {
             window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(text); 
-            u.rate = 0.9;
+            u.rate = state.speechRate || 0.9;
             const vs = window.speechSynthesis.getVoices();
             
             // Selección inteligente de voz
@@ -885,6 +948,40 @@
                           vs.find(v=>v.lang.includes('en'));
             }
             window.speechSynthesis.speak(u);
+        }
+
+        function addToCollection(wordEn, wordEs, icon) {
+            // Evitar duplicados
+            if(state.collection.some(item => item.wordEn.toLowerCase() === wordEn.toLowerCase())) return;
+            
+            state.collection.unshift({
+                wordEn, wordEs, icon: icon || '📦', date: new Date().toLocaleDateString()
+            });
+            // Limitar a 50 items para no llenar localStorage
+            if(state.collection.length > 50) state.collection.pop();
+            
+            updateUI();
+            addBubble(`¡Nueva palabra guardada en tu colección: <b>${wordEn}</b>!`, 'bot');
+        }
+
+        function renderCollection() {
+            const container = document.getElementById('collection-grid');
+            if(!container) return;
+            
+            if(state.collection.length === 0) {
+                container.innerHTML = '<p class="text-slate-400 text-sm col-span-2 text-center py-4">Aún no has encontrado objetos. ¡Usa la cámara!</p>';
+                return;
+            }
+
+            container.innerHTML = state.collection.map(item => `
+                <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
+                    <div class="text-2xl">${item.icon}</div>
+                    <div>
+                        <p class="font-bold text-slate-800 text-sm leading-none">${item.wordEn}</p>
+                        <p class="text-xs text-slate-400">${item.wordEs}</p>
+                    </div>
+                </div>
+            `).join('');
         }
 
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
