@@ -59,6 +59,13 @@
         /* Confeti */
         @keyframes confetti-fall { 0% { transform: translateY(-100vh) rotate(0deg); } 100% { transform: translateY(100vh) rotate(720deg); } }
         .confetti { position: fixed; width: 10px; height: 10px; background-color: #f00; animation: confetti-fall 3s linear infinite; z-index: 50; pointer-events: none; }
+        /* Animación Pulso Verde */
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+            70% { box-shadow: 0 0 0 20px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        .btn-pulse { animation: pulse-green 2s infinite; }
     </style>
 </head>
 <body class="fixed inset-0 w-full flex flex-col overflow-hidden text-slate-800" onclick="initVoice()">
@@ -114,40 +121,54 @@
     <!-- CONTENIDO PRINCIPAL -->
     <main class="flex-1 relative overflow-hidden">
 
-        <!-- VISTA 1: CÁMARA (Juego) -->
-        <div id="view-camera" class="absolute inset-0 flex flex-col p-3 hidden bg-slate-100">
-            <div class="flex-1 relative bg-black rounded-3xl overflow-hidden shadow-lg border-4 border-white ring-1 ring-slate-200 group">
-                <video id="camera-feed" autoplay playsinline class="absolute inset-0 w-full h-full object-cover opacity-90"></video>
+        <!-- VISTA 1: CÁMARA (Juego de Búsqueda) -->
+        <div id="view-camera" class="absolute inset-0 flex flex-col p-3 hidden bg-slate-900">
+            
+            <!-- Banner de Misión -->
+            <div id="mission-banner" class="absolute top-4 left-4 right-4 z-20 bg-white/90 backdrop-blur rounded-2xl p-4 shadow-lg border-2 border-blue-400 flex flex-col items-center text-center transition-all">
+                <span class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">TU MISIÓN</span>
+                <h2 id="mission-text" class="text-2xl font-black text-slate-800 leading-none mb-1">...</h2>
+                <p id="mission-sub" class="text-xs text-slate-500 font-bold">Cargando misión...</p>
+            </div>
+
+            <div class="flex-1 relative bg-black rounded-3xl overflow-hidden shadow-lg border-2 border-slate-700 group mt-20 mb-4">
+                <video id="camera-feed" autoplay playsinline class="absolute inset-0 w-full h-full object-cover opacity-80"></video>
                 <canvas id="photo-canvas" class="hidden"></canvas>
                 
-                <!-- Guía -->
-                <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
-                    <div class="w-64 h-64 border-2 border-dashed border-white rounded-3xl"></div>
+                <!-- Guía de Enfoque -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div class="w-64 h-64 border-2 border-dashed border-white/50 rounded-3xl relative">
+                        <div class="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-blue-500 -mt-1 -ml-1 rounded-tl-lg"></div>
+                        <div class="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-blue-500 -mt-1 -mr-1 rounded-tr-lg"></div>
+                        <div class="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-blue-500 -mb-1 -ml-1 rounded-bl-lg"></div>
+                        <div class="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-blue-500 -mb-1 -mr-1 rounded-br-lg"></div>
+                    </div>
                 </div>
 
-                <!-- Tarjeta Resultado -->
-                <div id="camera-result" class="absolute bottom-0 left-0 right-0 p-4 translate-y-full transition-transform duration-500 ease-out z-20">
-                    <div class="glass p-5 rounded-2xl shadow-2xl">
-                        <div class="flex justify-between items-start mb-2">
-                            <div>
-                                <h2 id="word-en" class="text-3xl font-black text-slate-800 tracking-tighter">Object</h2>
-                                <p id="word-es" class="text-blue-600 font-bold text-lg">Objeto</p>
-                            </div>
-                            <button onclick="speakText(currentWordEn, 'en')" class="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-200 active:scale-95 transition-transform">
-                                <i data-lucide="volume-2" class="w-6 h-6"></i>
-                            </button>
+                <!-- Feedback Visual -->
+                <div id="camera-feedback" class="absolute inset-0 bg-black/80 flex items-center justify-center z-30 hidden">
+                    <div class="text-center p-6">
+                        <div id="feedback-icon" class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/50">
+                            <i data-lucide="check" class="w-10 h-10 text-white"></i>
                         </div>
-                        <p id="sentence-en" class="text-slate-600 italic font-medium mb-4 leading-snug">...</p>
-                        <button onclick="closeCameraResult()" class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 active:scale-95 transition-transform">
-                            ¡Entendido! (+10 Pts)
+                        <h3 id="feedback-title" class="text-2xl font-black text-white mb-2">¡Encontrado!</h3>
+                        <p id="feedback-msg" class="text-slate-300 text-sm">Has encontrado una Silla.</p>
+                        <button onclick="nextMission()" class="mt-6 px-8 py-3 bg-white text-slate-900 font-bold rounded-xl active:scale-95 transition-transform">
+                            Siguiente Misión
                         </button>
                     </div>
                 </div>
             </div>
             
-            <div class="h-24 flex items-center justify-center">
-                <button id="capture-btn" onclick="takePicture()" class="w-20 h-20 bg-white rounded-full border-[6px] border-blue-500 shadow-xl flex items-center justify-center active:scale-90 transition-transform relative">
+            <div class="h-24 flex items-center justify-center gap-6">
+                <button onclick="startCamera()" class="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-white border border-slate-700 active:scale-95">
+                    <i data-lucide="refresh-ccw" class="w-5 h-5"></i>
+                </button>
+                <button id="capture-btn" onclick="checkMission()" class="w-20 h-20 bg-white rounded-full border-[6px] border-blue-500 shadow-xl shadow-blue-900/50 flex items-center justify-center active:scale-90 transition-transform btn-pulse">
                     <i data-lucide="camera" class="w-8 h-8 text-blue-600"></i>
+                </button>
+                <button onclick="skipMission()" class="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-white border border-slate-700 active:scale-95">
+                    <i data-lucide="skip-forward" class="w-5 h-5"></i>
                 </button>
             </div>
         </div>
@@ -369,46 +390,99 @@
             lucide.createIcons();
         }
 
-        // --- CÁMARA ---
+        // --- CÁMARA & JUEGO ---
+        let currentMission = null;
+        const COMMON_OBJECTS = [
+            {es: "Silla", en: "Chair"}, {es: "Mesa", en: "Table"}, {es: "Taza", en: "Cup"}, 
+            {es: "Computadora", en: "Computer"}, {es: "Teléfono", en: "Phone"}, {es: "Lápiz", en: "Pencil"},
+            {es: "Libro", en: "Book"}, {es: "Zapato", en: "Shoe"}, {es: "Puerta", en: "Door"},
+            {es: "Ventana", en: "Window"}, {es: "Botella", en: "Bottle"}, {es: "Planta", en: "Plant"}
+        ];
+
         async function startCamera() {
+            const video = document.getElementById('camera-feed');
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                document.getElementById('camera-feed').srcObject = stream;
+                video.srcObject = stream;
+                video.onloadedmetadata = () => video.play();
             } catch (e) {
-                try { stream = await navigator.mediaDevices.getUserMedia({ video: true }); 
-                document.getElementById('camera-feed').srcObject = stream; } catch(err){ console.log("Error camara"); }
+                console.error("Error camara principal:", e);
+                try { 
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true }); 
+                    video.srcObject = stream;
+                    video.onloadedmetadata = () => video.play();
+                } catch(err){ 
+                    alert("No pudimos acceder a la cámara. Verifica los permisos."); 
+                }
             }
+            if(!currentMission) nextMission();
         }
+        
         function stopCamera() { if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null; }
 
-        async function takePicture() {
+        function nextMission() {
+            document.getElementById('camera-feedback').classList.add('hidden');
+            const obj = COMMON_OBJECTS[Math.floor(Math.random() * COMMON_OBJECTS.length)];
+            currentMission = obj;
+            document.getElementById('mission-text').innerText = obj.en;
+            document.getElementById('mission-sub').innerText = `Encuentra: ${obj.es}`;
+            speakText(`Find a ${obj.en}`, 'en');
+        }
+
+        function skipMission() {
+            nextMission();
+        }
+
+        async function checkMission() {
             const video = document.getElementById('camera-feed');
             const canvas = document.getElementById('photo-canvas');
             const btn = document.getElementById('capture-btn');
             
+            if(!stream) { await startCamera(); return; }
+
             btn.classList.add('scale-90', 'opacity-50');
             
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+            const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1]; // Calidad reducida para velocidad
 
             try {
-                const data = await callGemini("Analyze image", base64);
-                if(data) {
-                    document.getElementById('word-en').innerText = data.word_en;
-                    document.getElementById('word-es').innerText = data.word_es;
-                    document.getElementById('sentence-en').innerText = `"${data.sentence}"`;
-                    currentWordEn = data.word_en;
-                    document.getElementById('camera-result').classList.remove('translate-y-full');
-                    speakText(data.word_en, 'en');
-                    addPoints(10);
+                const prompt = `User is looking for a "${currentMission.en}". Analyze the image. If you see a ${currentMission.en} (or similar), return type "mission_success". If NOT, return type "mission_fail" and tell me what you see instead.`;
+                const data = await callGemini(prompt, base64);
+                
+                const feedback = document.getElementById('camera-feedback');
+                const icon = document.getElementById('feedback-icon');
+                const title = document.getElementById('feedback-title');
+                const msg = document.getElementById('feedback-msg');
+                
+                feedback.classList.remove('hidden');
+
+                if(data.type === 'mission_success' || (data.type === 'analysis' && data.word_en.toLowerCase().includes(currentMission.en.toLowerCase()))) {
+                    icon.className = "w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/50";
+                    icon.innerHTML = '<i data-lucide="check" class="w-10 h-10 text-white"></i>';
+                    title.innerText = "¡Excelente!";
+                    title.className = "text-2xl font-black text-green-400 mb-2";
+                    msg.innerText = `¡Encontraste: ${currentMission.en}! (+50 Pts)`;
+                    speakText(`Great job! That is a ${currentMission.en}.`, 'en');
+                    addPoints(50);
                     triggerConfetti();
+                } else {
+                    icon.className = "w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-red-500/50";
+                    icon.innerHTML = '<i data-lucide="x" class="w-10 h-10 text-white"></i>';
+                    title.innerText = "Intenta de nuevo";
+                    title.className = "text-2xl font-black text-red-400 mb-2";
+                    msg.innerText = `Eso parece ser: ${data.word_en || "otra cosa"}.`;
+                    speakText(`That looks like a ${data.word_en || "something else"}. Try again.`, 'en');
                 }
-            } catch (e) { alert("No vi nada claro, intenta de nuevo."); }
+                lucide.createIcons();
+
+            } catch (e) { 
+                alert("Error analizando imagen. Intenta de nuevo."); 
+                console.error(e);
+            }
             btn.classList.remove('scale-90', 'opacity-50');
         }
-        function closeCameraResult() { document.getElementById('camera-result').classList.add('translate-y-full'); }
 
         // --- CLASE Y CHAT ---
         async function requestLesson() {
@@ -508,6 +582,8 @@
             
             FORMATOS DE RESPUESTA (JSON):
             - Imagen: {"type":"analysis", "word_en":"...", "word_es":"...", "sentence":"..."}
+            - Misión Éxito: {"type":"mission_success", "word_en":"...", "message":"..."}
+            - Misión Fallo: {"type":"mission_fail", "word_en":"(lo que ves)", "message":"..."}
             - Lección: {"type":"lesson", "title":"...", "content":"Markdown simple..."}
             - Quiz: {"type":"quiz", "question_es":"...", "question_en":"...", "options":["..."], "answer":"..."}
             - Evaluación: {"type":"eval", "is_correct":true/false, "feedback":"...", "phonetic_advice":"..."}
