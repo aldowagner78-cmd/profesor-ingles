@@ -49,6 +49,46 @@
     --font-size-base: 1rem;
     --font-size-lg: 1.125rem;
     --font-size-xl: 1.25rem;
+}
+
+/* ============================================
+   DARK MODE OVERRIDE
+   ============================================ */
+body.dark-mode {
+    --color-bg: #0F172A;
+    --color-surface: #1E293B;
+    --color-border: #334155;
+    
+    --color-text-primary: #F1F5F9;
+    --color-text-secondary: #CBD5E1;
+    --color-text-muted: #94A3B8;
+    
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+}
+
+/* Ajustes de tarjetas de lección en modo oscuro */
+body.dark-mode .lesson-card-full {
+    background: linear-gradient(135deg, #1E293B 0%, #334155 100%) !important;
+    border-top: 2px solid #475569 !important;
+    border-bottom: 2px solid #475569 !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+body.dark-mode .lesson-card-full h3 {
+    color: #F1F5F9 !important;
+}
+
+body.dark-mode .lesson-card-full .lesson-content {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .lesson-card-full .lesson-content strong,
+body.dark-mode .lesson-card-full .lesson-content b {
+    color: #F1F5F9 !important;
+}
     --font-size-2xl: 1.5rem;
     
     /* Transiciones */

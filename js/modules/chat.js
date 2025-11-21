@@ -276,20 +276,48 @@ async function handleAction(action) {
 function handleLessonResponse(data) {
     const content = window.marked ? window.marked.parse(data.content_markdown || '') : data.content_markdown;
     
-    const html = `
-        <div style="background: linear-gradient(135deg, #FFF1EB 0%, #E8F4FD 100%); padding: 1rem; border-radius: 0.75rem; border: 2px solid white;">
-            <h3 style="font-weight: 900; margin-bottom: 1rem; color: #1E293B;">${data.title || 'Lección'}</h3>
-            <div class="lesson-content" style="font-size: 0.875rem; line-height: 1.6;">
-                ${content}
+    // Crear tarjeta de lección que ocupa todo el ancho
+    const lessonCard = document.createElement('div');
+    lessonCard.className = 'lesson-card-full';
+    lessonCard.style.cssText = `
+        width: 100vw;
+        margin-left: calc(-1 * var(--spacing-lg));
+        margin-right: calc(-1 * var(--spacing-lg));
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #FFF1EB 0%, #E8F4FD 100%);
+        border-radius: 0;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-top: 2px solid rgba(74, 144, 226, 0.3);
+        border-bottom: 2px solid rgba(74, 144, 226, 0.3);
+    `;
+    
+    lessonCard.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 2px solid rgba(74, 144, 226, 0.2); padding-bottom: 0.75rem;">
+            <div style="width: 2.5rem; height: 2.5rem; background: #4A90E2; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
             </div>
+            <h3 style="font-weight: 900; font-size: 1.25rem; color: #1E293B; margin: 0;">${data.title || 'Lección'}</h3>
+        </div>
+        <div class="lesson-content" style="font-size: 0.95rem; line-height: 1.8; color: #334155;">
+            ${content}
         </div>
     `;
     
-    const msgId = addMessageToUI(html, 'bot');
+    // Agregar directamente al chat area (no como mensaje)
+    const chatArea = document.getElementById('chat-area');
+    if (chatArea) {
+        chatArea.appendChild(lessonCard);
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+    
+    const msgId = `lesson-${Date.now()}`;
+    lessonCard.id = msgId;
     
     // Agregar botones de audio a los ejemplos en inglés
     setTimeout(() => {
-        const lessonContent = document.querySelector(`#${msgId} .lesson-content`);
+        const lessonContent = lessonCard.querySelector('.lesson-content');
         if (lessonContent) {
             // Función mejorada para detectar inglés puro
             function isEnglishText(text) {
