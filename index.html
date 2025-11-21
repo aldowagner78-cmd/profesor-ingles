@@ -195,7 +195,7 @@
                             <i data-lucide="check" class="w-10 h-10 text-white"></i>
                         </div>
                         <h3 id="feedback-title" class="text-2xl font-black text-white mb-2">¡Encontrado!</h3>
-                        <p id="feedback-msg" class="text-slate-300 text-sm font-medium leading-relaxed mb-6">Has encontrado una Silla.</p>
+                        <div id="feedback-msg" class="text-slate-300 text-sm font-medium leading-relaxed mb-6">Has encontrado una Silla.</div>
                         
                         <div class="flex gap-3 justify-center flex-wrap">
                             <button onclick="closeFeedback()" class="px-6 py-3 bg-slate-700 text-white font-bold rounded-xl active:scale-95 transition-transform text-sm">
@@ -628,7 +628,13 @@
                 icon.innerHTML = '<i data-lucide="search" class="w-10 h-10 text-white"></i>';
                 title.innerText = data.word_en;
                 title.className = "text-2xl font-black text-purple-400 mb-2";
-                msg.innerText = `${data.word_es}\n"${data.sentence}"`;
+                
+                // Mostrar traducción visualmente (sin leerla)
+                msg.innerHTML = `
+                    <span class="block text-xl text-white font-bold mb-1">${data.word_es}</span>
+                    <span class="block text-purple-300 font-medium text-lg mb-2">"${data.sentence}"</span>
+                    <span class="block text-slate-400 text-sm italic border-t border-slate-700 pt-2">${data.sentence_es || ''}</span>
+                `;
                 
                 // Guardar para replay
                 currentCameraAudioText = `${data.word_en}. ${data.sentence}`;
@@ -882,7 +888,7 @@
             
             MODOS DE RESPUESTA:
             1. ANÁLISIS DE FOTO (General):
-            {"type":"analysis", "word_en":"[Nombre Inglés]", "word_es":"[Nombre Español]", "sentence":"[Frase simple en inglés]", "pronunciation":"/pronunciación/", "emoji":"[Emoji representativo]"}
+            {"type":"analysis", "word_en":"[Nombre Inglés]", "word_es":"[Nombre Español]", "sentence":"[Frase simple en inglés]", "sentence_es":"[Traducción de la frase]", "pronunciation":"/pronunciación/", "emoji":"[Emoji representativo]"}
             
             2. MISIÓN DE BÚSQUEDA (Juego):
             - Si encuentra el objeto (ÉXITO): {"type":"mission_success", "word_en":"[Objeto]", "message":"Perfect! You found the [Objeto]. Example: [Frase corta en inglés con la palabra].", "emoji":"[Emoji]"}
