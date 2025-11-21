@@ -9,6 +9,7 @@ let stream = null;
 let currentMode = null; // 'explore' | 'game'
 let currentMission = null;
 let isAnalyzing = false;
+let usedObjects = []; // Objetos ya usados en esta sesión
 
 export function initCamera() {
     console.log("Inicializando Cámara...");
@@ -99,7 +100,21 @@ function stopCamera() {
 }
 
 function startNewMission() {
-    currentMission = GAME_OBJECTS[Math.floor(Math.random() * GAME_OBJECTS.length)];
+    // Filtrar objetos no usados
+    let availableObjects = GAME_OBJECTS.filter(obj => !usedObjects.includes(obj.en));
+    
+    // Si ya se usaron todos, resetear y empezar de nuevo
+    if (availableObjects.length === 0) {
+        usedObjects = [];
+        availableObjects = [...GAME_OBJECTS];
+        showToast('¡Completaste todos los objetos! Comenzando de nuevo 🎉', 'success');
+    }
+    
+    // Seleccionar objeto aleatorio de los disponibles
+    currentMission = availableObjects[Math.floor(Math.random() * availableObjects.length)];
+    
+    // Agregar a la lista de usados
+    usedObjects.push(currentMission.en);
     
     const missionOverlay = document.getElementById('mission-overlay');
     const missionText = document.getElementById('mission-text');
@@ -149,7 +164,11 @@ async function handleCapture() {
                     "object_es": "${currentMission.es}",
                     "ipa": "/IPA pronunciation/",
                     "found": true/false,
-                    "description_es": "If not found, describe what you see in Spanish"
+                    "description_es": "If not found, describe what you see in Spanish",
+                    "examples": [
+                        {"en": "Simple sentence in English", "es": "Traducción al español"},
+                        {"en": "Another sentence", "es": "Otra traducción"}
+                    ]
                 }
             `;
         } else {
@@ -160,9 +179,12 @@ async function handleCapture() {
                 {
                     "type": "analysis",
                     "object": "English Name",
+                    "object_es": "Spanish translation",
                     "ipa": "/IPA pronunciation/",
-                    "translation": "Spanish translation",
-                    "sentence": "A simple English sentence using this word"
+                    "examples": [
+                        {"en": "Simple sentence in English", "es": "Traducción al español"},
+                        {"en": "Another sentence", "es": "Otra traducción"}
+                    ]
                 }
             `;
         }
@@ -201,11 +223,11 @@ function showAnalysisResult(data) {
                     
                     <div style="background: #F8FAFC; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 2px solid #4A90E2;">
                         <p style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #64748B; margin-bottom: 0.5rem;">
-                            Traducción al Inglés:
+                            En Inglés:
                         </p>
                         <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
                             <h3 style="font-size: 1.5rem; font-weight: 900; color: #4A90E2; flex: 1;">
-                                ${data.object_en || currentMission.en}
+                                ${data.object_en || currentMission.en} <span style="color: #64748B; font-size: 1rem; font-weight: 400;">(${data.object_es || currentMission.es})</span>
                             </h3>
                             <div id="object-audio-container"></div>
                         </div>
@@ -216,7 +238,7 @@ function showAnalysisResult(data) {
                     
                     <div id="game-examples" style="margin-bottom: 1rem;">
                         <p style="font-weight: 700; margin-bottom: 0.75rem; font-size: 0.875rem; color: #1E293B;">
-                            Ejemplos en inglés:
+                            Ejemplos:
                         </p>
                     </div>
                     
@@ -240,8 +262,12 @@ function showAnalysisResult(data) {
                 if (window.lucide) window.lucide.createIcons();
             }
             
-            // Pedir ejemplos a la IA
-            generateExamples(data.object_en || currentMission.en);
+            // Mostrar ejemplos si vienen en data, sino generarlos
+            if (data.examples && data.examples.length > 0) {
+                renderExamples(data.examples, 'game-examples');
+            } else {
+                generateExamples(data.object_en || currentMission.en);
+            }
             
             // Audio de felicitación en inglés
             setTimeout(() => {
@@ -301,24 +327,23 @@ function showAnalysisResult(data) {
         content.innerHTML = `
             <div style="padding: 1.5rem;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-                    <div>
+                    <div style="flex: 1;">
                         <h3 style="font-size: 1.5rem; font-weight: 900; color: #4A90E2; margin-bottom: 0.25rem;">
-                            ${data.object || 'Unknown'}
+                            ${data.object || 'Unknown'} <span style="color: #64748B; font-size: 1rem; font-weight: 400;">(${data.object_es || data.translation || ''})</span>
                         </h3>
                         <p style="font-size: 0.75rem; color: #64748B; font-family: monospace;">
                             ${data.ipa || ''}
                         </p>
                     </div>
+                    <div id="explore-audio-container"></div>
                 </div>
-                <p style="color: #64748B; margin-bottom: 1rem;">
-                    <strong>Español:</strong> ${data.translation || ''}
-                </p>
-                    <div style="background: #F8FAFC; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem;">
-                    <p style="font-size: 0.875rem; color: #1E293B; margin-bottom: 0.5rem;">
-                        ${data.sentence || ''}
+                
+                <div id="explore-examples" style="margin-bottom: 1rem;">
+                    <p style="font-weight: 700; margin-bottom: 0.75rem; font-size: 0.875rem; color: #1E293B;">
+                        Ejemplos:
                     </p>
-                    <div id="sentence-audio-container"></div>
                 </div>
+                
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                     <button id="correct-btn" class="btn btn-primary" style="flex: 1;">
                         ✅ Correcto
@@ -343,13 +368,18 @@ function showAnalysisResult(data) {
         // Audio del objeto
         speakText(data.object, 'en-US');
         
-        // Botón de audio para la oración
-        const audioContainer = content.querySelector('#sentence-audio-container');
-        if (audioContainer && data.sentence) {
-            const audioBtn = createAudioButton(data.sentence, 'en-US');
+        // Botón de audio para la palabra
+        const audioContainer = content.querySelector('#explore-audio-container');
+        if (audioContainer && data.object) {
+            const audioBtn = createAudioButton(data.object, 'en-US');
             audioBtn.style.marginLeft = '0';
             audioContainer.appendChild(audioBtn);
             if (window.lucide) window.lucide.createIcons();
+        }
+        
+        // Mostrar ejemplos si vienen en data
+        if (data.examples && data.examples.length > 0) {
+            renderExamples(data.examples, 'explore-examples');
         }
         
         // Event listeners
@@ -384,14 +414,16 @@ function showAnalysisResult(data) {
             try {
                 const prompt = `
                     You are an English Teacher API.
-                    Task: Translate "${correctionText}" to English and create a simple sentence.
+                    Task: Translate "${correctionText}" to English and create example sentences.
                     Respond STRICTLY in JSON format:
                     {
                         "type": "analysis",
                         "object": "English Word",
+                        "object_es": "${correctionText}",
                         "ipa": "/IPA/",
-                        "translation": "${correctionText}",
-                        "sentence": "Simple English sentence"
+                        "examples": [
+                            {"en": "Simple sentence", "es": "Oración simple"}
+                        ]
                     }
                 `;
                 
@@ -401,7 +433,7 @@ function showAnalysisResult(data) {
                 // Guardar y reproducir
                 addToVocabulary({
                     object: correctedData.object,
-                    translation: correctedData.translation,
+                    translation: correctedData.object_es || correctionText,
                     ipa: correctedData.ipa
                 });
                 
@@ -431,34 +463,44 @@ async function generateExamples(word) {
             Respond STRICTLY in JSON format:
             {
                 "type": "examples",
-                "sentences": ["Sentence 1", "Sentence 2"]
+                "examples": [
+                    {"en": "Sentence 1 in English", "es": "Traducción al español"},
+                    {"en": "Sentence 2 in English", "es": "Traducción al español"}
+                ]
             }
         `;
         
         const data = await callGemini(prompt);
         
-        if (data.sentences && Array.isArray(data.sentences)) {
-            data.sentences.forEach(sentence => {
-                const div = document.createElement('div');
-                div.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; padding: 0.75rem; background: #F8FAFC; border-radius: 0.5rem;';
-                
-                const text = document.createElement('span');
-                text.textContent = sentence;
-                text.style.cssText = 'flex: 1; font-size: 0.875rem;';
-                
-                const audioBtn = createAudioButton(sentence, 'en-US');
-                
-                div.appendChild(text);
-                div.appendChild(audioBtn);
-                container.appendChild(div);
-            });
-            
-            if (window.lucide) window.lucide.createIcons();
+        if (data.examples && Array.isArray(data.examples)) {
+            renderExamples(data.examples, 'game-examples');
         }
         
     } catch (e) {
         console.error('Error generating examples:', e);
     }
+}
+
+function renderExamples(examples, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    examples.forEach(example => {
+        const div = document.createElement('div');
+        div.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; padding: 0.75rem; background: #F8FAFC; border-radius: 0.5rem;';
+        
+        const text = document.createElement('span');
+        text.textContent = `${example.en} (${example.es})`;
+        text.style.cssText = 'flex: 1; font-size: 0.875rem; line-height: 1.4;';
+        
+        const audioBtn = createAudioButton(example.en, 'en-US');
+        
+        div.appendChild(text);
+        div.appendChild(audioBtn);
+        container.appendChild(div);
+    });
+    
+    if (window.lucide) window.lucide.createIcons();
 }
 
 function closeAnalysis() {
