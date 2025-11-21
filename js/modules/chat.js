@@ -8,6 +8,42 @@ import { SYLLABUS, CONFIG } from '../config.js';
 
 const MAX_HISTORY = 10;
 
+// ============================================
+// ESTADO CONVERSACIONAL Y DETECCIÓN DE INTENCIONES
+// ============================================
+
+// Estado del contexto conversacional
+let conversationContext = {
+    lastAction: null,        // 'lesson', 'quiz', 'roleplay'
+    lastTopic: null,         // Ej: "Present Simple"
+    quizCount: 0,
+    canContinue: false
+};
+
+// Sistema de detección de intenciones (NLU básico)
+function detectIntent(userMessage) {
+    const msg = userMessage.toLowerCase();
+    
+    // Regex patterns para intenciones
+    if (/explica|enseña|lección|leccion|qué es|que es|cómo funciona|como funciona|teoría|teoria/i.test(msg)) {
+        return { intent: 'lesson', confidence: 0.9 };
+    }
+    if (/quiz|ejercicio|pregunta|preguntas|prueba|evalúa|evalua|test|más preguntas|mas preguntas/i.test(msg)) {
+        return { intent: 'quiz', confidence: 0.9 };
+    }
+    if (/roleplay|practica|práctica|conversación|conversacion|simula|actúa|actua/i.test(msg)) {
+        return { intent: 'roleplay', confidence: 0.9 };
+    }
+    if (/continúa|continua|siguiente|otro|otra|más|mas|otra vez/i.test(msg)) {
+        return { intent: 'continue', confidence: 0.8 };
+    }
+    if (/ejemplo|ejemplos|muestra|dame más|dame mas/i.test(msg)) {
+        return { intent: 'more_examples', confidence: 0.8 };
+    }
+    
+    return { intent: 'chat', confidence: 0.5 };
+}
+
 export function initChat() {
     console.log("Inicializando Chat...");
     
@@ -173,33 +209,115 @@ async function sendTextMsg() {
     const text = input.value.trim();
     if (!text) return;
     
-    // UI Usuario
+    // UI: Mostrar mensaje del usuario
     addMessageToUI(text, 'user');
     input.value = '';
     
-    // Guardar en historial
+    // Detectar intención del usuario
+    const detected = detectIntent(text);
     const state = getState();
+    
+    // Guardar en historial
     let history = state.chatHistory || [];
     history.push({ role: 'user', content: text });
+    updateState({ chatHistory: history.slice(-MAX_HISTORY * 2) });
     
-    // Loading
+    try {
+        if (detected.intent === 'lesson') {
+            // Usuario quiere una lección
+            conversationContext.lastAction = 'lesson';
+            conversationContext.canContinue = true;
+            await handleAction('lesson', text);
+        } 
+        else if (detected.intent === 'quiz') {
+            // Usuario quiere un quiz
+            conversationContext.lastAction = 'quiz';
+            conversationContext.quizCount = 1;
+            conversationContext.canContinue = true;
+            await handleAction('quiz');
+        } 
+        else if (detected.intent === 'roleplay') {
+            // Usuario quiere roleplay
+            conversationContext.lastAction = 'roleplay';
+            conversationContext.canContinue = false;
+            await handleAction('roleplay');
+        }
+        else if (detected.intent === 'continue') {
+            // Usuario quiere continuar con la última acción
+            await handleContinuation();
+        }
+        else if (detected.intent === 'more_examples') {
+            // Usuario quiere más ejemplos
+            await handleMoreExamples();
+        }
+        else {
+            // Chat conversacional inteligente (fallback)
+            await handleSmartChat(text, history);
+        }
+    } catch (error) {
+        console.error("Error en flujo conversacional:", error);
+        addMessageToUI(`<span style="color: #EF4444;">Error al procesar tu solicitud: ${error.message}</span>`, 'bot');
+    }
+}
+
+// Manejar continuación ("otra pregunta", "más", "continúa")
+async function handleContinuation() {
+    const lastAction = conversationContext.lastAction;
+    
+    if (!lastAction || !conversationContext.canContinue) {
+        addMessageToUI(`<span style="color: #64748B;">No hay actividad previa para continuar. Puedes pedirme:</span>
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem; color: #64748B;">
+                <li>"Dame una lección sobre verbos"</li>
+                <li>"Quiero un quiz de vocabulario"</li>
+                <li>"Practica conversación conmigo"</li>
+            </ul>`, 'bot');
+        return;
+    }
+    
+    if (lastAction === 'quiz') {
+        conversationContext.quizCount++;
+        await handleAction('quiz');
+    } else if (lastAction === 'lesson') {
+        await handleAction('lesson', conversationContext.lastTopic || 'topic related');
+    } else {
+        addMessageToUI(`<span style="color: #64748B;">No puedo continuar con ${lastAction}. Prueba con una nueva actividad.</span>`, 'bot');
+    }
+}
+
+// Manejar solicitud de más ejemplos
+async function handleMoreExamples() {
+    const lastTopic = conversationContext.lastTopic;
+    
+    if (!lastTopic) {
+        addMessageToUI(`<span style="color: #64748B;">No tengo tema previo. ¿Sobre qué quieres más ejemplos?</span>`, 'bot');
+        return;
+    }
+    
+    conversationContext.lastAction = 'lesson';
+    conversationContext.canContinue = true;
+    await handleAction('lesson', `More examples about ${lastTopic}`);
+}
+
+// Chat conversacional inteligente (fallback)
+async function handleSmartChat(text, history) {
     const loadingId = addMessageToUI('...', 'bot');
     
     try {
+        const state = getState();
         const currentLevel = SYLLABUS[state.levelIdx];
         const currentTopic = currentLevel.topics[state.topicIdx];
         
         const contextStr = history.slice(-MAX_HISTORY).map(h => `${h.role}: ${h.content}`).join('\n');
         
         const prompt = `
-            You are an English Teacher API.
+            You are an English Teacher API with conversational capabilities.
             Current Level: ${currentLevel.name}
             Current Topic: ${currentTopic}
             
             Chat History:
             ${contextStr}
             
-            Task: Evaluate the user's message. Provide feedback and continue the conversation.
+            Task: Respond naturally to the user's message. Provide helpful English teaching feedback.
             Respond STRICTLY in JSON format:
             {
                 "type": "chat",
@@ -258,11 +376,8 @@ function handleChatResponse(data) {
     
     const msgId = addMessageToUI(html, 'bot');
     
-    // Audio automático del reply
+    // Agregar botón de audio (SIN reproducción automática)
     if (data.reply) {
-        speakText(data.reply, 'en-US');
-        
-        // Agregar botón de audio
         const audioContainer = document.querySelector(`#${msgId} #reply-audio-btn`);
         if (audioContainer) {
             const audioBtn = createAudioButton(data.reply, 'en-US');
@@ -290,14 +405,15 @@ async function handleAction(action) {
                 
                 Task: Generate a lesson explanation.
                 - Explanation in Spanish
-                - Examples in English
+                - Examples in BILINGUAL format: "English (Español)"
                 - Use Markdown formatting
+                - ALWAYS include Spanish translation in parentheses after English text
                 
                 Respond STRICTLY in JSON format:
                 {
                     "type": "lesson",
                     "title": "Lesson title",
-                    "content_markdown": "# Title\\n\\nExplanation in Spanish...\\n\\n## Examples\\n- Example 1 in English\\n- Example 2 in English"
+                    "content_markdown": "# Title\\n\\nExplanation in Spanish...\\n\\n## Examples\\n- Good morning (Buenos días)\\n- Good night (Buenas noches)"
                 }
             `;
         } else if (action === 'quiz') {
@@ -307,14 +423,20 @@ async function handleAction(action) {
                 
                 Task: Generate a multiple choice question to test English knowledge.
                 - Question must be in SPANISH asking about English usage
-                - All options must be in ENGLISH
-                - Example: "¿Cómo se dice 'Buenos días' en inglés?" with options ["Good morning", "Good night", "Good afternoon", "Hello"]
+                - All options must be objects with English text AND Spanish translation
+                - Format: {"en": "English text", "es": "Traducción"}
+                - Example: "¿Cómo se dice 'Buenos días' en inglés?" with options [{"en": "Good morning", "es": "Buenos días"}, {"en": "Good night", "es": "Buenas noches"}, ...]
                 
                 Respond STRICTLY in JSON format:
                 {
                     "type": "quiz",
                     "question": "Question in Spanish about English",
-                    "options": ["English Option A", "English Option B", "English Option C", "English Option D"],
+                    "options": [
+                        {"en": "English Option A", "es": "Traducción A"},
+                        {"en": "English Option B", "es": "Traducción B"},
+                        {"en": "English Option C", "es": "Traducción C"},
+                        {"en": "English Option D", "es": "Traducción D"}
+                    ],
                     "answer_index": 0
                 }
             `;
@@ -475,7 +597,13 @@ function handleQuizResponse(data) {
         <div style="background: #F5F3FF; padding: 1rem; border-radius: 0.75rem; border: 2px solid #DDD6FE;">
             <p style="font-weight: 700; margin-bottom: 1rem; color: #1E293B;">${data.question}</p>
             <div class="quiz-options" style="display: flex; flex-direction: column; gap: 0.5rem;">
-                ${data.options.map((opt, idx) => `
+                ${data.options.map((opt, idx) => {
+                    // Soporte para formato antiguo (string) y nuevo (objeto {en, es})
+                    const isObject = typeof opt === 'object';
+                    const englishText = isObject ? opt.en : opt;
+                    const spanishText = isObject ? opt.es : '';
+                    
+                    return `
                     <button class="quiz-option" data-index="${idx}" style="
                         padding: 0.75rem;
                         border: 1px solid #E2E8F0;
@@ -485,8 +613,15 @@ function handleQuizResponse(data) {
                         cursor: pointer;
                         transition: all 0.2s ease;
                         font-size: 0.875rem;
-                    ">${opt}</button>
-                `).join('')}
+                    ">
+                        <div style="font-weight: 600; color: #1E293B; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>${englishText}</span>
+                            <span class="audio-button-container"></span>
+                        </div>
+                        ${spanishText ? `<div style="font-size: 0.75rem; color: #64748B;">(${spanishText})</div>` : ''}
+                    </button>
+                    `;
+                }).join('')}
             </div>
             <div id="quiz-feedback" class="hidden" style="margin-top: 1rem; padding: 0.75rem; border-radius: 0.5rem; font-weight: 700;"></div>
         </div>
@@ -494,20 +629,32 @@ function handleQuizResponse(data) {
     
     const msgId = addMessageToUI(html, 'bot');
     
-    // Event listeners para las opciones
+    // Agregar botones de audio para opciones en inglés
     setTimeout(() => {
         const options = document.querySelectorAll(`#${msgId} .quiz-option`);
-        options.forEach(btn => {
+        options.forEach((btn, idx) => {
+            const opt = data.options[idx];
+            const englishText = typeof opt === 'object' ? opt.en : opt;
+            
+            // Crear botón de audio
+            const audioContainer = btn.querySelector('.audio-button-container');
+            if (audioContainer) {
+                const audioBtn = createAudioButton(englishText, 'en-US');
+                audioBtn.style.fontSize = '0.75rem';
+                audioContainer.appendChild(audioBtn);
+            }
+            
+            // Event listeners
             btn.addEventListener('mouseenter', (e) => {
-                e.target.style.background = '#F8FAFC';
-                e.target.style.borderColor = '#4A90E2';
+                e.currentTarget.style.background = '#F8FAFC';
+                e.currentTarget.style.borderColor = '#4A90E2';
             });
             btn.addEventListener('mouseleave', (e) => {
-                e.target.style.background = 'white';
-                e.target.style.borderColor = '#E2E8F0';
+                e.currentTarget.style.background = 'white';
+                e.currentTarget.style.borderColor = '#E2E8F0';
             });
             btn.addEventListener('click', (e) => {
-                const selectedIdx = parseInt(e.target.dataset.index);
+                const selectedIdx = parseInt(e.currentTarget.dataset.index);
                 const feedback = document.querySelector(`#${msgId} #quiz-feedback`);
                 
                 // Deshabilitar todas las opciones
@@ -515,8 +662,8 @@ function handleQuizResponse(data) {
                 
                 if (selectedIdx === data.answer_index) {
                     // Correcto
-                    e.target.style.background = '#D1FAE5';
-                    e.target.style.borderColor = '#10B981';
+                    e.currentTarget.style.background = '#D1FAE5';
+                    e.currentTarget.style.borderColor = '#10B981';
                     feedback.style.background = '#D1FAE5';
                     feedback.style.color = '#065F46';
                     feedback.textContent = '¡Correcto! 🎉 +10 puntos';
@@ -527,20 +674,26 @@ function handleQuizResponse(data) {
                     triggerConfetti();
                 } else {
                     // Incorrecto
-                    e.target.style.background = '#FEE2E2';
-                    e.target.style.borderColor = '#EF4444';
+                    e.currentTarget.style.background = '#FEE2E2';
+                    e.currentTarget.style.borderColor = '#EF4444';
                     
                     // Mostrar la correcta
                     options[data.answer_index].style.background = '#D1FAE5';
                     options[data.answer_index].style.borderColor = '#10B981';
                     
+                    const correctOpt = data.options[data.answer_index];
+                    const correctText = typeof correctOpt === 'object' ? correctOpt.en : correctOpt;
+                    
                     feedback.style.background = '#FEE2E2';
                     feedback.style.color = '#991B1B';
-                    feedback.textContent = `Incorrecto. La respuesta era: ${data.options[data.answer_index]}`;
+                    feedback.textContent = `Incorrecto. La respuesta era: ${correctText}`;
                     feedback.classList.remove('hidden');
                 }
             });
         });
+        
+        // Inicializar iconos de Lucide para botones de audio
+        if (window.lucide) window.lucide.createIcons();
     }, 100);
 }
 
