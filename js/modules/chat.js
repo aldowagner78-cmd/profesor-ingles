@@ -2,7 +2,7 @@
 import { callGemini } from '../services/gemini.js';
 import { speakText, startListening, stopListening } from '../services/voice.js';
 import { showToast, triggerConfetti, createAudioButton } from '../utils/ui.js';
-import { isEnglishText } from '../utils/helpers.js';
+import { isEnglishText, extractEnglishOnly } from '../utils/helpers.js';
 import { getState, updateState, markTopicCompleted } from '../state.js';
 import { SYLLABUS, CONFIG } from '../config.js';
 
@@ -422,16 +422,46 @@ function handleLessonResponse(data) {
             const elements = lessonContent.querySelectorAll('li, code, strong, p, em, blockquote');
             
             elements.forEach(element => {
+                // Saltar si ya tiene botón
+                if (element.querySelector('.audio-btn')) return;
+                
                 const text = element.textContent.trim();
                 
-                // Verificar si es inglés puro y no tiene ya un botón
-                if (isEnglishText(text) && !element.querySelector('.audio-btn')) {
-                    const audioBtn = createAudioButton(text, 'en-US');
-                    audioBtn.className = 'audio-btn';
-                    audioBtn.style.display = 'inline-flex';
-                    audioBtn.style.verticalAlign = 'middle';
-                    audioBtn.style.marginLeft = '0.5rem';
-                    element.appendChild(audioBtn);
+                // Intentar extraer solo la parte en inglés (maneja textos mixtos)
+                const englishText = extractEnglishOnly(text);
+                
+                if (englishText) {
+                    // Si el texto original es 100% inglés, agregar botón al final
+                    if (isEnglishText(text)) {
+                        const audioBtn = createAudioButton(englishText, 'en-US');
+                        audioBtn.className = 'audio-btn';
+                        audioBtn.style.display = 'inline-flex';
+                        audioBtn.style.verticalAlign = 'middle';
+                        audioBtn.style.marginLeft = '0.5rem';
+                        element.appendChild(audioBtn);
+                    } else {
+                        // Si es texto mixto (ej: "Hello (Hola)"), crear un wrapper solo para la parte en inglés
+                        const textContent = element.innerHTML;
+                        const englishEscaped = englishText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        
+                        // Buscar la parte en inglés y agregarle el botón
+                        const pattern = new RegExp(`(${englishEscaped})(?=\\s*[\\(—–:-])`, 'i');
+                        if (pattern.test(textContent)) {
+                            const newContent = textContent.replace(pattern, (match) => {
+                                const audioBtn = createAudioButton(englishText, 'en-US');
+                                audioBtn.className = 'audio-btn';
+                                audioBtn.style.display = 'inline-flex';
+                                audioBtn.style.verticalAlign = 'middle';
+                                audioBtn.style.marginLeft = '0.5rem';
+                                
+                                const wrapper = document.createElement('span');
+                                wrapper.innerHTML = match;
+                                wrapper.appendChild(audioBtn);
+                                return wrapper.outerHTML;
+                            });
+                            element.innerHTML = newContent;
+                        }
+                    }
                 }
             });
             
