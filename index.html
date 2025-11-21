@@ -253,9 +253,22 @@
         // --- SERVICE WORKER & PWA INSTALL ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('SW registrado:', reg))
-                    .catch(err => console.log('SW error:', err));
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    console.log('SW registrado:', reg);
+                    reg.onupdatefound = () => {
+                        const installingWorker = reg.installing;
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    // Nueva actualización disponible
+                                    if(confirm("¡Nueva versión disponible! ¿Actualizar ahora?")) {
+                                        window.location.reload();
+                                    }
+                                }
+                            }
+                        };
+                    };
+                }).catch(err => console.log('SW error:', err));
             });
         }
 
@@ -503,8 +516,8 @@
                 const data = await callGemini(msg);
                 document.getElementById(loadingId).remove();
                 handleResponse(data);
-            } catch(e) { 
-                document.getElementById(loadingId).innerText = "Error de conexión o IA."; 
+            } catch (e) { 
+                document.getElementById(loadingId).innerText = "Error: " + e.message; 
                 console.error(e);
             }
         }
@@ -595,9 +608,28 @@
 
             const response = await fetch(url, {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ contents: [{ parts: parts }], generationConfig: { response_mime_type: "application/json" } })
+                body: JSON.stringify({ 
+                    contents: [{ parts: parts }], 
+                    generationConfig: { response_mime_type: "application/json" },
+                    safetySettings: [
+                        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+                    ]
+                })
             });
+            
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error?.message || "API Error: " + response.status);
+            }
+
             const json = await response.json();
+            if(!json.candidates || json.candidates.length === 0) {
+                throw new Error("La IA no devolvió resultados (Posible bloqueo de seguridad).");
+            }
+            
             const text = json.candidates[0].content.parts[0].text;
             return JSON.parse(cleanJSON(text));
         }
