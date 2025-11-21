@@ -461,7 +461,17 @@
             const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1]; // Calidad reducida para velocidad
 
             try {
-                const prompt = `User is looking for a "${currentMission.en}". Analyze the image. If you see a ${currentMission.en} (or similar), return type "mission_success". If NOT, return type "mission_fail" and tell me what you see instead.`;
+                const prompt = `
+                OBJETIVO DEL JUEGO: El usuario debe encontrar un "${currentMission.en}" (${currentMission.es}).
+                
+                INSTRUCCIONES:
+                1. Mira la imagen.
+                2. Si ves claramente un "${currentMission.en}" (o algo muy similar), responde con JSON type "mission_success".
+                   Mensaje: "¡Acertaste! 🌟 Encontraste el objeto. En inglés se dice ${currentMission.en}."
+                3. Si NO lo ves, responde con JSON type "mission_fail".
+                   Mensaje: "Mmm... eso parece ser un [Lo que ves en Español]. ¡Sigue buscando un ${currentMission.es}!"
+                `;
+                
                 const data = await callGemini(prompt, base64);
                 
                 const feedback = document.getElementById('camera-feedback');
@@ -476,8 +486,8 @@
                     icon.innerHTML = '<i data-lucide="check" class="w-10 h-10 text-white"></i>';
                     title.innerText = "¡Excelente!";
                     title.className = "text-2xl font-black text-green-400 mb-2";
-                    msg.innerText = `¡Encontraste: ${currentMission.en}! (+50 Pts)`;
-                    speakText(`Great job! That is a ${currentMission.en}.`, 'en');
+                    msg.innerText = data.message || `¡Encontraste: ${currentMission.en}!`;
+                    speakText(`Great! You found the ${currentMission.en}.`, 'en');
                     addPoints(50);
                     triggerConfetti();
                 } else {
@@ -485,8 +495,8 @@
                     icon.innerHTML = '<i data-lucide="x" class="w-10 h-10 text-white"></i>';
                     title.innerText = "Intenta de nuevo";
                     title.className = "text-2xl font-black text-red-400 mb-2";
-                    msg.innerText = `Eso parece ser: ${data.word_en || "otra cosa"}.`;
-                    speakText(`That looks like a ${data.word_en || "something else"}. Try again.`, 'en');
+                    msg.innerText = data.message || `Eso parece ser: ${data.word_en || "otra cosa"}.`;
+                    speakText(`That is not a ${currentMission.en}. Try again.`, 'en');
                 }
                 lucide.createIcons();
 
@@ -587,24 +597,33 @@
             
             const context = `Nivel del Alumno: ${getCurrentLevel().name}. Tema Actual: ${getCurrentTopic()}.`;
             
-            const sysPrompt = `Eres "Profesor IA", un experto enseñando inglés a hispanohablantes.
-            CONTEXTO ACTUAL: ${context}
+            const sysPrompt = `Eres "Teacher AI", un profesor de inglés experto y divertido para niños y principiantes.
+            CONTEXTO: Nivel ${getCurrentLevel().name}. Tema: ${getCurrentTopic()}.
             
-            REGLAS CRÍTICAS:
-            1. RESPONDE SIEMPRE EN JSON PURO. NO USES MARKDOWN (\`\`\`json).
-            2. ADAPTA EL CONTENIDO AL NIVEL DEL ALUMNO.
+            REGLA DE ORO: RESPONDE SIEMPRE EN JSON PURO.
             
-            FORMATOS DE RESPUESTA (JSON):
-            - Imagen: {"type":"analysis", "word_en":"...", "word_es":"...", "sentence":"..."}
-            - Misión Éxito: {"type":"mission_success", "word_en":"...", "message":"..."}
-            - Misión Fallo: {"type":"mission_fail", "word_en":"(lo que ves)", "message":"..."}
-            - Lección: {"type":"lesson", "title":"...", "content":"Markdown simple..."}
-            - Quiz: {"type":"quiz", "question_es":"...", "question_en":"...", "options":["..."], "answer":"..."}
-            - Evaluación: {"type":"eval", "is_correct":true/false, "feedback":"...", "phonetic_advice":"..."}
-            - Chat: {"type":"chat", "text_es":"...", "text_en":"..."}`;
+            MODOS DE RESPUESTA:
+            1. ANÁLISIS DE FOTO (General):
+            {"type":"analysis", "word_en":"[Nombre Inglés]", "word_es":"[Nombre Español]", "sentence":"[Frase simple en inglés]", "pronunciation":"/pronunciación/"}
+            
+            2. MISIÓN DE BÚSQUEDA (Juego):
+            - Si encuentra el objeto: {"type":"mission_success", "word_en":"[Objeto]", "message":"¡Acertaste! 🌟 Encontraste el objeto. En inglés se dice [Objeto]."}
+            - Si NO lo encuentra: {"type":"mission_fail", "word_en":"[Lo que ves]", "message":"Mmm... eso parece ser un [Lo que ves en Español]. Sigue buscando un [Objeto buscado]."}
+            
+            3. LECCIÓN (Explicación corta):
+            {"type":"lesson", "title":"[Título]", "content":"[Explicación en Markdown, usa emojis]"}
+            
+            4. QUIZ (Pregunta):
+            {"type":"quiz", "question_es":"[Pregunta ES]", "question_en":"[Pregunta EN]", "options":["A","B","C"], "answer":"[Respuesta Correcta]"}
+            
+            5. EVALUACIÓN (Feedback):
+            {"type":"eval", "is_correct":true/false, "feedback":"[Mensaje en Español fluido]", "phonetic_advice":"[Consejo si aplica]"}
+            
+            6. CHAT (Conversación):
+            {"type":"chat", "text_es":"[Respuesta ES]", "text_en":"[Respuesta EN]"}`;
 
             const parts = imageBase64 
-                ? [{ text: sysPrompt }, { inline_data: { mime_type: "image/jpeg", data: imageBase64 } }]
+                ? [{ text: sysPrompt + "\n\nINSTRUCCIÓN ESPECÍFICA PARA ESTA IMAGEN: " + prompt }, { inline_data: { mime_type: "image/jpeg", data: imageBase64 } }]
                 : [{ text: sysPrompt + "\nUsuario dice: " + prompt }];
 
             const response = await fetch(url, {
