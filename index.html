@@ -88,7 +88,6 @@
         let rawKeys = localStorage.getItem('profesor_ia_apikeys') || "AIzaSyDBNgYIJLCksdy9Ij7gZ-ofQtfmzcVMEGw,AIzaSyBQhp4KQZgmaSpt3a1cz7al7qUah5TbODI,AIzaSyA8_qSO0lUpx2rO6LOmXQ8F5gsmiRF7B5E,AIzaSyC-SxodAxeSL-XYEauF49hy4_qsVxIUPKc";
         let apiKeys = rawKeys.split(',').map(k => k.trim()).filter(k => k !== "");
         let currentKeyIdx = 0;
-        let chatHistory = []; // Historial de conversación para contexto
         const MAX_HISTORY = 10; // Máximo 10 mensajes en historial
 
         function setApiKey() {
@@ -490,7 +489,8 @@
             hasSeenTutorial: false,
             darkMode: false,
             lessonHistory: [], // Historial de lecciones
-            achievements: [] // Logros desbloqueados
+            achievements: [], // Logros desbloqueados
+            chatHistory: [] // Historial de chat persistente
         };
 
         // Cargar estado
@@ -513,6 +513,7 @@
             try {
                 updateUI();
                 renderSyllabus();
+                renderChatHistory();
                 switchTab('class'); 
                 setTimeout(initVoice, 1000);
                 
@@ -539,6 +540,20 @@
             renderAchievements();
             renderLessonHistory();
             applyDarkMode();
+        }
+
+        function renderChatHistory() {
+            const area = document.getElementById('chat-area');
+            // Mantener mensaje de bienvenida
+            const welcome = area.firstElementChild;
+            area.innerHTML = '';
+            if(welcome) area.appendChild(welcome);
+            
+            if(state.chatHistory && state.chatHistory.length > 0) {
+                state.chatHistory.forEach(msg => {
+                    addMsg(msg.content, msg.role);
+                });
+            }
         }
 
         function nextTopic() {
@@ -1158,25 +1173,30 @@
             }
         }
 
-        // Fuzzy matching para validar coincidencia de palabras
+        // Fuzzy matching para validar coincidencia de palabras (Levenshtein Distance)
         function fuzzyMatch(str1, str2) {
             const s1 = str1.toLowerCase().trim();
             const s2 = str2.toLowerCase().trim();
             
-            // Coincidencia exacta
             if(s1 === s2) return true;
-            
-            // Verificar si una contiene a la otra
             if(s1.includes(s2) || s2.includes(s1)) return true;
             
-            // Calcular similitud de Levenshtein simplificada
-            const maxLen = Math.max(s1.length, s2.length);
-            let matches = 0;
-            for(let i = 0; i < Math.min(s1.length, s2.length); i++) {
-                if(s1[i] === s2[i]) matches++;
+            const track = Array(s2.length + 1).fill(null).map(() => Array(s1.length + 1).fill(null));
+            for (let i = 0; i <= s1.length; i += 1) { track[0][i] = i; }
+            for (let j = 0; j <= s2.length; j += 1) { track[j][0] = j; }
+            for (let j = 1; j <= s2.length; j += 1) {
+                for (let i = 1; i <= s1.length; i += 1) {
+                    const indicator = s1[i - 1] === s2[j - 1] ? 0 : 1;
+                    track[j][i] = Math.min(
+                        track[j][i - 1] + 1,
+                        track[j - 1][i] + 1,
+                        track[j - 1][i - 1] + indicator
+                    );
+                }
             }
-            
-            return (matches / maxLen) > 0.6; // 60% de similitud
+            const distance = track[s2.length][s1.length];
+            const maxLen = Math.max(s1.length, s2.length);
+            return (1 - distance / maxLen) > 0.6; // 60% de similitud
         }
 
         // --- AUDIO & VOZ ---
@@ -1184,6 +1204,13 @@
         let recognition = null;
 
         function initVoice() {
+            // Cargar voces al inicio
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = () => {
+                    console.log("Voces cargadas:", speechSynthesis.getVoices().length);
+                };
+            }
+
             if (!('webkitSpeechRecognition' in window)) {
                 console.warn('Speech recognition no disponible');
                 const micBtn = document.getElementById('mic-btn');
@@ -1227,7 +1254,12 @@
             utterance.rate = state.speechRate || 0.9;
             
             // Intentar seleccionar una voz nativa
-            const voices = synth.getVoices();
+            let voices = synth.getVoices();
+            if (voices.length === 0) {
+                // Si no hay voces, esperar un poco o usar default
+                console.warn("Voces no cargadas aún");
+            }
+            
             const preferredVoice = voices.find(v => v.lang.startsWith(lang === 'es' ? 'es' : 'en'));
             if(preferredVoice) utterance.voice = preferredVoice;
             
@@ -1306,14 +1338,15 @@
             if (!text) return;
 
             addMsg(text, 'user');
-            chatHistory.push({ role: 'user', content: text });
+            state.chatHistory.push({ role: 'user', content: text });
+            localStorage.setItem('profesor_ia_state', JSON.stringify(state)); // Guardar chat
             input.value = '';
 
             const loadingId = addMsg('...', 'bot');
 
             try {
                 // Construir contexto con historial
-                let contextStr = chatHistory.slice(-MAX_HISTORY).map(h => `${h.role}: ${h.content}`).join('\n');
+                let contextStr = state.chatHistory.slice(-MAX_HISTORY).map(h => `${h.role}: ${h.content}`).join('\n');
                 
                 const prompt = `
                     Eres un profesor de inglés. Nivel: ${getCurrentLevel().name}. Tema: ${getCurrentTopic()}.
@@ -1327,13 +1360,14 @@
                 
                 // Añadir respuesta al historial
                 if(data.reply) {
-                    chatHistory.push({ role: 'bot', content: data.reply });
+                    state.chatHistory.push({ role: 'bot', content: data.reply });
                 }
                 
                 // Limitar tamaño del historial
-                if(chatHistory.length > MAX_HISTORY * 2) {
-                    chatHistory = chatHistory.slice(-MAX_HISTORY);
+                if(state.chatHistory.length > MAX_HISTORY * 2) {
+                    state.chatHistory = state.chatHistory.slice(-MAX_HISTORY);
                 }
+                localStorage.setItem('profesor_ia_state', JSON.stringify(state)); // Guardar chat
                 
                 handleResponse(data);
             } catch (e) {
@@ -1371,9 +1405,14 @@
                 addMsg(html, 'bot');
                 speakText(data.reply);
             } else if (data.type === 'lesson') {
-                addMsg(marked.parse(data.content), 'bot');
+                const content = data.content || "No content available.";
+                addMsg(marked.parse(content), 'bot');
                 speakText("Here is your lesson.", 'en');
             } else if (data.type === 'quiz') {
+                if (!data.options || !Array.isArray(data.options)) {
+                    addMsg("Error generando el quiz. Intenta de nuevo.", 'bot');
+                    return;
+                }
                 let html = `<p class="font-bold mb-2">${data.question}</p>`;
                 data.options.forEach(opt => {
                     html += `<button onclick="checkQuiz('${opt}', '${data.answer}')" class="block w-full text-left p-2 rounded border mb-1 hover:bg-blue-50">${opt}</button>`;
