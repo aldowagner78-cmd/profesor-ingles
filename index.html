@@ -507,7 +507,7 @@
             currentMission = obj;
             document.getElementById('mission-text').innerText = obj.en;
             document.getElementById('mission-sub').innerText = `Encuentra: ${obj.es}`;
-            speakText(`Find a ${obj.en}`, 'en');
+            speakText(`Busca una ${obj.es}`, 'es');
         }
 
         function skipMission() {
@@ -604,8 +604,8 @@
                     title.className = "text-2xl font-black text-green-400 mb-2";
                     msg.innerText = data.message || `¡Encontraste: ${currentMission.en}!`;
                     
-                    // FEEDBACK EN ESPAÑOL (SOLICITADO POR USUARIO)
-                    speakText(data.message || "¡Muy bien! Lo encontraste.", 'es');
+                    // FEEDBACK EN INGLÉS (ÉXITO)
+                    speakText(cleanTextForSpeech(data.message || `Perfect! You found the ${currentMission.en}.`), 'en');
                     
                     addPoints(50);
                     triggerConfetti();
@@ -616,8 +616,8 @@
                     title.className = "text-2xl font-black text-red-400 mb-2";
                     msg.innerText = data.message || `Eso parece ser: ${data.word_en || "otra cosa"}.`;
                     
-                    // FEEDBACK EN ESPAÑOL (SOLICITADO POR USUARIO)
-                    speakText(data.message || "Intenta de nuevo.", 'es');
+                    // FEEDBACK EN ESPAÑOL (FALLO)
+                    speakText(cleanTextForSpeech(data.message || "Intenta de nuevo."), 'es');
                 }
                 lucide.createIcons();
 
@@ -689,12 +689,14 @@
                     html = `<div class="flex items-center gap-2 text-green-600 font-bold mb-1"><i data-lucide="check-circle" class="w-5 h-5"></i> ¡Correcto!</div><p class="text-sm">${data.feedback}</p>`;
                     addPoints(20);
                     triggerConfetti();
-                    speakText("¡Excelente trabajo!", 'es');
+                    speakText(cleanTextForSpeech("¡Excelente trabajo!"), 'es');
                 } else {
                     html = `<div class="flex items-center gap-2 text-red-500 font-bold mb-1"><i data-lucide="x-circle" class="w-5 h-5"></i> Casi...</div><p class="text-sm mb-2">${data.feedback}</p>`;
                     if(data.phonetic_advice) html += `<div class="bg-orange-50 p-2 rounded text-xs text-orange-700 border border-orange-100">💡 <b>Tip:</b> ${data.phonetic_advice}</div>`;
-                    speakText(data.feedback, 'es');
+                    speakText(cleanTextForSpeech(data.feedback), 'es');
                 }
+                // Botón para repetir audio del feedback
+                html += `<button onclick="speakText('${cleanTextForSpeech(data.feedback)}', 'es')" class="mt-2 text-xs text-blue-500 font-bold flex items-center gap-1"><i data-lucide="volume-2" class="w-3 h-3"></i> Repetir consejo</button>`;
                 addBubble(html, 'bot', false, true);
             }
             else {
@@ -705,7 +707,11 @@
         }
 
         function checkAnswer(selected, correct) {
-            if(selected === correct) {
+            // Normalización para evitar errores de comparación (espacios, mayúsculas)
+            const s = selected.trim().toLowerCase();
+            const c = correct.trim().toLowerCase();
+            
+            if(s === c) {
                 handleResponse({type: 'eval', is_correct: true, feedback: "¡Respuesta correcta! Sigue así."});
             } else {
                 handleResponse({type: 'eval', is_correct: false, feedback: `La respuesta correcta era: ${correct}`});
@@ -728,8 +734,8 @@
             {"type":"analysis", "word_en":"[Nombre Inglés]", "word_es":"[Nombre Español]", "sentence":"[Frase simple en inglés]", "pronunciation":"/pronunciación/"}
             
             2. MISIÓN DE BÚSQUEDA (Juego):
-            - Si encuentra el objeto: {"type":"mission_success", "word_en":"[Objeto]", "message":"¡Acertaste! 🌟 Encontraste el objeto. En inglés se dice [Objeto]."}
-            - Si NO lo encuentra: {"type":"mission_fail", "word_en":"[Lo que ves]", "message":"Mmm... eso parece ser un [Lo que ves en Español]. Sigue buscando un [Objeto buscado]."}
+            - Si encuentra el objeto (ÉXITO): {"type":"mission_success", "word_en":"[Objeto]", "message":"Perfect! You found the [Objeto]. Example: [Frase corta en inglés con la palabra]."}
+            - Si NO lo encuentra (FALLO): {"type":"mission_fail", "word_en":"[Lo que ves]", "message":"Eso parece ser un [Lo que ves en Español]. Sigue buscando un [Objeto buscado]."}
             
             3. LECCIÓN (Explicación corta):
             {"type":"lesson", "title":"[Título]", "content":"[Explicación en Markdown, usa emojis]"}
@@ -781,7 +787,10 @@
         }
         
         function cleanTextForSpeech(text) {
-            return text.replace(/[*#_]/g, '');
+            // Elimina markdown, emojis y caracteres especiales que no se deben leer
+            return text.replace(/[*#_]/g, '')
+                       .replace(/[\u{1F600}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}]/gu, '')
+                       .trim();
         }
 
         function addBubble(content, type, isLoading=false, isHtml=false) {

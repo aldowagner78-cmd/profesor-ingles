@@ -1,4 +1,4 @@
-const CACHE_NAME = 'profesor-ia-v9';
+const CACHE_NAME = 'profesor-ia-v10';
 const ASSETS = [
   './',
   './index.html',
