@@ -72,9 +72,19 @@
 
     <!-- CONFIGURACIÓN -->
     <script>
-        // TU CLAVE YA ESTÁ AQUÍ
-        const apiKey = "AIzaSyDBNgYIJLCksdy9Ij7gZ-ofQtfmzcVMEGw";
+        // GESTIÓN DE API KEY
+        let apiKey = localStorage.getItem('profesor_ia_apikey') || "AIzaSyDBNgYIJLCksdy9Ij7gZ-ofQtfmzcVMEGw";
         
+        function setApiKey() {
+            const newKey = prompt("Ingresa tu Google Gemini API Key:", apiKey);
+            if(newKey && newKey.trim() !== "") {
+                apiKey = newKey.trim();
+                localStorage.setItem('profesor_ia_apikey', apiKey);
+                alert("API Key guardada correctamente.");
+                location.reload();
+            }
+        }
+
         // --- MOTOR DE CURRÍCULO ---
         const SYLLABUS = [
             { id: 'A1', name: 'Nivel Inicial (A1)', topics: ['Saludos y Despedidas', 'Verbo To Be', 'Colores y Números', 'La Familia', 'Presente Simple', 'Ropa y Accesorios'] },
@@ -277,8 +287,12 @@
                 <i data-lucide="download" class="w-5 h-5"></i> Instalar App
             </button>
 
-            <button onclick="resetApp()" class="w-full py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-transform">
+            <button onclick="resetApp()" class="w-full py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-transform mb-4">
                 <i data-lucide="refresh-cw" class="w-4 h-4"></i> Reiniciar Todo
+            </button>
+
+            <button onclick="setApiKey()" class="w-full py-4 bg-slate-100 text-slate-500 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-200 active:scale-95 transition-transform text-xs">
+                <i data-lucide="key" class="w-4 h-4"></i> Configurar API Key
             </button>
         </div>
 
@@ -768,6 +782,11 @@
             });
             
             if (!response.ok) {
+                if(response.status === 400 || response.status === 403) {
+                    if(confirm("Error de API Key (Posiblemente expirada o inválida). ¿Quieres ingresar una nueva?")) {
+                        setApiKey();
+                    }
+                }
                 const errData = await response.json();
                 throw new Error(errData.error?.message || "API Error: " + response.status);
             }
