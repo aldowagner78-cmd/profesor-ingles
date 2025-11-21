@@ -214,7 +214,7 @@
 
                 <!-- Feedback Visual (Overlay) -->
                 <div id="camera-feedback" class="absolute inset-0 bg-black/85 flex items-center justify-center z-30 hidden backdrop-blur-sm">
-                    <div class="text-center p-6 max-w-xs w-full">
+                    <div class="text-center p-6 max-w-md w-full">
                         <div id="feedback-icon" class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/50 animate-bounce">
                             <i data-lucide="check" class="w-10 h-10 text-white"></i>
                         </div>
@@ -718,17 +718,36 @@
                     title.innerText = "Traducción";
                     title.className = "text-2xl font-black text-indigo-400 mb-2";
                     
+                    msg.className = "text-left w-full mb-4"; // Override default centered
                     msg.innerHTML = `
-                        <p class="text-slate-400 text-xs mb-1">Original:</p>
-                        <p class="text-white font-medium text-sm mb-3 italic">"${data.original}"</p>
-                        <p class="text-slate-400 text-xs mb-1">Inglés:</p>
-                        <p class="text-indigo-300 font-bold text-lg leading-tight mb-2">"${data.translated}"</p>
-                        <p class="text-slate-500 text-xs">${data.pronunciation}</p>
+                        <div class="bg-slate-800/50 rounded-xl p-4 max-h-[50vh] overflow-y-auto border border-slate-700 shadow-inner">
+                            <p class="text-slate-400 text-xs mb-1 font-bold uppercase">Original:</p>
+                            <p class="text-white font-medium text-sm mb-4 italic border-l-2 border-slate-500 pl-3">${data.original}</p>
+                            
+                            <p class="text-slate-400 text-xs mb-1 font-bold uppercase">Traducción:</p>
+                            <p class="text-indigo-300 font-bold text-lg leading-relaxed">${data.translated}</p>
+                            <p class="text-slate-500 text-xs mt-2 text-right">${data.pronunciation}</p>
+                        </div>
+                        
+                        <!-- Audio Controls -->
+                        <div class="flex items-center justify-center gap-4 mt-4 bg-slate-800/80 p-2 rounded-full backdrop-blur-sm border border-slate-600">
+                            <button onclick="stopAudio()" class="p-2 text-red-400 hover:bg-white/10 rounded-full transition-colors"><i data-lucide="square" class="w-5 h-5"></i></button>
+                            <button onclick="pauseAudio()" class="p-2 text-yellow-400 hover:bg-white/10 rounded-full transition-colors"><i data-lucide="pause" class="w-6 h-6"></i></button>
+                            <button onclick="speakText(currentCameraAudioText, 'en')" class="p-2 text-green-400 hover:bg-white/10 rounded-full transition-colors"><i data-lucide="play" class="w-6 h-6"></i></button>
+                        </div>
                     `;
                     
                     currentCameraAudioText = data.translated;
                     currentCameraAudioLang = 'en';
                     speakText(currentCameraAudioText, 'en');
+
+                    // Custom Buttons for Translation Mode
+                    const btnContainer = document.querySelector('#camera-feedback .flex.gap-3');
+                    btnContainer.innerHTML = `
+                        <button onclick="closeFeedback(); stopAudio()" class="px-8 py-3 bg-white text-slate-900 font-black rounded-xl active:scale-95 transition-transform text-sm shadow-lg flex items-center gap-2">
+                            <i data-lucide="scan-line" class="w-4 h-4"></i> Escanear Otro
+                        </button>
+                    `;
                 }
 
                 lucide.createIcons();
@@ -1262,6 +1281,10 @@
 
             window.speechSynthesis.speak(u);
         }
+
+        function pauseAudio() { window.speechSynthesis.pause(); }
+        function resumeAudio() { window.speechSynthesis.resume(); }
+        function stopAudio() { window.speechSynthesis.cancel(); }
 
         function playLessonAudio() {
             if(!currentLessonAudioText) return;
