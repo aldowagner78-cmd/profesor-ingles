@@ -371,6 +371,20 @@
 
     <!-- NAVEGACIÓN MOVIDA ARRIBA -->
 
+    <!-- MODAL GENÉRICO (Detalles y Correcciones) -->
+    <div id="generic-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl transform transition-all scale-100">
+            <div id="modal-content" class="p-6 max-h-[70vh] overflow-y-auto">
+                <!-- Contenido Dinámico -->
+            </div>
+            <div class="bg-slate-50 p-4 flex justify-center border-t border-slate-100">
+                <button onclick="closeModal()" class="px-6 py-2 text-slate-500 font-bold hover:bg-slate-200 rounded-xl transition-colors">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- SERVICE WORKER & PWA INSTALL ---
         if ('serviceWorker' in navigator) {
@@ -538,6 +552,7 @@
         let currentMission = null;
         let cameraMode = 'game'; // 'game' | 'explore' | 'translate'
         let isGameActive = false;
+        let currentAnalysisData = null; // Para guardar el objeto detectado antes de confirmar
         
         const COMMON_OBJECTS = [
             {es: "Silla", en: "Chair"}, {es: "Mesa", en: "Table"}, {es: "Taza", en: "Cup"}, 
@@ -647,6 +662,11 @@
             document.getElementById('camera-feedback').classList.add('hidden');
         }
 
+        function closeModal() {
+            document.getElementById('generic-modal').classList.add('hidden');
+            stopAudio(); // Detener audio si se cierra el modal
+        }
+
         async function analyzeImage() {
             const video = document.getElementById('camera-feed');
             const canvas = document.getElementById('photo-canvas');
@@ -664,9 +684,9 @@
             try {
                 let prompt = "";
                 if (cameraMode === 'explore') {
-                    prompt = `Analiza esta imagen. Dime qué objeto principal ves. Si hay duda, dame opciones. Responde con JSON type "analysis".`;
+                    prompt = `Analiza esta imagen. Dime qué objeto principal ves. Responde con JSON type "analysis".`;
                 } else {
-                    prompt = `Lee el texto en esta imagen y tradúcelo al inglés. Responde con JSON type "translation".`;
+                    prompt = `Lee el texto en esta imagen y tradúcelo al inglés. Responde with JSON type "translation".`;
                 }
                 
                 const data = await callGemini(prompt, base64);
@@ -681,36 +701,36 @@
                 btnNext.classList.add('hidden'); // No hay "siguiente misión" en explorar/traducir
 
                 if (data.type === 'analysis') {
+                    currentAnalysisData = data; // Guardar para confirmación
+
                     icon.className = "w-20 h-20 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/50";
                     icon.innerHTML = '<i data-lucide="search" class="w-10 h-10 text-white"></i>';
                     title.innerText = data.word_en;
                     title.className = "text-2xl font-black text-purple-400 mb-2";
                     
-                    // Mostrar traducción visualmente (sin leerla)
+                    // Mostrar traducción visualmente (sin leerla aún)
                     let content = `
                         <span class="block text-xl text-white font-bold mb-1">${data.word_es}</span>
-                        <span class="block text-purple-300 font-medium text-lg mb-2">"${data.sentence}"</span>
-                        <span class="block text-slate-400 text-sm italic border-t border-slate-700 pt-2">${data.sentence_es || ''}</span>
-                    `;
-
-                    // Si hay opciones (ambigüedad)
-                    if (data.options && data.options.length > 0) {
-                        content += `<div class="mt-4 pt-2 border-t border-slate-700">
-                            <p class="text-xs text-slate-400 mb-2">¿O quizás es esto?</p>
-                            <div class="flex flex-wrap gap-2 justify-center">
-                                ${data.options.map(opt => `<span class="px-2 py-1 bg-slate-700 rounded text-xs text-slate-300">${opt}</span>`).join('')}
+                        <span class="block text-purple-300 font-medium text-lg mb-4">"${data.sentence}"</span>
+                        
+                        <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 mb-4">
+                            <p class="text-slate-400 text-xs font-bold uppercase mb-2">¿Es correcto?</p>
+                            <div class="flex gap-3 justify-center">
+                                <button onclick="confirmAnalysis()" class="flex-1 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                                    <i data-lucide="check" class="w-5 h-5"></i> SÍ
+                                </button>
+                                <button onclick="rejectAnalysis()" class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                                    <i data-lucide="x" class="w-5 h-5"></i> NO
+                                </button>
                             </div>
-                        </div>`;
-                    }
+                        </div>
+                    `;
 
                     msg.innerHTML = content;
                     
-                    // Guardar para replay
-                    currentCameraAudioText = `${data.word_en}. ${data.sentence}`;
-                    currentCameraAudioLang = 'en';
-                    
-                    speakText(currentCameraAudioText, 'en');
-                    addToCollection(data.word_en, data.word_es, data.emoji);
+                    // Ocultar botones por defecto del feedback, ya que usamos los personalizados
+                    document.querySelector('#camera-feedback .flex.gap-3').classList.add('hidden');
+
                 } 
                 else if (data.type === 'translation') {
                     icon.className = "w-20 h-20 bg-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/50";
@@ -743,6 +763,7 @@
 
                     // Custom Buttons for Translation Mode
                     const btnContainer = document.querySelector('#camera-feedback .flex.gap-3');
+                    btnContainer.classList.remove('hidden');
                     btnContainer.innerHTML = `
                         <button onclick="closeFeedback(); stopAudio()" class="px-8 py-3 bg-white text-slate-900 font-black rounded-xl active:scale-95 transition-transform text-sm shadow-lg flex items-center gap-2">
                             <i data-lucide="scan-line" class="w-4 h-4"></i> Escanear Otro
@@ -758,611 +779,138 @@
             btn.classList.remove('scale-90', 'opacity-50');
         }
 
-        async function checkMission() {
-            const video = document.getElementById('camera-feed');
-            const canvas = document.getElementById('photo-canvas');
-            const btn = document.getElementById('btn-capture-game');
+        function confirmAnalysis() {
+            if(!currentAnalysisData) return;
             
-            if(!stream) { await startCamera(); return; }
-
-            btn.classList.add('scale-90', 'opacity-50');
+            // Guardar y Reproducir
+            addToCollection(currentAnalysisData.word_en, currentAnalysisData.word_es, currentAnalysisData.emoji);
             
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
+            currentCameraAudioText = `${currentAnalysisData.word_en}. ${currentAnalysisData.sentence}`;
+            currentCameraAudioLang = 'en';
+            speakText(currentCameraAudioText, 'en');
 
-            try {
-                const prompt = `
-                OBJETIVO DEL JUEGO: El usuario debe encontrar un "${currentMission.en}" (${currentMission.es}).
-                
-                INSTRUCCIONES:
-                1. Mira la imagen.
-                2. Si ves claramente un "${currentMission.en}" (o algo muy similar), responde con JSON type "mission_success".
-                   Mensaje: "Perfect! You found the ${currentMission.en}. Example: The ${currentMission.en} is here."
-                3. Si NO lo ves, responde con JSON type "mission_fail".
-                   Mensaje: "Mmm... eso parece ser un [Lo que ves en Español]. ¡Sigue buscando un ${currentMission.es}!"
-                `;
-                
-                const data = await callGemini(prompt, base64);
-                
-                const feedback = document.getElementById('camera-feedback');
-                const icon = document.getElementById('feedback-icon');
-                const title = document.getElementById('feedback-title');
-                const msg = document.getElementById('feedback-msg');
-                const btnNext = document.getElementById('btn-next-mission');
-                
-                feedback.classList.remove('hidden');
-                btnNext.classList.remove('hidden');
-
-                if(data.type === 'mission_success' || (data.type === 'analysis' && data.word_en.toLowerCase().includes(currentMission.en.toLowerCase()))) {
-                    icon.className = "w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/50";
-                    icon.innerHTML = '<i data-lucide="check" class="w-10 h-10 text-white"></i>';
-                    title.innerText = "¡Excelente!";
-                    title.className = "text-2xl font-black text-green-400 mb-2";
-                    msg.innerText = data.message || `¡Encontraste: ${currentMission.en}!`;
-                    
-                    // FEEDBACK EN INGLÉS (ÉXITO)
-                    currentCameraAudioText = cleanTextForSpeech(data.message || `Perfect! You found the ${currentMission.en}.`);
-                    currentCameraAudioLang = 'en';
-                    speakText(currentCameraAudioText, 'en');
-                    
-                    addToCollection(currentMission.en, currentMission.es, data.emoji);
-                    addPoints(50);
-                    triggerConfetti();
-                } else {
-                    icon.className = "w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-red-500/50";
-                    icon.innerHTML = '<i data-lucide="x" class="w-10 h-10 text-white"></i>';
-                    title.innerText = "Intenta de nuevo";
-                    title.className = "text-2xl font-black text-red-400 mb-2";
-                    msg.innerText = data.message || `Eso parece ser: ${data.word_en || "otra cosa"}.`;
-                    
-                    // FEEDBACK EN ESPAÑOL (FALLO)
-                    currentCameraAudioText = cleanTextForSpeech(data.message || "Intenta de nuevo.");
-                    currentCameraAudioLang = 'es';
-                    speakText(currentCameraAudioText, 'es');
-                }
-                lucide.createIcons();
-
-            } catch (e) { 
-                showToast("Error analizando imagen. Intenta de nuevo.", 'error');
-                console.error(e);
-            }
-            btn.classList.remove('scale-90', 'opacity-50');
+            // Mostrar feedback de éxito
+            const msg = document.getElementById('feedback-msg');
+            msg.innerHTML = `
+                <div class="text-center animate-bounce-in">
+                    <div class="text-6xl mb-4">${currentAnalysisData.emoji || '✨'}</div>
+                    <h3 class="text-2xl font-black text-white mb-2">¡Guardado!</h3>
+                    <p class="text-slate-300 text-sm">Se ha añadido a tu colección.</p>
+                </div>
+            `;
+            
+            // Restaurar botones
+            const btnContainer = document.querySelector('#camera-feedback .flex.gap-3');
+            btnContainer.classList.remove('hidden');
+            btnContainer.innerHTML = `
+                <button onclick="closeFeedback()" class="px-8 py-3 bg-white text-slate-900 font-black rounded-xl active:scale-95 transition-transform text-sm shadow-lg">
+                    Continuar
+                </button>
+            `;
+            
+            addPoints(10);
+            triggerConfetti();
         }
 
-        // --- CLASE Y CHAT ---
-        async function requestLesson() {
-            const prompt = `Genera una lección estructurada para el Nivel: ${getCurrentLevel().name}, Tema: ${getCurrentTopic()}. 
-            Responde con JSON type "lesson" incluyendo: intro (español), dialogue (array con speaker, en, es), vocab (array en, es) y tip (español).`;
-            sendQuickMsg(prompt, true); 
-        }
-
-        async function requestQuiz() {
-            const prompt = `Genera una pregunta de examen (quiz) desafiante sobre: ${getCurrentTopic()}. Usa 4 opciones de respuesta. Responde con JSON type "quiz" incluyendo "correct_index" (0-3).`;
-            sendQuickMsg(prompt, true);
-        }
-
-        async function startRoleplay() {
-            const prompt = `Genera una situación de Roleplay corta para practicar ${getCurrentTopic()}. Describe la situación y dime qué debo decir o hacer. Responde con JSON type "roleplay".`;
-            sendQuickMsg(prompt, true);
-        }
-
-        function sendTextMsg() {
-            const input = document.getElementById('chat-input');
-            const text = input.value.trim();
-            if(text) {
-                sendQuickMsg(text);
-                input.value = "";
-            }
-        }
-
-        function showToast(msg, type='info') {
-            const toast = document.createElement('div');
-            toast.className = `fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-xl z-50 font-bold text-sm flex items-center gap-2 fade-in-up ${type === 'error' ? 'bg-red-500 text-white' : 'bg-slate-800 text-white'}`;
-            toast.innerHTML = type === 'error' ? `<i data-lucide="alert-circle" class="w-4 h-4"></i> ${msg}` : `<i data-lucide="info" class="w-4 h-4"></i> ${msg}`;
-            document.body.appendChild(toast);
+        function rejectAnalysis() {
+            const msg = document.getElementById('feedback-msg');
+            msg.innerHTML = `
+                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                    <p class="text-white font-bold mb-3 text-sm">¿Qué objeto es realmente?</p>
+                    <input type="text" id="correction-input" placeholder="Ej: Espiral, Gato, Mesa..." class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-600 text-white focus:border-purple-500 focus:outline-none mb-3 text-sm">
+                    <button onclick="submitCorrection()" class="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                        <i data-lucide="send" class="w-4 h-4"></i> Corregir
+                    </button>
+                    <button onclick="closeFeedback()" class="w-full mt-2 py-2 text-slate-400 text-xs font-bold hover:text-white">
+                        Cancelar
+                    </button>
+                </div>
+            `;
             lucide.createIcons();
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
+            document.getElementById('correction-input').focus();
         }
 
-        async function sendQuickMsg(msg, hidden = false) {
-            if(!hidden) addBubble(msg, 'user');
-            const loadingId = addBubble("...", 'bot', true);
-            
+        async function submitCorrection() {
+            const input = document.getElementById('correction-input').value.trim();
+            if(!input) return;
+
+            const msg = document.getElementById('feedback-msg');
+            msg.innerHTML = '<div class="flex justify-center py-8"><div class="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div></div>';
+
             try {
-                const data = await callGemini(msg);
-                document.getElementById(loadingId).remove();
-                handleResponse(data);
-            } catch (e) { 
-                document.getElementById(loadingId).innerText = "Error: " + e.message; 
-                console.error(e);
+                const prompt = `El usuario indica que el objeto es "${input}". Ignora la imagen anterior. Genera un JSON type "analysis" para "${input}".`;
+                const data = await callGemini(prompt); // Llamada de texto simple
+                
+                if(data.type === 'analysis') {
+                    // Actualizamos los datos actuales con la corrección
+                    currentAnalysisData = data;
+                    
+                    // Volvemos a mostrar la pantalla de confirmación con los nuevos datos
+                    const title = document.getElementById('feedback-title');
+                    title.innerText = data.word_en;
+                    
+                    let content = `
+                        <span class="block text-xl text-white font-bold mb-1">${data.word_es}</span>
+                        <span class="block text-purple-300 font-medium text-lg mb-4">"${data.sentence}"</span>
+                        
+                        <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 mb-4">
+                            <p class="text-slate-400 text-xs font-bold uppercase mb-2">¿Es correcto ahora?</p>
+                            <div class="flex gap-3 justify-center">
+                                <button onclick="confirmAnalysis()" class="flex-1 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                                    <i data-lucide="check" class="w-5 h-5"></i> SÍ
+                                </button>
+                                <button onclick="rejectAnalysis()" class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                                    <i data-lucide="x" class="w-5 h-5"></i> NO
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    msg.innerHTML = content;
+                    lucide.createIcons();
+                }
+            } catch(e) {
+                showToast("Error al corregir. Intenta de nuevo.", 'error');
+                rejectAnalysis(); // Volver al input
             }
         }
 
-        function handleResponse(data) {
-            if (data.type === 'lesson') {
-                const html = `
-                    <div class="lesson-card p-4 rounded-xl border border-white shadow-sm relative">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-2 py-1 rounded uppercase">Lección</span>
-                            <span class="text-[10px] font-bold text-slate-400 max-w-[40%] text-right leading-tight">${getCurrentTopic()}</span>
-                        </div>
-                        <h3 class="text-lg font-black text-indigo-700 mb-2 leading-tight">${data.title}</h3>
-                        
-                        <!-- Intro -->
-                        <div class="text-sm text-slate-700 mb-4">${marked.parse(data.intro)}</div>
-                        
-                        <!-- Diálogo -->
-                        <div class="bg-white/50 rounded-lg p-3 mb-4 border border-indigo-50">
-                            <h4 class="text-xs font-bold text-indigo-400 uppercase mb-2">Diálogo de Ejemplo</h4>
-                            <div class="space-y-3">
-                                ${data.dialogue.map(d => `
-                                    <div class="flex flex-col gap-1">
-                                        <div class="flex items-center gap-2">
-                                            <span class="font-bold text-indigo-600 text-xs">${d.speaker}:</span>
-                                            <span class="text-slate-800 font-medium">${d.en}</span>
-                                            <button onclick="speakText('${d.en.replace(/'/g, "\\'")}', 'en')" class="p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 active:scale-90 transition-transform">
-                                                <i data-lucide="volume-2" class="w-3 h-3"></i>
-                                            </button>
-                                        </div>
-                                        <span class="text-xs text-slate-400 italic pl-6 border-l-2 border-slate-200">${d.es}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
+        async function showWordDetails(word) {
+            const modal = document.getElementById('generic-modal');
+            const content = document.getElementById('modal-content');
+            
+            modal.classList.remove('hidden');
+            content.innerHTML = '<div class="flex flex-col items-center justify-center py-12"><div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div><p class="text-slate-400 font-bold text-sm">Consultando al Profe...</p></div>';
 
-                        <!-- Vocabulario -->
-                        <div class="mb-4">
-                            <h4 class="text-xs font-bold text-indigo-400 uppercase mb-2">Vocabulario Clave</h4>
-                            <div class="grid grid-cols-1 gap-2">
-                                ${data.vocab.map(v => `
-                                    <div class="flex items-center justify-between bg-white p-2 rounded border border-slate-100">
-                                        <div class="flex items-center gap-2">
-                                            <span class="font-bold text-slate-700">${v.en}</span>
-                                            <button onclick="speakText('${v.en.replace(/'/g, "\\'")}', 'en')" class="p-1 text-slate-400 hover:text-indigo-600">
-                                                <i data-lucide="volume-2" class="w-3 h-3"></i>
-                                            </button>
-                                        </div>
-                                        <span class="text-xs text-slate-500">${v.es}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-
-                        <!-- Tip -->
-                        <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-100 text-sm text-slate-700">
-                            <span class="font-bold text-yellow-600 text-xs uppercase block mb-1">💡 Tip del Profe</span>
-                            ${marked.parse(data.tip)}
-                        </div>
-                    </div>`;
-                addBubble(html, 'bot', false, true);
-                // NO LEER AUTOMÁTICAMENTE LA LECCIÓN
-            } 
-            else if (data.type === 'quiz') {
-                const correctText = data.options[data.correct_index];
-                const html = `
-                    <div class="bg-white border-2 border-purple-100 p-4 rounded-xl shadow-sm">
-                        <span class="text-[10px] font-black bg-purple-100 text-purple-600 px-2 py-1 rounded uppercase">Examen Rápido</span>
-                        <p class="font-bold text-lg mt-2 text-slate-800 leading-tight">${data.question_es}</p>
-                        <p class="text-sm italic text-slate-400 mb-4">${data.question_en}</p>
-                        <div class="grid gap-2">
-                            ${data.options.map((opt, idx) => `<button onclick="checkAnswer(${idx}, ${data.correct_index}, '${correctText.replace(/'/g, "\\'")}')" class="text-left px-4 py-3 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-600 hover:border-purple-300 hover:bg-purple-50 transition-all">${opt}</button>`).join('')}
-                        </div>
-                    </div>`;
-                addBubble(html, 'bot', false, true);
-                speakText(data.question_es, 'es');
-            }
-            else if (data.type === 'roleplay') {
-                const html = `
-                    <div class="bg-gradient-to-br from-pink-50 to-white border border-pink-100 p-4 rounded-xl shadow-sm">
-                        <span class="text-[10px] font-black bg-pink-100 text-pink-600 px-2 py-1 rounded uppercase">Roleplay</span>
-                        <h3 class="font-bold text-lg mt-2 text-pink-700 leading-tight">Situación:</h3>
-                        <p class="text-sm text-slate-600 mb-2">${data.scenario_es}</p>
-                        <p class="text-xs italic text-slate-400 mb-4 border-l-2 border-pink-200 pl-2">${data.scenario_en}</p>
-                        <div class="bg-white p-3 rounded-lg border border-pink-100 mb-3">
-                            <p class="text-xs font-bold text-slate-500 uppercase mb-1">Tu Misión:</p>
-                            <p class="text-sm font-bold text-slate-800">${data.task}</p>
+            try {
+                const prompt = `Genera 3 oraciones simples en inglés usando la palabra "${word}". Incluye traducción al español. Responde con JSON type "word_details".`;
+                const data = await callGemini(prompt);
+                
+                if(data.type === 'word_details') {
+                    content.innerHTML = `
+                        <div class="text-center mb-6">
+                            <span class="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">VOCABULARY</span>
+                            <h2 class="text-3xl font-black text-slate-800 mt-2">${data.word}</h2>
                         </div>
                         
-                        <div class="grid gap-2">
-                            ${data.options ? data.options.map(opt => `
-                                <button onclick="sendQuickMsg('${opt.replace(/'/g, "\\'")}')" class="text-left px-3 py-2 bg-pink-50 text-pink-700 rounded-lg text-xs font-bold border border-pink-100 hover:bg-pink-100 transition-colors">
-                                    💬 ${opt}
-                                </button>
-                            `).join('') : ''}
-                        </div>
-
-                        <button onclick="speakText('${cleanTextForSpeech(data.scenario_en).replace(/'/g, "\\'")}', 'en')" class="w-full mt-3 py-2 bg-white border border-pink-100 rounded-lg text-pink-600 font-bold text-xs flex items-center justify-center gap-2 hover:bg-pink-50">
-                            <i data-lucide="volume-2" class="w-4 h-4"></i> Escuchar Escenario
-                        </button>
-                    </div>`;
-                addBubble(html, 'bot', false, true);
-                // NO LEER AUTOMÁTICAMENTE EL ROLEPLAY
-            }
-            else if (data.type === 'eval') {
-                let html = "";
-                if(data.is_correct) {
-                    html = `<div class="flex items-center gap-2 text-green-600 font-bold mb-1"><i data-lucide="check-circle" class="w-5 h-5"></i> ¡Correcto!</div><p class="text-sm">${data.feedback}</p>`;
-                    addPoints(20);
-                    triggerConfetti();
-                    speakText(cleanTextForSpeech("¡Excelente trabajo!"), 'es');
-                } else {
-                    html = `<div class="flex items-center gap-2 text-red-500 font-bold mb-1"><i data-lucide="x-circle" class="w-5 h-5"></i> Casi...</div><p class="text-sm mb-2">${data.feedback}</p>`;
-                    if(data.phonetic_advice) html += `<div class="bg-orange-50 p-2 rounded text-xs text-orange-700 border border-orange-100">💡 <b>Tip:</b> ${data.phonetic_advice}</div>`;
-                    // NO LEER AUTOMÁTICAMENTE EL FEEDBACK NEGATIVO
-                    
-                    // Botón para escuchar la respuesta correcta (solo si falló y tenemos el texto)
-                    if(data.correct_text) {
-                         html += `<button onclick="speakText('${data.correct_text.replace(/'/g, "\\'")}', 'en')" class="mt-2 py-2 px-3 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-blue-100 transition-colors"><i data-lucide="volume-2" class="w-4 h-4"></i> Escuchar respuesta correcta</button>`;
-                    }
-                }
-                addBubble(html, 'bot', false, true);
-            }
-            else if (data.type === 'word_details') {
-                const html = `
-                    <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                        <h3 class="font-black text-xl text-slate-800 mb-3 flex items-center gap-2">
-                            <span class="bg-blue-100 text-blue-600 px-2 py-1 rounded text-sm">WORD</span> ${data.word}
-                        </h3>
                         <div class="space-y-3">
                             ${data.sentences.map(s => `
-                                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                    <div class="flex items-start gap-2 mb-1">
-                                        <button onclick="speakText('${s.en.replace(/'/g, "\\'")}', 'en')" class="mt-0.5 p-1.5 bg-white text-blue-600 rounded-full shadow-sm border border-blue-100 active:scale-90 transition-transform flex-shrink-0">
-                                            <i data-lucide="volume-2" class="w-3 h-3"></i>
+                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:border-blue-200 transition-colors">
+                                    <div class="flex items-start gap-3 mb-2">
+                                        <button onclick="speakText('${s.en.replace(/'/g, "\\'")}', 'en')" class="mt-1 p-2 bg-white text-blue-600 rounded-full shadow-sm border border-blue-100 active:scale-90 transition-transform flex-shrink-0">
+                                            <i data-lucide="volume-2" class="w-4 h-4"></i>
                                         </button>
-                                        <p class="text-slate-800 font-medium text-sm leading-snug">${s.en}</p>
+                                        <p class="text-slate-800 font-bold text-lg leading-snug">${s.en}</p>
                                     </div>
-                                    <p class="text-xs text-slate-500 italic pl-8">${s.es}</p>
+                                    <p class="text-sm text-slate-500 italic pl-12 border-l-2 border-slate-200 ml-2">${s.es}</p>
                                 </div>
                             `).join('')}
                         </div>
-                    </div>`;
-                addBubble(html, 'bot', false, true);
-            }
-            else if (data.type === 'translation') {
-                const html = `
-                    <div class="bg-white border border-purple-200 p-4 rounded-xl shadow-sm">
-                        <span class="text-[10px] font-black bg-purple-100 text-purple-600 px-2 py-1 rounded uppercase">Traducción</span>
-                        <p class="text-slate-500 text-xs mt-2 mb-1">Original:</p>
-                        <p class="text-slate-800 font-medium text-sm mb-3 border-l-2 border-slate-200 pl-2">${data.original}</p>
-                        
-                        <p class="text-slate-500 text-xs mb-1">Inglés:</p>
-                        <div class="flex items-start gap-2">
-                            <p class="text-purple-700 font-bold text-lg leading-tight flex-1">${data.translated}</p>
-                            <button onclick="speakText('${data.translated.replace(/'/g, "\\'")}', 'en')" class="p-2 bg-purple-600 text-white rounded-lg shadow-md active:scale-90 transition-transform">
-                                <i data-lucide="volume-2" class="w-5 h-5"></i>
-                            </button>
-                        </div>
-                        <p class="text-slate-400 text-xs italic mt-1">${data.pronunciation}</p>
-                    </div>`;
-                addBubble(html, 'bot', false, true);
-            }
-            else {
-                addBubble(data.text_es, 'bot');
-                if(data.text_es.length < 150) speakText(data.text_es, 'es');
-            }
-            lucide.createIcons();
-        }
-
-        function checkAnswer(selectedIdx, correctIdx, correctText) {
-            if(selectedIdx === correctIdx) {
-                handleResponse({type: 'eval', is_correct: true, feedback: "¡Respuesta correcta! Sigue así."});
-            } else {
-                handleResponse({type: 'eval', is_correct: false, feedback: `La respuesta correcta era: ${correctText}`, correct_text: correctText});
-            }
-        }
-
-        async function callGemini(prompt, imageBase64 = null, attempt = 0) {
-            // Si ya probamos todas las llaves y siguen fallando
-            if (attempt >= apiKeys.length) {
-                if(confirm("Todas las API Keys fallaron (Cuota excedida o error). ¿Quieres configurar nuevas?")) setApiKey();
-                throw new Error("Todas las claves API fallaron.");
-            }
-
-            const key = apiKeys[currentKeyIdx];
-            // CAMBIO A GEMINI 2.0 FLASH (EXPERIMENTAL/PREVIEW)
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
-            
-            const context = `Nivel del Alumno: ${getCurrentLevel().name}. Tema Actual: ${getCurrentTopic()}.`;
-            
-            const sysPrompt = `Eres "Teacher AI", un profesor de inglés experto y divertido para niños y principiantes.
-            CONTEXTO: Nivel ${getCurrentLevel().name}. Tema: ${getCurrentTopic()}.
-            
-            REGLA DE ORO: RESPONDE SIEMPRE EN JSON PURO.
-            
-            MODOS DE RESPUESTA:
-            1. ANÁLISIS DE FOTO (General):
-            {"type":"analysis", "word_en":"[Nombre Inglés]", "word_es":"[Nombre Español]", "sentence":"[Frase simple en inglés]", "sentence_es":"[Traducción de la frase]", "pronunciation":"/pronunciación/", "emoji":"[Emoji representativo]", "options": ["Opción 1", "Opción 2", "Opción 3"]}
-            
-            2. MISIÓN DE BÚSQUEDA (Juego):
-            - Si encuentra el objeto (ÉXITO): {"type":"mission_success", "word_en":"[Objeto]", "message":"Perfect! You found the [Objeto]. Example: [Frase corta en inglés con la palabra].", "emoji":"[Emoji]"}
-            - Si NO lo encuentra (FALLO): {"type":"mission_fail", "word_en":"[Lo que ves]", "message":"Vaya... eso parece ser un [Lo que ves en Español]. Sigue buscando un [Objeto buscado]."}
-            
-            3. LECCIÓN (Explicación detallada):
-            {"type":"lesson", "title":"[Título]", "intro":"[Explicación breve en Español]", "dialogue":[{"speaker":"A", "en":"[Frase EN]", "es":"(Traducción)"}, {"speaker":"B", "en":"[Frase EN]", "es":"(Traducción)"}], "vocab":[{"en":"[Word]", "es":"[Palabra]"}], "tip":"[Tip en Español]"}
-            
-            4. QUIZ (Pregunta compleja):
-            {"type":"quiz", "question_es":"[Pregunta ES]", "question_en":"[Pregunta EN]", "options":["A","B","C","D"], "correct_index":0}
-            
-            5. EVALUACIÓN (Feedback):
-            {"type":"eval", "is_correct":true/false, "feedback":"[Mensaje en Español fluido]", "phonetic_advice":"[Consejo si aplica]"}
-            
-            6. ROLEPLAY (Situación):
-            {"type":"roleplay", "scenario_es":"[Descripción situación ES]", "scenario_en":"[Descripción EN]", "task":"[Tarea para el usuario]", "options":["Opción 1 (EN)", "Opción 2 (EN)", "Opción 3 (EN)"]}
-            
-            7. CHAT (Conversación):
-            {"type":"chat", "text_es":"[Respuesta ES]", "text_en":"[Respuesta EN]"}
-            
-            8. TRADUCCIÓN (Texto):
-            {"type":"translation", "original":"[Texto original]", "translated":"[Traducción EN]", "pronunciation":"/pronunciación/"}
-            
-            9. DETALLES PALABRA (Colección):
-            {"type":"word_details", "word":"[Palabra]", "sentences":[{"en":"[Frase 1]", "es":"[Trad 1]"}, {"en":"[Frase 2]", "es":"[Trad 2]"}, {"en":"[Frase 3]", "es":"[Trad 3]"}]}
-            `;
-
-            let contents = [];
-
-            if (imageBase64) {
-                // MODO IMAGEN (Sin historial para simplificar)
-                contents = [{
-                    role: 'user',
-                    parts: [
-                        { text: sysPrompt + "\n\nINSTRUCCIÓN ESPECÍFICA PARA ESTA IMAGEN: " + prompt },
-                        { inline_data: { mime_type: "image/jpeg", data: imageBase64 } }
-                    ]
-                }];
-            } else {
-                // MODO TEXTO (Con historial de chat)
-                // 1. Construir historial previo
-                contents = chatHistory.map(msg => ({
-                    role: msg.role,
-                    parts: [{ text: msg.text }]
-                }));
-
-                // 2. Añadir mensaje actual
-                contents.push({ role: 'user', parts: [{ text: prompt }] });
-
-                // 3. Inyectar System Prompt en el PRIMER mensaje del historial (o el actual si es el primero)
-                if (contents.length > 0) {
-                    const firstMsgText = contents[0].parts[0].text;
-                    // Solo inyectamos si no parece estar ya (simple check)
-                    if (!firstMsgText.includes("Eres \"Teacher AI\"")) {
-                        contents[0].parts[0].text = sysPrompt + "\n\n" + firstMsgText;
-                    }
+                    `;
+                    lucide.createIcons();
                 }
+            } catch(e) {
+                content.innerHTML = `<div class="text-center py-8"><p class="text-red-500 font-bold">Error cargando detalles.</p><button onclick="closeModal()" class="mt-4 text-slate-400 underline">Cerrar</button></div>`;
             }
-
-            const response = await fetch(url, {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ 
-                    contents: contents, 
-                    generationConfig: { response_mime_type: "application/json" },
-                    safetySettings: [
-                        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-                        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-                        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-                        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-                    ]
-                })
-            });
-            
-            if (!response.ok) {
-                // ROTACIÓN DE LLAVES: Si es error de cliente (4xx) o cuota (429), probamos la siguiente
-                if(response.status === 400 || response.status === 403 || response.status === 429) {
-                    console.warn(`Clave ${currentKeyIdx + 1} falló (${response.status}). Rotando a la siguiente...`);
-                    currentKeyIdx = (currentKeyIdx + 1) % apiKeys.length;
-                    return callGemini(prompt, imageBase64, attempt + 1);
-                }
-
-                const errData = await response.json();
-                throw new Error(errData.error?.message || "API Error: " + response.status);
-            }
-
-            const json = await response.json();
-            if(!json.candidates || json.candidates.length === 0) {
-                throw new Error("La IA no devolvió resultados (Posible bloqueo de seguridad).");
-            }
-            
-            const text = json.candidates[0].content.parts[0].text;
-            
-            // ACTUALIZAR HISTORIAL (Solo si es texto)
-            if (!imageBase64) {
-                chatHistory.push({ role: 'user', text: prompt });
-                chatHistory.push({ role: 'model', text: text });
-                // Limitar historial a últimos 20 mensajes (10 turnos)
-                if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
-            }
-
-            return JSON.parse(cleanJSON(text));
-        }
-
-        // --- UTILS ---
-        function cleanJSON(text) {
-            const firstBrace = text.indexOf('{');
-            const lastBrace = text.lastIndexOf('}');
-            if (firstBrace !== -1 && lastBrace !== -1) {
-                return text.substring(firstBrace, lastBrace + 1);
-            }
-            return text.replace(/```json/g, '').replace(/```/g, '').trim();
-        }
-        
-        function cleanTextForSpeech(text) {
-            // Elimina markdown, emojis y caracteres especiales que no se deben leer
-            // FIX: Reemplaza "Mmm..." o "mmm..." por una pausa o nada para evitar "eme eme eme"
-            // FIX: Reemplaza "IA" por "Inteligencia Artificial" para mejor pronunciación
-            let clean = text
-                       .replace(/\bIA\b/g, 'Inteligencia Artificial')
-                       .replace(/[*#_`]/g, '') // Markdown chars
-                       .replace(/[\u{1F600}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{1F004}\u{1F0CF}\u{1F170}-\u{1F251}\u{2B50}\u{2B55}\u{2934}-\u{2935}\u{2B05}-\u{2B07}\u{2B1B}-\u{2B1C}\u{3297}\u{3299}\u{3030}\u{303D}\u{00A9}\u{00AE}\u{2122}\u{23F3}\u{24C2}\u{23E9}-\u{23EF}\u{25B6}\u{23F8}-\u{23FA}]/gu, '') // Rango extendido de emojis
-                       .replace(/\b(Mmm+|mmm+)\b\.{0,3}/g, '') // Elimina Mmm... mmm...
-                       .trim();
-            return clean;
-        }
-
-        function addBubble(content, type, isLoading=false, isHtml=false) {
-            const chat = document.getElementById('chat-area');
-            const div = document.createElement('div');
-            div.className = `chat-bubble ${type === 'user' ? 'user-msg' : 'bot-msg'}`;
-            div.id = 'msg-' + Date.now();
-            
-            if(isLoading) div.innerHTML = '<div class="flex gap-1 justify-center"><div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div><div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay:0.1s"></div><div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay:0.2s"></div></div>';
-            else if(isHtml) div.innerHTML = content;
-            else div.innerText = content;
-
-            chat.appendChild(div);
-            chat.scrollTop = chat.scrollHeight;
-            return div.id;
-        }
-
-        function addPoints(n) { state.score += n; updateUI(); }
-        function resetApp() { 
-            localStorage.removeItem('profesor_ia_state'); 
-            chatHistory = []; // Limpiar historial
-            location.reload(); 
-        }
-
-        function triggerConfetti() {
-            for(let i=0; i<30; i++) {
-                const c = document.createElement('div');
-                c.className = 'confetti';
-                c.style.left = Math.random()*100 + 'vw';
-                c.style.backgroundColor = ['#f00','#0f0','#00f','#ff0','#f0f'][Math.floor(Math.random()*5)];
-                c.style.animationDuration = (Math.random()*2+2)+'s';
-                document.body.appendChild(c);
-                setTimeout(()=>c.remove(), 4000);
-            }
-        }
-
-        // --- AUDIO & MIC ---
-        function initVoice() { 
-            // Intentar cargar voces inmediatamente
-            const voices = window.speechSynthesis.getVoices();
-            
-            // Si no hay voces, esperar al evento
-            if (voices.length === 0) {
-                if (speechSynthesis.onvoiceschanged !== undefined) {
-                    speechSynthesis.onvoiceschanged = () => {
-                        window.speechSynthesis.getVoices();
-                        console.log("Voces cargadas (evento)");
-                    };
-                }
-            }
-        }
-        
-        function speakText(text, lang) {
-            window.speechSynthesis.cancel();
-            // Limpiamos el texto de emojis y markdown antes de hablar
-            const clean = cleanTextForSpeech(text);
-            const u = new SpeechSynthesisUtterance(clean); 
-            u.rate = state.speechRate || 0.9;
-            
-            // FIX CRÍTICO: Forzar el código de idioma para que el navegador elija el motor correcto
-            // Esto soluciona el problema de "voz española leyendo inglés"
-            u.lang = lang === 'es' ? 'es-ES' : 'en-US';
-
-            // Intentar buscar una voz específica si está disponible
-            const vs = window.speechSynthesis.getVoices();
-            if (vs.length > 0) {
-                if(lang === 'es') {
-                    u.voice = vs.find(v => v.lang === 'es-MX') || 
-                              vs.find(v => v.lang === 'es-ES') || 
-                              vs.find(v => v.lang.includes('es'));
-                } else {
-                    u.voice = vs.find(v => v.lang === 'en-US') || 
-                              vs.find(v => v.lang === 'en-GB') || 
-                              vs.find(v => v.lang.includes('en'));
-                }
-            }
-
-            window.speechSynthesis.speak(u);
-        }
-
-        function pauseAudio() { window.speechSynthesis.pause(); }
-        function resumeAudio() { window.speechSynthesis.resume(); }
-        function stopAudio() { window.speechSynthesis.cancel(); }
-
-        function playLessonAudio() {
-            if(!currentLessonAudioText) return;
-            // Las lecciones ahora son en español con partes en inglés.
-            // Leeremos en español para que se entienda la explicación.
-            speakText(currentLessonAudioText, 'es');
-        }
-
-        function addToCollection(wordEn, wordEs, icon) {
-            // Evitar duplicados
-            if(state.collection.some(item => item.wordEn.toLowerCase() === wordEn.toLowerCase())) return;
-            
-            state.collection.unshift({
-                wordEn, wordEs, icon: icon || '📦', date: new Date().toLocaleDateString()
-            });
-            // Limitar a 50 items para no llenar localStorage
-            if(state.collection.length > 50) state.collection.pop();
-            
-            updateUI();
-            showToast(`¡Nueva palabra guardada: ${wordEn}!`);
-        }
-
-        function showWordDetails(word) {
-            const prompt = `Genera 3 oraciones simples en inglés usando la palabra "${word}". Incluye traducción al español. Responde con JSON type "word_details".`;
-            sendQuickMsg(prompt, true);
-        }
-
-        function renderCollection() {
-            const container = document.getElementById('collection-grid');
-            if(!container) return;
-            
-            if(state.collection.length === 0) {
-                container.innerHTML = '<p class="text-slate-400 text-sm col-span-2 text-center py-4">Aún no has encontrado objetos. ¡Usa la cámara!</p>';
-                return;
-            }
-
-            container.innerHTML = state.collection.map(item => `
-                <div onclick="showWordDetails('${item.wordEn}')" class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3 active:scale-95 transition-transform cursor-pointer hover:border-blue-200">
-                    <div class="text-2xl">${item.icon}</div>
-                    <div>
-                        <p class="font-bold text-slate-800 text-sm leading-none">${item.wordEn}</p>
-                        <p class="text-xs text-slate-400">${item.wordEs}</p>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let rec = SR ? new SR() : null;
-        if(rec) {
-            rec.lang = 'en-US'; 
-            rec.continuous = false;
-            rec.interimResults = false;
-            
-            rec.onresult = (e) => {
-                const transcript = e.results[0][0].transcript;
-                sendQuickMsg(`[EVALUAR PRONUNCIACIÓN]: ${transcript}`, true);
-                addBubble(`🎤 Dijiste: "${transcript}"`, 'user');
-            };
-            rec.onend = () => {
-                document.getElementById('mic-btn').classList.remove('mic-active');
-                document.getElementById('mic-status').innerText = "Mantén para hablar en Inglés";
-                document.getElementById('mic-status').classList.remove('text-red-500');
-            };
-        }
-
-        function startListening() { 
-            if(rec) { 
-                try { rec.start(); } catch(e){} 
-                document.getElementById('mic-btn').classList.add('mic-active');
-                document.getElementById('mic-status').innerText = "Escuchando...";
-                document.getElementById('mic-status').classList.add('text-red-500');
-            } else {
-                alert("Tu navegador no soporta reconocimiento de voz.");
-            }
-        }
-        function stopListening() { 
-            if(rec) rec.stop(); 
         }
     </script>
 </body>
