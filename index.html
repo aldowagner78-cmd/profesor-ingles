@@ -683,10 +683,11 @@
 
             try {
                 let prompt = "";
-                if (cameraMode === 'explore') {
-                    prompt = `Analiza esta imagen. Dime qué objeto principal ves. Responde con JSON type "analysis".`;
-                } else {
+                if (cameraMode === 'translate') {
                     prompt = `Lee el texto en esta imagen y tradúcelo al inglés. Responde with JSON type "translation".`;
+                } else {
+                    // Explore & Game modes
+                    prompt = `Analiza esta imagen. Dime qué objeto principal ves. Responde con JSON type "analysis".`;
                 }
                 
                 const data = await callGemini(prompt, base64);
@@ -911,6 +912,242 @@
             } catch(e) {
                 content.innerHTML = `<div class="text-center py-8"><p class="text-red-500 font-bold">Error cargando detalles.</p><button onclick="closeModal()" class="mt-4 text-slate-400 underline">Cerrar</button></div>`;
             }
+        }
+
+        // --- FUNCIONES RESTAURADAS (CORE) ---
+        
+        function addToCollection(wordEn, wordEs, icon) {
+            if (state.collection.some(item => item.wordEn.toLowerCase() === wordEn.toLowerCase())) return;
+            state.collection.unshift({ wordEn, wordEs, icon, date: new Date().toISOString() });
+            updateUI();
+        }
+
+        function renderCollection() {
+            const grid = document.getElementById('collection-grid');
+            if (!grid) return;
+            if (state.collection.length === 0) {
+                grid.innerHTML = '<p class="col-span-2 text-center text-slate-400 text-xs py-4">Aún no has encontrado objetos.</p>';
+                return;
+            }
+            grid.innerHTML = state.collection.map(item => `
+                <div onclick="showWordDetails('${item.wordEn}')" class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col items-center text-center active:scale-95 transition-transform cursor-pointer">
+                    <div class="text-2xl mb-1">${item.icon || '📦'}</div>
+                    <div class="font-bold text-slate-700 text-sm leading-tight">${item.wordEn}</div>
+                    <div class="text-xs text-slate-400">${item.wordEs}</div>
+                </div>
+            `).join('');
+        }
+
+        function addPoints(pts) {
+            state.score += pts;
+            updateUI();
+        }
+
+        function showToast(msg, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-xl z-50 font-bold text-sm flex items-center gap-2 fade-in-up ${type === 'error' ? 'bg-red-500 text-white' : 'bg-slate-800 text-white'}`;
+            toast.innerHTML = `<span>${msg}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function triggerConfetti() {
+            for(let i=0; i<30; i++) {
+                const c = document.createElement('div');
+                c.className = 'confetti';
+                c.style.left = Math.random() * 100 + 'vw';
+                c.style.backgroundColor = ['#f00', '#0f0', '#00f', '#ff0', '#f0f'][Math.floor(Math.random()*5)];
+                c.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                document.body.appendChild(c);
+                setTimeout(() => c.remove(), 4000);
+            }
+        }
+
+        // --- AUDIO & VOZ ---
+        let synth = window.speechSynthesis;
+        let recognition = null;
+
+        function initVoice() {
+            if (!('webkitSpeechRecognition' in window)) return;
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onresult = (event) => {
+                const text = event.results[0][0].transcript;
+                document.getElementById('chat-input').value = text;
+                sendTextMsg();
+            };
+            
+            recognition.onend = () => {
+                document.getElementById('mic-btn').classList.remove('mic-active');
+                isListening = false;
+            };
+        }
+
+        function speakText(text, lang = 'en') {
+            if (!text) return;
+            stopAudio();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang === 'es' ? 'es-ES' : 'en-US';
+            utterance.rate = state.speechRate || 0.9;
+            synth.speak(utterance);
+        }
+
+        function stopAudio() { synth.cancel(); }
+        function pauseAudio() { synth.pause(); }
+
+        function startListening() {
+            if(isListening || !recognition) return;
+            try {
+                recognition.start();
+                document.getElementById('mic-btn').classList.add('mic-active');
+                isListening = true;
+            } catch(e) { console.log(e); }
+        }
+
+        function stopListening() {
+            if(!isListening || !recognition) return;
+            recognition.stop();
+        }
+
+        // --- CHAT & GEMINI ---
+        async function callGemini(prompt, imageBase64 = null) {
+            const apiKey = apiKeys[currentKeyIdx];
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            
+            const parts = [{ text: prompt + " Respond ONLY in JSON." }];
+            if (imageBase64) {
+                parts.push({ inline_data: { mime_type: "image/jpeg", data: imageBase64 } });
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts }] })
+                });
+                
+                if (!response.ok) throw new Error("API Error");
+                
+                const data = await response.json();
+                const text = data.candidates[0].content.parts[0].text;
+                const jsonStr = text.replace(/```json|```/g, '').trim();
+                return JSON.parse(jsonStr);
+
+            } catch (error) {
+                console.error(error);
+                currentKeyIdx = (currentKeyIdx + 1) % apiKeys.length;
+                if(currentKeyIdx !== 0) return callGemini(prompt, imageBase64);
+                throw error;
+            }
+        }
+
+        async function sendTextMsg() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            addMsg(text, 'user');
+            input.value = '';
+
+            const loadingId = addMsg('...', 'bot');
+
+            try {
+                const prompt = `
+                    Eres un profesor de inglés. Nivel: ${getCurrentLevel().name}. Tema: ${getCurrentTopic()}.
+                    Usuario: "${text}".
+                    Responde JSON: { "type": "eval", "feedback": "Español", "correction": "Corrección o null", "reply": "Inglés" }
+                `;
+                const data = await callGemini(prompt);
+                document.getElementById(loadingId).remove();
+                handleResponse(data);
+            } catch (e) {
+                document.getElementById(loadingId).innerText = "Error.";
+            }
+        }
+
+        function addMsg(html, role) {
+            const div = document.createElement('div');
+            div.className = 'flex gap-3 fade-in-up';
+            div.id = 'msg-' + Date.now();
+            
+            const content = `
+                <div class="${role === 'bot' ? 'w-8 h-8 bg-blue-600' : 'hidden'} rounded-full flex items-center justify-center text-white flex-shrink-0 shadow-md">
+                    <i data-lucide="bot" class="w-5 h-5"></i>
+                </div>
+                <div class="chat-bubble ${role === 'user' ? 'user-msg' : 'bot-msg'}">
+                    ${html}
+                </div>
+            `;
+            div.innerHTML = content;
+            const area = document.getElementById('chat-area');
+            area.appendChild(div);
+            area.scrollTop = area.scrollHeight;
+            lucide.createIcons();
+            return div.id;
+        }
+
+        function handleResponse(data) {
+            if (data.type === 'eval') {
+                let html = '';
+                if (data.correction) html += `<div class="text-xs text-red-500 mb-1 font-bold">Corrección: ${data.correction}</div>`;
+                html += `<div class="text-sm text-slate-600 mb-2">${data.feedback}</div>`;
+                html += `<div class="text-lg font-bold text-blue-700">${data.reply} <button onclick="speakText('${data.reply.replace(/'/g, "\\'")}')" class="inline-block ml-2 align-middle"><i data-lucide="volume-2" class="w-4 h-4"></i></button></div>`;
+                addMsg(html, 'bot');
+                speakText(data.reply);
+            } else if (data.type === 'lesson') {
+                addMsg(marked.parse(data.content), 'bot');
+                speakText("Here is your lesson.", 'en');
+            } else if (data.type === 'quiz') {
+                let html = `<p class="font-bold mb-2">${data.question}</p>`;
+                data.options.forEach(opt => {
+                    html += `<button onclick="checkQuiz('${opt}', '${data.answer}')" class="block w-full text-left p-2 rounded border mb-1 hover:bg-blue-50">${opt}</button>`;
+                });
+                addMsg(html, 'bot');
+            }
+        }
+
+        function checkQuiz(selected, correct) {
+            if (selected === correct) {
+                addMsg("¡Correcto! 🎉 +10 puntos", 'bot');
+                addPoints(10);
+                triggerConfetti();
+            } else {
+                addMsg(`Incorrecto. La respuesta era: ${correct}`, 'bot');
+            }
+        }
+
+        async function requestLesson() {
+            addMsg("Generando lección...", 'bot');
+            try {
+                const prompt = `Lección corta sobre ${getCurrentTopic()} (${getCurrentLevel().name}). JSON type "lesson", field "content" (markdown).`;
+                const data = await callGemini(prompt);
+                handleResponse(data);
+            } catch(e) { addMsg("Error.", 'bot'); }
+        }
+
+        async function requestQuiz() {
+            addMsg("Generando examen...", 'bot');
+            try {
+                const prompt = `Pregunta opción múltiple ${getCurrentTopic()}. JSON type "quiz", fields: question, options[], answer.`;
+                const data = await callGemini(prompt);
+                handleResponse(data);
+            } catch(e) { addMsg("Error.", 'bot'); }
+        }
+
+        async function startRoleplay() {
+            addMsg("Let's start!", 'bot');
+            const prompt = `Roleplay ${getCurrentTopic()}. JSON type "eval", reply="Start phrase", feedback="Roleplay", correction=null.`;
+            const data = await callGemini(prompt);
+            handleResponse(data);
+        }
+
+        function checkMission() {
+            if (!currentMission) return;
+            analyzeImage(); 
         }
     </script>
 </body>
