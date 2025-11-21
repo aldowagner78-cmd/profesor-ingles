@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Profesor IA - Inglés (v3 Final)</title>
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="fixed inset-0 w-full flex flex-col overflow-hidden text-slate-800">
+    
+    <!-- MODAL DE CONFIGURACIÓN INICIAL (API KEY) -->
+    <div id="setup-modal" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+                    <i data-lucide="key" class="w-8 h-8"></i>
+                </div>
+                <h2 class="text-2xl font-black text-slate-800">Configuración Inicial</h2>
+                <p class="text-slate-500 text-sm mt-2">Para usar Profesor IA, necesitas tu propia clave gratuita de Google Gemini.</p>
+            </div>
+            
+            <div class="space-y-4">
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="block w-full py-3 bg-blue-50 text-blue-700 rounded-xl font-bold text-center border border-blue-100 hover:bg-blue-100 transition-colors">
+                    1. Obtener API Key (Gratis) 🔗
+                </a>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">2. Pega tu API Key aquí:</label>
+                    <input type="text" id="api-key-input" placeholder="AIzaSy..." class="w-full px-4 py-3 rounded-xl border border-slate-200 font-mono text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                </div>
+                
+                <button id="save-key-btn" class="w-full py-3 bg-blue-600 text-white rounded-xl font-black shadow-lg shadow-blue-200 active:scale-95 transition-transform">
+                    GUARDAR Y EMPEZAR
+                </button>
+            </div>
+            <p class="text-xs text-center text-slate-400 mt-4">Tu clave se guarda solo en tu dispositivo.</p>
+        </div>
+    </div>
+
+    <!-- ENCABEZADO -->
+    <header class="h-16 bg-white shadow-sm flex items-center justify-between px-4 z-30 flex-shrink-0">
+        <div class="flex items-center gap-2">
+            <div class="bg-blue-600 p-1.5 rounded-xl shadow-lg shadow-blue-200">
+                <i data-lucide="graduation-cap" class="w-6 h-6 text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-black text-slate-800 tracking-tight leading-none">Profesor<span class="text-blue-600">IA</span></h1>
+                <p id="level-display" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nivel Inicial</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100">
+            <i data-lucide="coins" class="w-4 h-4 text-amber-500 fill-amber-500"></i>
+            <span id="score-display" class="font-black text-amber-700 text-sm">0</span>
+        </div>
+    </header>
+
+    <!-- NAVEGACIÓN -->
+    <nav class="bg-white border-b border-slate-100 flex justify-around items-center z-40 py-2 shadow-sm flex-shrink-0">
+        <button id="nav-camera" class="nav-btn px-4 py-1 flex items-center gap-2 text-slate-400 transition-colors rounded-lg">
+            <i data-lucide="camera" class="w-5 h-5"></i>
+            <span class="text-xs font-bold">Cámara</span>
+        </button>
+        <button id="nav-class" class="nav-btn px-4 py-1 flex items-center gap-2 text-slate-400 transition-colors rounded-lg">
+            <i data-lucide="message-square" class="w-5 h-5"></i>
+            <span class="text-xs font-bold">Clase</span>
+        </button>
+        <button id="nav-profile" class="nav-btn px-4 py-1 flex items-center gap-2 text-slate-400 transition-colors rounded-lg">
+            <i data-lucide="user" class="w-5 h-5"></i>
+            <span class="text-xs font-bold">Perfil</span>
+        </button>
+    </nav>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="flex-1 relative overflow-hidden">
+        <!-- VISTA 1: CÁMARA -->
+        <div id="view-camera" class="absolute inset-0 flex flex-col hidden bg-slate-900">
+            <div class="relative flex-1 overflow-hidden">
+                <video id="camera-feed" autoplay playsinline class="w-full h-full object-cover opacity-50"></video>
+                <canvas id="camera-canvas" class="hidden"></canvas>
+                
+                <!-- Pantalla de Inicio / Pausa -->
+                <div id="camera-start-screen" class="absolute inset-0 flex flex-col items-center justify-center z-30 bg-slate-900/80 backdrop-blur-sm">
+                    <div class="text-center p-6">
+                        <div class="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/50 animate-pulse">
+                            <i data-lucide="camera" class="w-10 h-10 text-white"></i>
+                        </div>
+                        <h2 class="text-2xl font-black text-white mb-2">Cámara IA</h2>
+                        <p class="text-slate-300 mb-6 text-sm">Apunta a objetos para aprender sus nombres.</p>
+                        <button id="start-camera-btn" class="px-8 py-3 bg-white text-blue-600 rounded-full font-black text-lg shadow-xl active:scale-95 transition-transform flex items-center gap-2 mx-auto">
+                            <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+                            INICIAR
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Overlay de Análisis (Oculto al inicio) -->
+                <div id="camera-overlay" class="absolute inset-0 pointer-events-none flex flex-col justify-between p-6 hidden">
+                    <!-- Selector de Modo -->
+                    <div class="flex justify-center pointer-events-auto">
+                        <div class="bg-black/60 backdrop-blur-md p-1 rounded-full flex border border-white/10">
+                            <button id="mode-explore" class="px-4 py-1.5 rounded-full text-xs font-bold text-white bg-blue-600 shadow-sm transition-all">
+                                🔭 Explorar
+                            </button>
+                            <button id="mode-game" class="px-4 py-1.5 rounded-full text-xs font-bold text-slate-400 hover:text-white transition-all">
+                                🎮 Juego
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="mission-panel" class="bg-black/50 text-white p-4 rounded-2xl backdrop-blur-md border border-white/10 mt-4 hidden">
+                        <p class="text-xs font-bold text-slate-400 uppercase mb-1">Misión Actual:</p>
+                        <p id="camera-mission" class="text-lg font-bold leading-tight">Encuentra: <span class="text-yellow-400">...</span></p>
+                    </div>
+                    
+                    <!-- Resultado del Análisis -->
+                    <div id="analysis-result" class="hidden bg-white/90 text-slate-900 p-4 rounded-2xl backdrop-blur-md shadow-xl mb-4 transition-all transform translate-y-0 pointer-events-auto">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h3 id="detected-obj" class="text-2xl font-black text-blue-600 leading-none">Object</h3>
+                                <p id="detected-pron" class="text-xs text-slate-500 font-mono mt-1">/pronunciation/</p>
+                            </div>
+                            <button id="close-analysis" class="p-2 bg-slate-100 rounded-full hover:bg-slate-200">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p id="detected-desc" class="text-sm font-medium text-slate-600 leading-snug mb-3">Description goes here.</p>
+                        <button id="speak-obj-btn" class="w-full py-2 bg-blue-100 text-blue-700 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                            <i data-lucide="volume-2" class="w-4 h-4"></i> Escuchar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controles Cámara -->
+            <div id="camera-controls" class="bg-slate-900 p-6 pb-24 flex justify-center items-center relative z-20 hidden">
+                <button id="capture-btn" class="w-20 h-20 bg-white rounded-full border-4 border-slate-300 shadow-[0_0_30px_rgba(255,255,255,0.3)] active:scale-95 transition-transform flex items-center justify-center">
+                    <div class="w-16 h-16 bg-white rounded-full border-2 border-slate-900"></div>
+                </button>
+            </div>
+        </div>
+
+        <!-- VISTA 2: CLASE -->
+        <div id="view-class" class="absolute inset-0 flex flex-col bg-slate-50 hidden">
+            <!-- Área de Chat -->
+            <div id="chat-area" class="flex-1 overflow-y-auto p-4 space-y-2 scroll-smooth pb-32">
+                <div class="flex gap-3 fade-in-up">
+                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white flex-shrink-0 shadow-md">
+                        <i data-lucide="bot" class="w-5 h-5"></i>
+                    </div>
+                    <div class="chat-bubble bot-msg">
+                        ¡Hola! 👋 Soy tu Profe IA. <br>Vamos a aprender inglés paso a paso.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controles Fijos -->
+            <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-4 z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] rounded-t-3xl">
+                
+                <!-- Panel Micrófono -->
+                <div id="mic-panel" class="flex flex-col items-center gap-2 mb-2">
+                    <p id="mic-status" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Toca para hablar</p>
+                    <div class="flex items-center gap-4 w-full justify-center">
+                        <button id="mic-btn" class="w-16 h-16 bg-blue-50 rounded-full shadow-sm flex items-center justify-center text-blue-600 transition-all border-2 border-blue-100 touch-none active:bg-blue-100 flex-shrink-0">
+                            <i data-lucide="mic" class="w-8 h-8"></i>
+                        </button>
+                        
+                        <!-- Input Texto -->
+                        <div class="flex-1 max-w-xs flex gap-2">
+                            <input type="text" id="chat-input" placeholder="Escribe..." class="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-400 shadow-sm">
+                            <button id="send-btn" class="p-2 bg-blue-600 text-white rounded-xl shadow-md active:scale-95 transition-transform">
+                                <i data-lucide="send" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones Rápidos -->
+                <div class="grid grid-cols-4 gap-2">
+                    <button data-action="lesson" class="action-btn px-2 py-3 bg-indigo-50 text-indigo-700 rounded-xl text-[10px] font-bold border border-indigo-100 active:bg-indigo-100 flex flex-col items-center gap-1">
+                        <span>📚</span> Lección
+                    </button>
+                    <button data-action="quiz" class="action-btn px-2 py-3 bg-purple-50 text-purple-700 rounded-xl text-[10px] font-bold border border-purple-100 active:bg-purple-100 flex flex-col items-center gap-1">
+                        <span>📝</span> Examen
+                    </button>
+                    <button data-action="roleplay" class="action-btn px-2 py-3 bg-pink-50 text-pink-700 rounded-xl text-[10px] font-bold border border-pink-100 active:bg-pink-100 flex flex-col items-center gap-1">
+                        <span>🎭</span> Roleplay
+                    </button>
+                    <button data-action="next" class="action-btn px-2 py-3 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-bold border border-emerald-100 active:bg-emerald-100 flex flex-col items-center gap-1">
+                        <span>⏭️</span> Sig.
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA 3: PERFIL -->
+        <div id="view-profile" class="absolute inset-0 bg-slate-50 p-6 hidden overflow-y-auto">
+            <div class="max-w-md mx-auto space-y-6">
+                <!-- Header Perfil -->
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 text-center">
+                    <div class="w-24 h-24 bg-blue-100 rounded-full mx-auto mb-4 flex items-center justify-center text-blue-600 text-4xl font-black border-4 border-white shadow-lg">
+                        <i data-lucide="user" class="w-12 h-12"></i>
+                    </div>
+                    <h2 class="text-2xl font-black text-slate-800">Estudiante</h2>
+                    <p id="profile-level" class="text-blue-600 font-bold uppercase tracking-wider text-xs mt-1">Nivel Inicial</p>
+                </div>
+
+                <!-- Estadísticas -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex items-center gap-2 mb-2 text-slate-400">
+                            <i data-lucide="coins" class="w-4 h-4"></i>
+                            <span class="text-xs font-bold uppercase">Puntos</span>
+                        </div>
+                        <p id="profile-score" class="text-3xl font-black text-slate-800">0</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex items-center gap-2 mb-2 text-slate-400">
+                            <i data-lucide="trophy" class="w-4 h-4"></i>
+                            <span class="text-xs font-bold uppercase">Racha</span>
+                        </div>
+                        <p class="text-3xl font-black text-slate-800">1 <span class="text-sm text-slate-400 font-normal">día</span></p>
+                    </div>
+                </div>
+
+                <!-- Progreso -->
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                    <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <i data-lucide="map" class="w-5 h-5 text-blue-600"></i>
+                        Tu Progreso
+                    </h3>
+                    <div id="syllabus-list" class="space-y-4 relative before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                        <!-- Items generados dinámicamente -->
+                    </div>
+                </div>
+                
+                <button id="reset-btn" class="w-full py-3 text-red-500 font-bold text-sm hover:bg-red-50 rounded-xl transition-colors">
+                    Reiniciar Progreso
+                </button>
+                
+                <button id="change-key-btn" class="w-full py-3 text-slate-400 font-bold text-xs hover:text-slate-600 transition-colors mt-4">
+                    Cambiar API Key
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts Modulares -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
