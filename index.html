@@ -940,23 +940,23 @@
             window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(text); 
             u.rate = state.speechRate || 0.9;
+            
+            // FIX CRÍTICO: Forzar el código de idioma para que el navegador elija el motor correcto
+            // Esto soluciona el problema de "voz española leyendo inglés"
+            u.lang = lang === 'es' ? 'es-ES' : 'en-US';
+
+            // Intentar buscar una voz específica si está disponible
             const vs = window.speechSynthesis.getVoices();
-            
-            // Selección inteligente de voz MEJORADA
-            if(lang === 'es') {
-                u.voice = vs.find(v => v.lang === 'es-MX') || 
-                          vs.find(v => v.lang === 'es-ES') || 
-                          vs.find(v => v.lang.includes('es'));
-            } else {
-                // Priorizar inglés nativo (US/UK)
-                u.voice = vs.find(v => v.lang === 'en-US') || 
-                          vs.find(v => v.lang === 'en-GB') || 
-                          vs.find(v => v.lang.includes('en'));
-            }
-            
-            // Fallback si no encuentra voz específica
-            if (!u.voice && vs.length > 0) {
-                console.warn(`No se encontró voz para ${lang}, usando predeterminada.`);
+            if (vs.length > 0) {
+                if(lang === 'es') {
+                    u.voice = vs.find(v => v.lang === 'es-MX') || 
+                              vs.find(v => v.lang === 'es-ES') || 
+                              vs.find(v => v.lang.includes('es'));
+                } else {
+                    u.voice = vs.find(v => v.lang === 'en-US') || 
+                              vs.find(v => v.lang === 'en-GB') || 
+                              vs.find(v => v.lang.includes('en'));
+                }
             }
 
             window.speechSynthesis.speak(u);
