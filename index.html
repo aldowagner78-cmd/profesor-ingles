@@ -247,13 +247,23 @@
                 <!-- Panel Micrófono (Mantener para hablar) -->
                 <div id="mic-panel" class="flex flex-col items-center gap-2 mb-2">
                     <p id="mic-status" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mantén para hablar en Inglés</p>
-                    <button id="mic-btn" 
-                        onpointerdown="startListening()" 
-                        onpointerup="stopListening()" 
-                        onpointerleave="stopListening()"
-                        class="w-16 h-16 bg-blue-50 rounded-full shadow-sm flex items-center justify-center text-blue-600 transition-all border-2 border-blue-100 touch-none active:bg-blue-100">
-                        <i data-lucide="mic" class="w-8 h-8"></i>
-                    </button>
+                    <div class="flex items-center gap-4 w-full justify-center">
+                        <button id="mic-btn" 
+                            onpointerdown="startListening()" 
+                            onpointerup="stopListening()" 
+                            onpointerleave="stopListening()"
+                            class="w-16 h-16 bg-blue-50 rounded-full shadow-sm flex items-center justify-center text-blue-600 transition-all border-2 border-blue-100 touch-none active:bg-blue-100 flex-shrink-0">
+                            <i data-lucide="mic" class="w-8 h-8"></i>
+                        </button>
+                        
+                        <!-- Input de Texto (Nuevo) -->
+                        <div class="flex-1 max-w-xs flex gap-2">
+                            <input type="text" id="chat-input" placeholder="Escribe aquí..." class="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-400 shadow-sm" onkeypress="if(event.key === 'Enter') sendTextMsg()">
+                            <button onclick="sendTextMsg()" class="p-2 bg-blue-600 text-white rounded-xl shadow-md active:scale-95 transition-transform">
+                                <i data-lucide="send" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Panel Botones -->
@@ -502,7 +512,20 @@
             {es: "Silla", en: "Chair"}, {es: "Mesa", en: "Table"}, {es: "Taza", en: "Cup"}, 
             {es: "Computadora", en: "Computer"}, {es: "Teléfono", en: "Phone"}, {es: "Lápiz", en: "Pencil"},
             {es: "Libro", en: "Book"}, {es: "Zapato", en: "Shoe"}, {es: "Puerta", en: "Door"},
-            {es: "Ventana", en: "Window"}, {es: "Botella", en: "Bottle"}, {es: "Planta", en: "Plant"}
+            {es: "Ventana", en: "Window"}, {es: "Botella", en: "Bottle"}, {es: "Planta", en: "Plant"},
+            {es: "Cama", en: "Bed"}, {es: "Lámpara", en: "Lamp"}, {es: "Televisión", en: "Television"},
+            {es: "Refrigerador", en: "Fridge"}, {es: "Microondas", en: "Microwave"}, {es: "Plato", en: "Plate"},
+            {es: "Tenedor", en: "Fork"}, {es: "Cuchara", en: "Spoon"}, {es: "Cuchillo", en: "Knife"},
+            {es: "Vaso", en: "Glass"}, {es: "Reloj", en: "Clock"}, {es: "Espejo", en: "Mirror"},
+            {es: "Sofá", en: "Sofa"}, {es: "Almohada", en: "Pillow"}, {es: "Toalla", en: "Towel"},
+            {es: "Jabón", en: "Soap"}, {es: "Cepillo de dientes", en: "Toothbrush"}, {es: "Llave", en: "Key"},
+            {es: "Mochila", en: "Backpack"}, {es: "Cuaderno", en: "Notebook"}, {es: "Bolígrafo", en: "Pen"},
+            {es: "Gafas", en: "Glasses"}, {es: "Sombrero", en: "Hat"}, {es: "Camisa", en: "Shirt"},
+            {es: "Pantalones", en: "Pants"}, {es: "Calcetines", en: "Socks"}, {es: "Chaqueta", en: "Jacket"},
+            {es: "Bicicleta", en: "Bicycle"}, {es: "Coche", en: "Car"}, {es: "Árbol", en: "Tree"},
+            {es: "Flor", en: "Flower"}, {es: "Perro", en: "Dog"}, {es: "Gato", en: "Cat"},
+            {es: "Pájaro", en: "Bird"}, {es: "Sol", en: "Sun"}, {es: "Luna", en: "Moon"},
+            {es: "Estrella", en: "Star"}, {es: "Nube", en: "Cloud"}
         ];
 
         function setCameraMode(mode) {
@@ -547,7 +570,7 @@
                     video.srcObject = stream;
                     video.onloadedmetadata = () => video.play();
                 } catch(err){ 
-                    alert("No pudimos acceder a la cámara. Verifica los permisos."); 
+                    showToast("No pudimos acceder a la cámara. Verifica los permisos.", 'error');
                 }
             }
             setCameraMode(cameraMode); // Refresh UI
@@ -614,7 +637,7 @@
                 lucide.createIcons();
 
             } catch (e) { 
-                alert("Error analizando imagen."); 
+                showToast("Error analizando imagen.", 'error');
             }
             btn.classList.remove('scale-90', 'opacity-50');
         }
@@ -686,7 +709,7 @@
                 lucide.createIcons();
 
             } catch (e) { 
-                alert("Error analizando imagen. Intenta de nuevo."); 
+                showToast("Error analizando imagen. Intenta de nuevo.", 'error');
                 console.error(e);
             }
             btn.classList.remove('scale-90', 'opacity-50');
@@ -712,6 +735,27 @@
         async function startRoleplay() {
             const prompt = `Genera una situación de Roleplay corta para practicar ${getCurrentTopic()}. Describe la situación y dime qué debo decir o hacer. Responde con JSON type "roleplay".`;
             sendQuickMsg(prompt, true);
+        }
+
+        function sendTextMsg() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if(text) {
+                sendQuickMsg(text);
+                input.value = "";
+            }
+        }
+
+        function showToast(msg, type='info') {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-xl z-50 font-bold text-sm flex items-center gap-2 fade-in-up ${type === 'error' ? 'bg-red-500 text-white' : 'bg-slate-800 text-white'}`;
+            toast.innerHTML = type === 'error' ? `<i data-lucide="alert-circle" class="w-4 h-4"></i> ${msg}` : `<i data-lucide="info" class="w-4 h-4"></i> ${msg}`;
+            document.body.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
 
         async function sendQuickMsg(msg, hidden = false) {
@@ -946,9 +990,17 @@
 
         // --- AUDIO & MIC ---
         function initVoice() { 
-            window.speechSynthesis.getVoices(); 
-            if (speechSynthesis.onvoiceschanged !== undefined) {
-                speechSynthesis.onvoiceschanged = window.speechSynthesis.getVoices;
+            // Intentar cargar voces inmediatamente
+            const voices = window.speechSynthesis.getVoices();
+            
+            // Si no hay voces, esperar al evento
+            if (voices.length === 0) {
+                if (speechSynthesis.onvoiceschanged !== undefined) {
+                    speechSynthesis.onvoiceschanged = () => {
+                        window.speechSynthesis.getVoices();
+                        console.log("Voces cargadas (evento)");
+                    };
+                }
             }
         }
         
