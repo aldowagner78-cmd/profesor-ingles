@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Profesor IA - Inglés</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Nunito', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f0f9ff; }
+        
+        /* Estilo Cristal (Glassmorphism) */
+        .glass {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        /* Ocultar barras de desplazamiento */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Animación Micrófono */
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .mic-active {
+            animation: pulse-red 1.5s infinite;
+            background-color: #ef4444 !important;
+            color: white;
+            transform: scale(1.05);
+            border-color: #fca5a5 !important;
+        }
+
+        /* Animaciones Generales */
+        .fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Burbujas Chat */
+        .chat-bubble { max-width: 85%; padding: 12px 16px; border-radius: 18px; margin-bottom: 10px; line-height: 1.5; font-size: 0.95rem; animation: fadeInUp 0.3s ease-out; }
+        .user-msg { background-color: #dbeafe; color: #1e40af; margin-left: auto; border-bottom-right-radius: 2px; }
+        .bot-msg { background-color: #ffffff; color: #334155; margin-right: auto; border-bottom-left-radius: 2px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+        /* Tarjeta Lección */
+        .lesson-card { background: linear-gradient(135deg, #fff1eb 0%, #ace0f9 100%); border: 2px solid #fff; }
+        
+        /* Confeti */
+        @keyframes confetti-fall { 0% { transform: translateY(-100vh) rotate(0deg); } 100% { transform: translateY(100vh) rotate(720deg); } }
+        .confetti { position: fixed; width: 10px; height: 10px; background-color: #f00; animation: confetti-fall 3s linear infinite; z-index: 50; pointer-events: none; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-800" onclick="initVoice()">
+
+    <!-- CONFIGURACIÓN -->
+    <script>
+        // TU CLAVE YA ESTÁ AQUÍ
+        const apiKey = "AIzaSyDBNgYIJLCksdy9Ij7gZ-ofQtfmzcVMEGw";
+        
+        // --- MOTOR DE CURRÍCULO ---
+        const SYLLABUS = [
+            { id: 'A1', name: 'Nivel Inicial (A1)', topics: ['Saludos y Despedidas', 'Verbo To Be', 'Colores y Números', 'La Familia', 'Presente Simple', 'Ropa y Accesorios'] },
+            { id: 'A2', name: 'Nivel Básico (A2)', topics: ['Rutinas Diarias', 'Pasado Simple', 'Futuro con Going To', 'Comida y Restaurantes', 'Adjetivos Comparativos', 'Direcciones y Lugares'] },
+            { id: 'B1', name: 'Intermedio (B1)', topics: ['Experiencias (Present Perfect)', 'Condicionales (0 y 1)', 'Obligaciones (Must/Have to)', 'Viajes y Turismo', 'Voz Pasiva Simple', 'Salud y Cuerpo'] },
+            { id: 'B2', name: 'Intermedio Alto (B2)', topics: ['Phrasal Verbs Comunes', 'Condicionales (2 y 3)', 'Estilo Indirecto (Reported Speech)', 'Expresiones de Opinión', 'Inglés para el Trabajo', 'Tecnología'] },
+            { id: 'C1', name: 'Avanzado (C1)', topics: ['Modismos y Slang', 'Inglés de Negocios', 'Debate y Argumentación', 'Matices de Pronunciación', 'Redacción Formal', 'Literatura'] }
+        ];
+    </script>
+
+    <!-- ENCABEZADO -->
+    <header class="h-16 bg-white shadow-sm flex items-center justify-between px-4 z-30 flex-shrink-0">
+        <div class="flex items-center gap-2">
+            <div class="bg-blue-600 p-1.5 rounded-xl shadow-lg shadow-blue-200">
+                <i data-lucide="graduation-cap" class="w-6 h-6 text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-black text-slate-800 tracking-tight leading-none">Profesor<span class="text-blue-600">IA</span></h1>
+                <p id="level-display" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nivel Inicial</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100">
+            <i data-lucide="coins" class="w-4 h-4 text-amber-500 fill-amber-500"></i>
+            <span id="score-display" class="font-black text-amber-700 text-sm">0</span>
+        </div>
+    </header>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="flex-1 relative overflow-hidden">
+
+        <!-- VISTA 1: CÁMARA (Juego) -->
+        <div id="view-camera" class="absolute inset-0 flex flex-col p-3 hidden bg-slate-100">
+            <div class="flex-1 relative bg-black rounded-3xl overflow-hidden shadow-lg border-4 border-white ring-1 ring-slate-200 group">
+                <video id="camera-feed" autoplay playsinline class="absolute inset-0 w-full h-full object-cover opacity-90"></video>
+                <canvas id="photo-canvas" class="hidden"></canvas>
+                
+                <!-- Guía -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
+                    <div class="w-64 h-64 border-2 border-dashed border-white rounded-3xl"></div>
+                </div>
+
+                <!-- Tarjeta Resultado -->
+                <div id="camera-result" class="absolute bottom-0 left-0 right-0 p-4 translate-y-full transition-transform duration-500 ease-out z-20">
+                    <div class="glass p-5 rounded-2xl shadow-2xl">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h2 id="word-en" class="text-3xl font-black text-slate-800 tracking-tighter">Object</h2>
+                                <p id="word-es" class="text-blue-600 font-bold text-lg">Objeto</p>
+                            </div>
+                            <button onclick="speakText(currentWordEn, 'en')" class="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-200 active:scale-95 transition-transform">
+                                <i data-lucide="volume-2" class="w-6 h-6"></i>
+                            </button>
+                        </div>
+                        <p id="sentence-en" class="text-slate-600 italic font-medium mb-4 leading-snug">...</p>
+                        <button onclick="closeCameraResult()" class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 active:scale-95 transition-transform">
+                            ¡Entendido! (+10 Pts)
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="h-24 flex items-center justify-center">
+                <button id="capture-btn" onclick="takePicture()" class="w-20 h-20 bg-white rounded-full border-[6px] border-blue-500 shadow-xl flex items-center justify-center active:scale-90 transition-transform relative">
+                    <i data-lucide="camera" class="w-8 h-8 text-blue-600"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- VISTA 2: CLASE (Chat & Lecciones) -->
+        <div id="view-class" class="absolute inset-0 flex flex-col bg-slate-50 hidden">
+            <!-- Chat -->
+            <div id="chat-area" class="flex-1 overflow-y-auto p-4 pb-40 space-y-2 scroll-smooth">
+                <div class="flex gap-3">
+                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white flex-shrink-0 shadow-md">
+                        <i data-lucide="bot" class="w-5 h-5"></i>
+                    </div>
+                    <div class="chat-bubble bot-msg">
+                        ¡Hola! 👋 Soy tu Profe IA. <br>Vamos a aprender inglés paso a paso. <br>Tu tema actual es: <b id="topic-msg">...</b>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controles -->
+            <div class="absolute bottom-0 w-full bg-white border-t border-slate-100 p-4 z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] rounded-t-3xl">
+                
+                <!-- Panel Micrófono (Mantener para hablar) -->
+                <div id="mic-panel" class="flex flex-col items-center gap-2 mb-2">
+                    <p id="mic-status" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mantén para hablar en Inglés</p>
+                    <button id="mic-btn" 
+                        onpointerdown="startListening()" 
+                        onpointerup="stopListening()" 
+                        onpointerleave="stopListening()"
+                        class="w-16 h-16 bg-blue-50 rounded-full shadow-sm flex items-center justify-center text-blue-600 transition-all border-2 border-blue-100 touch-none active:bg-blue-100">
+                        <i data-lucide="mic" class="w-8 h-8"></i>
+                    </button>
+                </div>
+
+                <!-- Panel Botones -->
+                <div class="flex flex-col gap-3">
+                    <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar justify-center">
+                        <button onclick="requestLesson()" class="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold border border-indigo-100 active:bg-indigo-100 whitespace-nowrap">
+                            📚 Lección Nueva
+                        </button>
+                        <button onclick="requestQuiz()" class="px-4 py-2 bg-purple-50 text-purple-700 rounded-xl text-xs font-bold border border-purple-100 active:bg-purple-100 whitespace-nowrap">
+                            📝 Examen
+                        </button>
+                        <button onclick="nextTopic()" class="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-100 active:bg-emerald-100 whitespace-nowrap">
+                            ⏭️ Siguiente Tema
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA 3: PERFIL -->
+        <div id="view-profile" class="absolute inset-0 bg-slate-50 p-6 hidden overflow-y-auto">
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2rem] p-8 text-center shadow-2xl mb-6 text-white relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                <h2 class="text-2xl font-bold mb-1">Mi Progreso</h2>
+                <p class="text-slate-400 text-sm mb-6">Estudiante VIP</p>
+                <div class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400 mb-2" id="profile-score">0</div>
+                <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Puntos XP</p>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
+                <h3 class="font-bold text-slate-800 mb-4">Plan de Estudios</h3>
+                <div id="syllabus-list" class="space-y-3">
+                    <!-- Se llena con JS -->
+                </div>
+            </div>
+            
+            <button onclick="resetApp()" class="w-full py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-transform">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Reiniciar Todo
+            </button>
+        </div>
+
+    </main>
+
+    <!-- NAVEGACIÓN -->
+    <nav class="h-16 bg-white border-t border-slate-100 flex justify-around items-center z-40 pb-safe">
+        <button onclick="switchTab('camera')" id="nav-camera" class="nav-btn p-2 flex flex-col items-center gap-1 text-slate-400 transition-colors">
+            <i data-lucide="camera" class="w-6 h-6"></i>
+            <span class="text-[10px] font-bold">Cámara</span>
+        </button>
+        <button onclick="switchTab('class')" id="nav-class" class="nav-btn p-2 flex flex-col items-center gap-1 text-slate-400 transition-colors">
+            <i data-lucide="message-square" class="w-6 h-6"></i>
+            <span class="text-[10px] font-bold">Clase</span>
+        </button>
+        <button onclick="switchTab('profile')" id="nav-profile" class="nav-btn p-2 flex flex-col items-center gap-1 text-slate-400 transition-colors">
+            <i data-lucide="user" class="w-6 h-6"></i>
+            <span class="text-[10px] font-bold">Perfil</span>
+        </button>
+    </nav>
+
+    <script>
+        // --- MANEJO DE ERRORES GLOBAL ---
+        window.onerror = function(msg, url, line) {
+            alert("Error: " + msg + "\nLínea: " + line);
+        };
+
+        lucide.createIcons();
+
+        // --- ESTADO Y PERSISTENCIA ---
+        let state = {
+            score: 0,
+            levelIdx: 0,
+            topicIdx: 0
+        };
+
+        // Cargar estado
+        try {
+            const savedState = localStorage.getItem('profesor_ia_state');
+            if (savedState) state = JSON.parse(savedState);
+        } catch(e) { console.log("Error cargando estado"); }
+
+        let currentWordEn = "";
+        let stream = null;
+        let isListening = false;
+
+        // --- INICIO SEGURO ---
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                updateUI();
+                renderSyllabus();
+                switchTab('class'); 
+                setTimeout(initVoice, 1000);
+            } catch(e) {
+                alert("Error iniciando la app: " + e.message);
+            }
+        });
+
+        // --- LÓGICA DE NEGOCIO ---
+        function getCurrentLevel() { return SYLLABUS[state.levelIdx]; }
+        function getCurrentTopic() { return getCurrentLevel().topics[state.topicIdx]; }
+
+        function updateUI() {
+            document.getElementById('score-display').innerText = state.score;
+            document.getElementById('profile-score').innerText = state.score;
+            document.getElementById('level-display').innerText = getCurrentLevel().name;
+            document.getElementById('topic-msg').innerText = getCurrentTopic();
+            localStorage.setItem('profesor_ia_state', JSON.stringify(state));
+        }
+
+        function nextTopic() {
+            const level = getCurrentLevel();
+            if (state.topicIdx < level.topics.length - 1) {
+                state.topicIdx++;
+                addBubble(`¡Avanzamos! Nuevo tema: <b>${getCurrentTopic()}</b>`, 'bot');
+            } else {
+                if (state.levelIdx < SYLLABUS.length - 1) {
+                    state.levelIdx++;
+                    state.topicIdx = 0;
+                    triggerConfetti();
+                    addBubble(`🎉 ¡FELICIDADES! Has subido al nivel <b>${getCurrentLevel().name}</b>`, 'bot');
+                } else {
+                    addBubble("¡Eres un maestro! Has completado todo el curso.", 'bot');
+                }
+            }
+            updateUI();
+            renderSyllabus();
+        }
+
+        function setLevel(lIdx, tIdx) {
+            state.levelIdx = lIdx;
+            state.topicIdx = tIdx;
+            updateUI();
+            renderSyllabus();
+            switchTab('class');
+            addBubble(`Saltaste al tema: <b>${getCurrentTopic()}</b>`, 'bot');
+        }
+
+        // --- NAVEGACIÓN ---
+        function switchTab(tab) {
+            document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById('view-' + tab).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-blue-600');
+                btn.classList.add('text-slate-400');
+            });
+            document.getElementById('nav-' + tab).classList.add('text-blue-600');
+            document.getElementById('nav-' + tab).classList.remove('text-slate-400');
+
+            if (tab === 'camera') startCamera(); else stopCamera();
+        }
+
+        function renderSyllabus() {
+            const container = document.getElementById('syllabus-list');
+            container.innerHTML = SYLLABUS.map((level, lIdx) => `
+                <div class="mb-4">
+                    <h4 class="font-bold text-xs text-slate-400 uppercase tracking-wider mb-2">${level.name}</h4>
+                    <div class="space-y-1">
+                        ${level.topics.map((topic, tIdx) => {
+                            const isActive = lIdx === state.levelIdx && tIdx === state.topicIdx;
+                            const isPast = lIdx < state.levelIdx || (lIdx === state.levelIdx && tIdx < state.topicIdx);
+                            const colorClass = isActive ? 'bg-blue-100 text-blue-700 border-blue-200' : (isPast ? 'bg-slate-100 text-slate-500' : 'bg-white text-slate-400 border-slate-100');
+                            const icon = isPast ? 'check-circle' : (isActive ? 'play-circle' : 'circle');
+                            return `
+                                <button onclick="setLevel(${lIdx}, ${tIdx})" class="w-full text-left px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-2 ${colorClass}">
+                                    <i data-lucide="${icon}" class="w-4 h-4"></i> ${topic}
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        // --- CÁMARA ---
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                document.getElementById('camera-feed').srcObject = stream;
+            } catch (e) {
+                try { stream = await navigator.mediaDevices.getUserMedia({ video: true }); 
+                document.getElementById('camera-feed').srcObject = stream; } catch(err){ console.log("Error camara"); }
+            }
+        }
+        function stopCamera() { if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null; }
+
+        async function takePicture() {
+            const video = document.getElementById('camera-feed');
+            const canvas = document.getElementById('photo-canvas');
+            const btn = document.getElementById('capture-btn');
+            
+            btn.classList.add('scale-90', 'opacity-50');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+
+            try {
+                const data = await callGemini("Analyze image", base64);
+                if(data) {
+                    document.getElementById('word-en').innerText = data.word_en;
+                    document.getElementById('word-es').innerText = data.word_es;
+                    document.getElementById('sentence-en').innerText = `"${data.sentence}"`;
+                    currentWordEn = data.word_en;
+                    document.getElementById('camera-result').classList.remove('translate-y-full');
+                    speakText(data.word_en, 'en');
+                    addPoints(10);
+                    triggerConfetti();
+                }
+            } catch (e) { alert("No vi nada claro, intenta de nuevo."); }
+            btn.classList.remove('scale-90', 'opacity-50');
+        }
+        function closeCameraResult() { document.getElementById('camera-result').classList.add('translate-y-full'); }
+
+        // --- CLASE Y CHAT ---
+        async function requestLesson() {
+            const prompt = `Genera una lección corta y divertida para el Nivel: ${getCurrentLevel().name}, Tema: ${getCurrentTopic()}. Incluye ejemplos.`;
+            sendQuickMsg(prompt, true); // true = ocultar mensaje usuario
+        }
+
+        async function requestQuiz() {
+            const prompt = `Genera una pregunta de examen (quiz) sobre: ${getCurrentTopic()}.`;
+            sendQuickMsg(prompt, true);
+        }
+
+        async function sendQuickMsg(msg, hidden = false) {
+            if(!hidden) addBubble(msg, 'user');
+            const loadingId = addBubble("...", 'bot', true);
+            
+            try {
+                const data = await callGemini(msg);
+                document.getElementById(loadingId).remove();
+                handleResponse(data);
+            } catch(e) { 
+                document.getElementById(loadingId).innerText = "Error de conexión o IA."; 
+                console.error(e);
+            }
+        }
+
+        function handleResponse(data) {
+            if (data.type === 'lesson') {
+                const html = `
+                    <div class="lesson-card p-4 rounded-xl border border-white shadow-sm">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-2 py-1 rounded uppercase">Lección</span>
+                            <span class="text-[10px] font-bold text-slate-400">${getCurrentTopic()}</span>
+                        </div>
+                        <h3 class="text-lg font-black text-indigo-700 mb-2 leading-tight">${data.title}</h3>
+                        <div class="text-sm text-slate-700 mb-4 prose prose-sm max-w-none">${marked.parse(data.content)}</div>
+                        <button onclick="speakText('${cleanTextForSpeech(data.content)}', 'en')" class="w-full py-2 bg-white border border-indigo-100 rounded-lg text-indigo-600 font-bold text-xs flex items-center justify-center gap-2 hover:bg-indigo-50">
+                            <i data-lucide="volume-2" class="w-4 h-4"></i> Escuchar Lección
+                        </button>
+                    </div>`;
+                addBubble(html, 'bot', false, true);
+                speakText("Aquí tienes tu lección.", 'es');
+            } 
+            else if (data.type === 'quiz') {
+                const html = `
+                    <div class="bg-white border-2 border-purple-100 p-4 rounded-xl shadow-sm">
+                        <span class="text-[10px] font-black bg-purple-100 text-purple-600 px-2 py-1 rounded uppercase">Examen Rápido</span>
+                        <p class="font-bold text-lg mt-2 text-slate-800 leading-tight">${data.question_es}</p>
+                        <p class="text-sm italic text-slate-400 mb-4">${data.question_en}</p>
+                        <div class="grid gap-2">
+                            ${data.options.map(opt => `<button onclick="checkAnswer('${opt}', '${data.answer}')" class="text-left px-4 py-3 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-600 hover:border-purple-300 hover:bg-purple-50 transition-all">${opt}</button>`).join('')}
+                        </div>
+                    </div>`;
+                addBubble(html, 'bot', false, true);
+                speakText(data.question_es, 'es');
+            }
+            else if (data.type === 'eval') {
+                let html = "";
+                if(data.is_correct) {
+                    html = `<div class="flex items-center gap-2 text-green-600 font-bold mb-1"><i data-lucide="check-circle" class="w-5 h-5"></i> ¡Correcto!</div><p class="text-sm">${data.feedback}</p>`;
+                    addPoints(20);
+                    triggerConfetti();
+                    speakText("¡Excelente trabajo!", 'es');
+                } else {
+                    html = `<div class="flex items-center gap-2 text-red-500 font-bold mb-1"><i data-lucide="x-circle" class="w-5 h-5"></i> Casi...</div><p class="text-sm mb-2">${data.feedback}</p>`;
+                    if(data.phonetic_advice) html += `<div class="bg-orange-50 p-2 rounded text-xs text-orange-700 border border-orange-100">💡 <b>Tip:</b> ${data.phonetic_advice}</div>`;
+                    speakText(data.feedback, 'es');
+                }
+                addBubble(html, 'bot', false, true);
+            }
+            else {
+                addBubble(data.text_es, 'bot');
+                if(data.text_es.length < 150) speakText(data.text_es, 'es');
+            }
+            lucide.createIcons();
+        }
+
+        function checkAnswer(selected, correct) {
+            if(selected === correct) {
+                handleResponse({type: 'eval', is_correct: true, feedback: "¡Respuesta correcta! Sigue así."});
+            } else {
+                handleResponse({type: 'eval', is_correct: false, feedback: `La respuesta correcta era: ${correct}`});
+            }
+        }
+
+        async function callGemini(prompt, imageBase64 = null) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            
+            const context = `Nivel del Alumno: ${getCurrentLevel().name}. Tema Actual: ${getCurrentTopic()}.`;
+            
+            const sysPrompt = `Eres "Profesor IA", un experto enseñando inglés a hispanohablantes.
+            CONTEXTO ACTUAL: ${context}
+            
+            REGLAS CRÍTICAS:
+            1. RESPONDE SIEMPRE EN JSON PURO. NO USES MARKDOWN (\`\`\`json).
+            2. ADAPTA EL CONTENIDO AL NIVEL DEL ALUMNO.
+            
+            FORMATOS DE RESPUESTA (JSON):
+            - Imagen: {"type":"analysis", "word_en":"...", "word_es":"...", "sentence":"..."}
+            - Lección: {"type":"lesson", "title":"...", "content":"Markdown simple..."}
+            - Quiz: {"type":"quiz", "question_es":"...", "question_en":"...", "options":["..."], "answer":"..."}
+            - Evaluación: {"type":"eval", "is_correct":true/false, "feedback":"...", "phonetic_advice":"..."}
+            - Chat: {"type":"chat", "text_es":"...", "text_en":"..."}`;
+
+            const parts = imageBase64 
+                ? [{ text: sysPrompt }, { inline_data: { mime_type: "image/jpeg", data: imageBase64 } }]
+                : [{ text: sysPrompt + "\nUsuario dice: " + prompt }];
+
+            const response = await fetch(url, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ contents: [{ parts: parts }], generationConfig: { response_mime_type: "application/json" } })
+            });
+            const json = await response.json();
+            const text = json.candidates[0].content.parts[0].text;
+            return JSON.parse(cleanJSON(text));
+        }
+
+        // --- UTILS ---
+        function cleanJSON(text) {
+            return text.replace(/```json/g, '').replace(/```/g, '').trim();
+        }
+        
+        function cleanTextForSpeech(text) {
+            return text.replace(/[*#_]/g, '');
+        }
+
+        function addBubble(content, type, isLoading=false, isHtml=false) {
+            const chat = document.getElementById('chat-area');
+            const div = document.createElement('div');
+            div.className = `chat-bubble ${type === 'user' ? 'user-msg' : 'bot-msg'}`;
+            div.id = 'msg-' + Date.now();
+            
+            if(isLoading) div.innerHTML = '<div class="flex gap-1 justify-center"><div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div><div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay:0.1s"></div><div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay:0.2s"></div></div>';
+            else if(isHtml) div.innerHTML = content;
+            else div.innerText = content;
+
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+            return div.id;
+        }
+
+        function addPoints(n) { state.score += n; updateUI(); }
+        function resetApp() { localStorage.removeItem('profesor_ia_state'); location.reload(); }
+
+        function triggerConfetti() {
+            for(let i=0; i<30; i++) {
+                const c = document.createElement('div');
+                c.className = 'confetti';
+                c.style.left = Math.random()*100 + 'vw';
+                c.style.backgroundColor = ['#f00','#0f0','#00f','#ff0','#f0f'][Math.floor(Math.random()*5)];
+                c.style.animationDuration = (Math.random()*2+2)+'s';
+                document.body.appendChild(c);
+                setTimeout(()=>c.remove(), 4000);
+            }
+        }
+
+        // --- AUDIO & MIC ---
+        function initVoice() { 
+            window.speechSynthesis.getVoices(); 
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = window.speechSynthesis.getVoices;
+            }
+        }
+        
+        function speakText(text, lang) {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text); 
+            u.rate = 0.9;
+            const vs = window.speechSynthesis.getVoices();
+            
+            // Selección inteligente de voz
+            if(lang==='es') {
+                u.voice = vs.find(v=>v.name.includes('Google') && v.lang.includes('es')) || 
+                          vs.find(v=>v.lang==='es-AR') || 
+                          vs.find(v=>v.lang.includes('es'));
+            } else {
+                u.voice = vs.find(v=>v.name.includes('Google') && v.lang.includes('en-US')) || 
+                          vs.find(v=>v.lang==='en-US') || 
+                          vs.find(v=>v.lang.includes('en'));
+            }
+            window.speechSynthesis.speak(u);
+        }
+
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let rec = SR ? new SR() : null;
+        if(rec) {
+            rec.lang = 'en-US'; 
+            rec.continuous = false;
+            rec.interimResults = false;
+            
+            rec.onresult = (e) => {
+                const transcript = e.results[0][0].transcript;
+                sendQuickMsg(`[EVALUAR PRONUNCIACIÓN]: ${transcript}`, true);
+                addBubble(`🎤 Dijiste: "${transcript}"`, 'user');
+            };
+            rec.onend = () => {
+                document.getElementById('mic-btn').classList.remove('mic-active');
+                document.getElementById('mic-status').innerText = "Mantén para hablar en Inglés";
+                document.getElementById('mic-status').classList.remove('text-red-500');
+            };
+        }
+
+        function startListening() { 
+            if(rec) { 
+                try { rec.start(); } catch(e){} 
+                document.getElementById('mic-btn').classList.add('mic-active');
+                document.getElementById('mic-status').innerText = "Escuchando...";
+                document.getElementById('mic-status').classList.add('text-red-500');
+            } else {
+                alert("Tu navegador no soporta reconocimiento de voz.");
+            }
+        }
+        function stopListening() { 
+            if(rec) rec.stop(); 
+        }
+    </script>
+</body>
+</html>
