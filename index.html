@@ -13,7 +13,19 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Nunito', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f0f9ff; }
+        body { font-family: 'Nunito', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f0f9ff; transition: background-color 0.3s, color 0.3s; }
+        
+        /* Dark Mode */
+        body.dark-mode { background-color: #0f172a; color: #e2e8f0; }
+        body.dark-mode header, body.dark-mode nav { background-color: #1e293b; }
+        body.dark-mode .bg-white { background-color: #1e293b !important; }
+        body.dark-mode .text-slate-800 { color: #e2e8f0 !important; }
+        body.dark-mode .text-slate-600 { color: #cbd5e1 !important; }
+        body.dark-mode .text-slate-400 { color: #94a3b8 !important; }
+        body.dark-mode .border-slate-100 { border-color: #334155 !important; }
+        body.dark-mode .bg-slate-50 { background-color: #0f172a !important; }
+        body.dark-mode .bot-msg { background-color: #1e293b; color: #e2e8f0; border-color: #334155; }
+        body.dark-mode .user-msg { background-color: #1e40af; color: #dbeafe; }
         
         /* Safe Area for Mobile */
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
@@ -76,7 +88,8 @@
         let rawKeys = localStorage.getItem('profesor_ia_apikeys') || "AIzaSyDBNgYIJLCksdy9Ij7gZ-ofQtfmzcVMEGw,AIzaSyBQhp4KQZgmaSpt3a1cz7al7qUah5TbODI,AIzaSyA8_qSO0lUpx2rO6LOmXQ8F5gsmiRF7B5E,AIzaSyC-SxodAxeSL-XYEauF49hy4_qsVxIUPKc";
         let apiKeys = rawKeys.split(',').map(k => k.trim()).filter(k => k !== "");
         let currentKeyIdx = 0;
-        let chatHistory = []; // Historial de conversación para evitar bucles
+        let chatHistory = []; // Historial de conversación para contexto
+        const MAX_HISTORY = 10; // Máximo 10 mensajes en historial
 
         function setApiKey() {
             const newKeys = prompt("Ingresa tus API Keys de Google Gemini (separadas por coma para rotación automática):", rawKeys);
@@ -345,6 +358,30 @@
                         <option value="1.1">Rápida (1.1x)</option>
                     </select>
                 </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-bold text-slate-600">Modo Oscuro</span>
+                    <button onclick="toggleDarkMode()" class="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 transition-colors" id="dark-mode-toggle">
+                        <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform translate-x-1" id="dark-mode-dot"></span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="trophy" class="w-5 h-5 text-amber-500"></i> Logros
+                </h3>
+                <div id="achievements-grid" class="space-y-2">
+                    <!-- Se llena con JS -->
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="book-open" class="w-5 h-5 text-indigo-500"></i> Historial de Lecciones
+                </h3>
+                <div id="lesson-history" class="space-y-2 max-h-60 overflow-y-auto">
+                    <!-- Se llena con JS -->
+                </div>
             </div>
 
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
@@ -360,6 +397,10 @@
 
             <button onclick="resetApp()" class="w-full py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-transform mb-4">
                 <i data-lucide="refresh-cw" class="w-4 h-4"></i> Reiniciar Todo
+            </button>
+
+            <button onclick="exportProgress()" class="w-full py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-2xl flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform mb-4">
+                <i data-lucide="download" class="w-4 h-4"></i> Exportar Progreso (PDF)
             </button>
 
             <button onclick="setApiKey()" class="w-full py-4 bg-slate-100 text-slate-500 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-200 active:scale-95 transition-transform text-xs">
@@ -445,7 +486,11 @@
             levelIdx: 0,
             topicIdx: 0,
             collection: [], // [{wordEn, wordEs, icon, date}]
-            speechRate: 0.9
+            speechRate: 0.9,
+            hasSeenTutorial: false,
+            darkMode: false,
+            lessonHistory: [], // Historial de lecciones
+            achievements: [] // Logros desbloqueados
         };
 
         // Cargar estado
@@ -457,12 +502,11 @@
             }
         } catch(e) { console.log("Error cargando estado"); }
 
-        let currentWordEn = "";
-        let currentLessonAudioText = ""; // Variable para almacenar el texto de la lección actual
         let currentCameraAudioText = ""; // Variable para almacenar el texto del resultado de cámara
         let currentCameraAudioLang = "es"; // Idioma del resultado de cámara
         let stream = null;
         let isListening = false;
+        let isConfirming = false; // Prevenir doble confirmación
 
         // --- INICIO SEGURO ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -471,6 +515,11 @@
                 renderSyllabus();
                 switchTab('class'); 
                 setTimeout(initVoice, 1000);
+                
+                // Mostrar tutorial si es primera vez
+                if (!state.hasSeenTutorial) {
+                    setTimeout(showTutorial, 1500);
+                }
             } catch(e) {
                 alert("Error iniciando la app: " + e.message);
             }
@@ -487,6 +536,9 @@
             document.getElementById('topic-msg').innerText = getCurrentTopic();
             localStorage.setItem('profesor_ia_state', JSON.stringify(state));
             renderCollection();
+            renderAchievements();
+            renderLessonHistory();
+            applyDarkMode();
         }
 
         function nextTopic() {
@@ -500,6 +552,7 @@
                     state.topicIdx = 0;
                     triggerConfetti();
                     showToast(`¡Nivel ${getCurrentLevel().name} desbloqueado!`);
+                    checkAchievements();
                 } else {
                     showToast("¡Curso completado!");
                 }
@@ -519,6 +572,11 @@
 
         // --- NAVEGACIÓN ---
         function switchTab(tab) {
+            // Detener cámara si está activa
+            if (tab !== 'camera') {
+                stopCamera();
+            }
+            
             document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
             document.getElementById('view-' + tab).classList.remove('hidden');
             
@@ -529,7 +587,7 @@
             document.getElementById('nav-' + tab).classList.add('text-blue-600');
             document.getElementById('nav-' + tab).classList.remove('text-slate-400');
 
-            if (tab === 'camera') startCamera(); else stopCamera();
+            if (tab === 'camera') startCamera();
         }
 
         function renderSyllabus() {
@@ -667,11 +725,13 @@
 
         function closeFeedback() {
             document.getElementById('camera-feedback').classList.add('hidden');
+            lucide.createIcons();
         }
 
         function closeModal() {
             document.getElementById('generic-modal').classList.add('hidden');
-            stopAudio(); // Detener audio si se cierra el modal
+            stopAudio();
+            lucide.createIcons(); // Refresh icons
         }
 
         async function analyzeImage() {
@@ -685,19 +745,25 @@
             
             if(!stream) { await startCamera(); return; }
 
-            if(btn) btn.classList.add('scale-90', 'opacity-50');
+            if(btn) {
+                btn.classList.add('scale-90', 'opacity-50');
+                btn.disabled = true;
+            }
             
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
+            const base64 = canvas.toDataURL('image/jpeg', 0.3).split(',')[1];
 
             try {
                 let prompt = "";
                 if (cameraMode === 'translate') {
                     prompt = `Lee el texto en esta imagen y tradúcelo al inglés. Responde with JSON type "translation".`;
+                } else if (cameraMode === 'game' && currentMission) {
+                    // Modo Juego: Validar si el objeto coincide con la misión
+                    prompt = `Analiza esta imagen. Identifica el objeto principal. Responde con JSON type "analysis". El usuario busca: ${currentMission.en} (${currentMission.es}).`;
                 } else {
-                    // Explore & Game modes
+                    // Explore mode
                     prompt = `Analiza esta imagen. Dime qué objeto principal ves. Responde con JSON type "analysis".`;
                 }
                 
@@ -710,47 +776,123 @@
                 const btnNext = document.getElementById('btn-next-mission');
                 
                 feedback.classList.remove('hidden');
-                btnNext.classList.add('hidden'); // No hay "siguiente misión" en explorar/traducir
+                btnNext.classList.add('hidden');
 
                 if (data.type === 'analysis') {
-                    currentAnalysisData = data; // Guardar para confirmación
-
-                    icon.className = "w-20 h-20 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/50";
-                    icon.innerHTML = '<i data-lucide="search" class="w-10 h-10 text-white"></i>';
-                    title.innerText = data.word_en;
-                    title.className = "text-2xl font-black text-purple-400 mb-2";
-                    
-                    // Mostrar traducción visualmente (sin leerla aún)
-                    let content = `
-                        <span class="block text-xl text-white font-bold mb-1">${data.word_es}</span>
-                        <span class="block text-purple-300 font-medium text-lg mb-4">"${data.sentence}"</span>
+                    // Validar si es modo juego
+                    if (cameraMode === 'game' && currentMission) {
+                        const isCorrect = fuzzyMatch(data.word_en, currentMission.en) || fuzzyMatch(data.word_es, currentMission.es);
                         
-                        <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 mb-4">
-                            <p class="text-slate-400 text-xs font-bold uppercase mb-2">¿Es correcto?</p>
-                            <div class="flex gap-3 justify-center">
-                                <button onclick="confirmAnalysis()" class="flex-1 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
-                                    <i data-lucide="check" class="w-5 h-5"></i> SÍ
+                        if (isCorrect) {
+                            // ¡CORRECTO!
+                            icon.className = "w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/50 animate-bounce";
+                            icon.innerHTML = '<i data-lucide="check" class="w-10 h-10 text-white"></i>';
+                            title.innerText = "¡Correcto!";
+                            title.className = "text-2xl font-black text-green-400 mb-2";
+                            
+                            msg.innerHTML = `
+                                <div class="text-center">
+                                    <div class="text-6xl mb-4">${data.emoji || '🎉'}</div>
+                                    <p class="text-white font-bold text-xl mb-2">${currentMission.en}</p>
+                                    <p class="text-green-300 text-lg mb-4">"${data.sentence}"</p>
+                                    <div class="bg-green-500/20 p-3 rounded-xl border border-green-400/30">
+                                        <p class="text-green-300 font-bold">+15 Puntos</p>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            addToCollection(data.word_en, data.word_es, data.emoji);
+                            addPoints(15);
+                            triggerConfetti();
+                            
+                            currentCameraAudioText = `${data.word_en}. ${data.sentence}`;
+                            currentCameraAudioLang = 'en';
+                            speakText(currentCameraAudioText, 'en');
+                            
+                            const btnContainer = document.querySelector('#camera-feedback .flex.gap-3');
+                            btnContainer.classList.remove('hidden');
+                            btnContainer.innerHTML = `
+                                <button onclick="closeFeedback()" class="px-6 py-3 bg-slate-700 text-white font-bold rounded-xl active:scale-95 transition-transform text-sm">
+                                    Cerrar
                                 </button>
-                                <button onclick="rejectAnalysis()" class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
-                                    <i data-lucide="x" class="w-5 h-5"></i> NO
+                                <button onclick="speakText(currentCameraAudioText, currentCameraAudioLang)" class="px-6 py-3 bg-blue-100 text-blue-700 font-bold rounded-xl active:scale-95 transition-transform text-sm flex items-center gap-2">
+                                    <i data-lucide="volume-2" class="w-4 h-4"></i> Escuchar
                                 </button>
-                            </div>
-                        </div>
-                    `;
+                                <button id="btn-next-mission" onclick="nextMission()" class="px-6 py-3 bg-white text-blue-600 font-bold rounded-xl active:scale-95 transition-transform text-sm shadow-lg shadow-blue-500/20">
+                                    Siguiente
+                                </button>
+                            `;
+                        } else {
+                            // INCORRECTO
+                            icon.className = "w-20 h-20 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-500/50";
+                            icon.innerHTML = '<i data-lucide="x" class="w-10 h-10 text-white"></i>';
+                            title.innerText = "No es correcto";
+                            title.className = "text-2xl font-black text-orange-400 mb-2";
+                            
+                            msg.innerHTML = `
+                                <div class="text-center">
+                                    <p class="text-white font-bold mb-2">Detectaste: <span class="text-orange-300">${data.word_en}</span></p>
+                                    <p class="text-slate-400 text-sm mb-4">Pero buscas: <span class="text-blue-300 font-bold">${currentMission.en}</span></p>
+                                    <div class="bg-orange-500/20 p-3 rounded-xl border border-orange-400/30">
+                                        <p class="text-orange-300 text-sm">Intenta de nuevo</p>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            const btnContainer = document.querySelector('#camera-feedback .flex.gap-3');
+                            btnContainer.classList.remove('hidden');
+                            btnContainer.innerHTML = `
+                                <button onclick="closeFeedback()" class="px-8 py-3 bg-white text-slate-900 font-black rounded-xl active:scale-95 transition-transform text-sm shadow-lg">
+                                    Reintentar
+                                </button>
+                                <button onclick="nextMission()" class="px-6 py-3 bg-slate-700 text-white font-bold rounded-xl active:scale-95 transition-transform text-sm">
+                                    Saltar
+                                </button>
+                            `;
+                        }
+                    } else {
+                        // Modo Explorar
+                        currentAnalysisData = data;
 
-                    msg.innerHTML = content;
-                    
-                    // Ocultar botones por defecto del feedback, ya que usamos los personalizados
-                    document.querySelector('#camera-feedback .flex.gap-3').classList.add('hidden');
+                        icon.className = "w-20 h-20 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/50";
+                        icon.innerHTML = '<i data-lucide="search" class="w-10 h-10 text-white"></i>';
+                        title.innerText = data.word_en;
+                        title.className = "text-2xl font-black text-purple-400 mb-2";
+                        
+                        let content = `
+                            <span class="block text-xl text-white font-bold mb-1">${data.word_es}</span>
+                            <span class="block text-purple-300 font-medium text-lg mb-4">"${data.sentence}"</span>
+                            
+                            <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 mb-4">
+                                <p class="text-slate-400 text-xs font-bold uppercase mb-2">¿Es correcto?</p>
+                                <div class="flex gap-3 justify-center">
+                                    <button onclick="confirmAnalysis()" class="flex-1 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                                        <i data-lucide="check" class="w-5 h-5"></i> SÍ
+                                    </button>
+                                    <button onclick="rejectAnalysis()" class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                                        <i data-lucide="x" class="w-5 h-5"></i> NO
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+
+                        msg.innerHTML = content;
+                        document.querySelector('#camera-feedback .flex.gap-3').classList.add('hidden');
+                    }
 
                 } 
                 else if (data.type === 'translation') {
+                    // Validar campos requeridos
+                    if (!data.original || !data.translated) {
+                        throw new Error("Traducción incompleta");
+                    }
+                    
                     icon.className = "w-20 h-20 bg-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/50";
                     icon.innerHTML = '<i data-lucide="languages" class="w-10 h-10 text-white"></i>';
                     title.innerText = "Traducción";
                     title.className = "text-2xl font-black text-indigo-400 mb-2";
                     
-                    msg.className = "text-left w-full mb-4"; // Override default centered
+                    msg.className = "text-left w-full mb-4";
                     msg.innerHTML = `
                         <div class="bg-slate-800/50 rounded-xl p-4 max-h-[50vh] overflow-y-auto border border-slate-700 shadow-inner">
                             <p class="text-slate-400 text-xs mb-1 font-bold uppercase">Original:</p>
@@ -758,13 +900,12 @@
                             
                             <p class="text-slate-400 text-xs mb-1 font-bold uppercase">Traducción:</p>
                             <p class="text-indigo-300 font-bold text-lg leading-relaxed">${data.translated}</p>
-                            <p class="text-slate-500 text-xs mt-2 text-right">${data.pronunciation}</p>
+                            ${data.pronunciation ? `<p class="text-slate-500 text-xs mt-2 text-right">${data.pronunciation}</p>` : ''}
                         </div>
                         
                         <!-- Audio Controls -->
                         <div class="flex items-center justify-center gap-4 mt-4 bg-slate-800/80 p-2 rounded-full backdrop-blur-sm border border-slate-600">
                             <button onclick="stopAudio()" class="p-2 text-red-400 hover:bg-white/10 rounded-full transition-colors"><i data-lucide="square" class="w-5 h-5"></i></button>
-                            <button onclick="pauseAudio()" class="p-2 text-yellow-400 hover:bg-white/10 rounded-full transition-colors"><i data-lucide="pause" class="w-6 h-6"></i></button>
                             <button onclick="speakText(currentCameraAudioText, 'en')" class="p-2 text-green-400 hover:bg-white/10 rounded-full transition-colors"><i data-lucide="play" class="w-6 h-6"></i></button>
                         </div>
                     `;
@@ -773,7 +914,6 @@
                     currentCameraAudioLang = 'en';
                     speakText(currentCameraAudioText, 'en');
 
-                    // Custom Buttons for Translation Mode
                     const btnContainer = document.querySelector('#camera-feedback .flex.gap-3');
                     btnContainer.classList.remove('hidden');
                     btnContainer.innerHTML = `
@@ -792,11 +932,16 @@
                 document.getElementById('camera-feedback').classList.add('hidden');
                 showToast("No pude analizar la imagen. Intenta de nuevo.", 'error');
             }
-            btn.classList.remove('scale-90', 'opacity-50');
+            
+            if(btn) {
+                btn.classList.remove('scale-90', 'opacity-50');
+                btn.disabled = false;
+            }
         }
 
         function confirmAnalysis() {
-            if(!currentAnalysisData) return;
+            if(!currentAnalysisData || isConfirming) return;
+            isConfirming = true;
             
             // Guardar y Reproducir
             addToCollection(currentAnalysisData.word_en, currentAnalysisData.word_es, currentAnalysisData.emoji);
@@ -842,6 +987,8 @@
             addPoints(10);
             triggerConfetti();
             lucide.createIcons();
+            
+            setTimeout(() => { isConfirming = false; }, 1000);
         }
 
         function rejectAnalysis() {
@@ -952,7 +1099,15 @@
         
         function addToCollection(wordEn, wordEs, icon) {
             if (state.collection.some(item => item.wordEn.toLowerCase() === wordEn.toLowerCase())) return;
+            
             state.collection.unshift({ wordEn, wordEs, icon, date: new Date().toISOString() });
+            
+            // Limitar colección a 100 elementos
+            if (state.collection.length > 100) {
+                state.collection = state.collection.slice(0, 100);
+            }
+            
+            checkAchievements();
             updateUI();
         }
 
@@ -975,6 +1130,7 @@
 
         function addPoints(pts) {
             state.score += pts;
+            checkAchievements();
             updateUI();
         }
 
@@ -987,15 +1143,40 @@
         }
 
         function triggerConfetti() {
-            for(let i=0; i<30; i++) {
+            const colors = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#f80', '#0ff'];
+            for(let i=0; i<20; i++) {
                 const c = document.createElement('div');
                 c.className = 'confetti';
                 c.style.left = Math.random() * 100 + 'vw';
-                c.style.backgroundColor = ['#f00', '#0f0', '#00f', '#ff0', '#f0f'][Math.floor(Math.random()*5)];
-                c.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                const duration = Math.random() * 2 + 2;
+                c.style.animationDuration = duration + 's';
                 document.body.appendChild(c);
-                setTimeout(() => c.remove(), 4000);
+                setTimeout(() => {
+                    if(c.parentNode) c.remove();
+                }, duration * 1000);
             }
+        }
+
+        // Fuzzy matching para validar coincidencia de palabras
+        function fuzzyMatch(str1, str2) {
+            const s1 = str1.toLowerCase().trim();
+            const s2 = str2.toLowerCase().trim();
+            
+            // Coincidencia exacta
+            if(s1 === s2) return true;
+            
+            // Verificar si una contiene a la otra
+            if(s1.includes(s2) || s2.includes(s1)) return true;
+            
+            // Calcular similitud de Levenshtein simplificada
+            const maxLen = Math.max(s1.length, s2.length);
+            let matches = 0;
+            for(let i = 0; i < Math.min(s1.length, s2.length); i++) {
+                if(s1[i] === s2[i]) matches++;
+            }
+            
+            return (matches / maxLen) > 0.6; // 60% de similitud
         }
 
         // --- AUDIO & VOZ ---
@@ -1003,7 +1184,15 @@
         let recognition = null;
 
         function initVoice() {
-            if (!('webkitSpeechRecognition' in window)) return;
+            if (!('webkitSpeechRecognition' in window)) {
+                console.warn('Speech recognition no disponible');
+                const micBtn = document.getElementById('mic-btn');
+                if(micBtn) {
+                    micBtn.style.opacity = '0.5';
+                    micBtn.title = 'Reconocimiento de voz no disponible en este navegador';
+                }
+                return;
+            }
             recognition = new webkitSpeechRecognition();
             recognition.continuous = false;
             recognition.lang = 'en-US';
@@ -1016,6 +1205,13 @@
                 sendTextMsg();
             };
             
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                if(event.error === 'not-allowed') {
+                    showToast('Permiso de micrófono denegado', 'error');
+                }
+            };
+            
             recognition.onend = () => {
                 document.getElementById('mic-btn').classList.remove('mic-active');
                 isListening = false;
@@ -1025,14 +1221,27 @@
         function speakText(text, lang = 'en') {
             if (!text) return;
             stopAudio();
+            
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = lang === 'es' ? 'es-ES' : 'en-US';
             utterance.rate = state.speechRate || 0.9;
+            
+            // Intentar seleccionar una voz nativa
+            const voices = synth.getVoices();
+            const preferredVoice = voices.find(v => v.lang.startsWith(lang === 'es' ? 'es' : 'en'));
+            if(preferredVoice) utterance.voice = preferredVoice;
+            
+            utterance.onerror = (e) => {
+                console.error('TTS Error:', e);
+                if(e.error === 'not-allowed') {
+                    showToast('Activa el audio en tu navegador', 'error');
+                }
+            };
+            
             synth.speak(utterance);
         }
 
         function stopAudio() { synth.cancel(); }
-        function pauseAudio() { synth.pause(); }
 
         function startListening() {
             if(isListening || !recognition) return;
@@ -1059,11 +1268,17 @@
             }
 
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
+                
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts }] })
+                    body: JSON.stringify({ contents: [{ parts }] }),
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId);
                 
                 if (!response.ok) throw new Error("API Error");
                 
@@ -1074,6 +1289,11 @@
 
             } catch (error) {
                 console.error(error);
+                
+                if (error.name === 'AbortError') {
+                    throw new Error('Timeout: La solicitud tardó demasiado');
+                }
+                
                 currentKeyIdx = (currentKeyIdx + 1) % apiKeys.length;
                 if(currentKeyIdx !== 0) return callGemini(prompt, imageBase64);
                 throw error;
@@ -1086,18 +1306,35 @@
             if (!text) return;
 
             addMsg(text, 'user');
+            chatHistory.push({ role: 'user', content: text });
             input.value = '';
 
             const loadingId = addMsg('...', 'bot');
 
             try {
+                // Construir contexto con historial
+                let contextStr = chatHistory.slice(-MAX_HISTORY).map(h => `${h.role}: ${h.content}`).join('\n');
+                
                 const prompt = `
                     Eres un profesor de inglés. Nivel: ${getCurrentLevel().name}. Tema: ${getCurrentTopic()}.
-                    Usuario: "${text}".
+                    Historial de conversación reciente:
+                    ${contextStr}
+                    
                     Responde JSON: { "type": "eval", "feedback": "Español", "correction": "Corrección o null", "reply": "Inglés" }
                 `;
                 const data = await callGemini(prompt);
                 document.getElementById(loadingId).remove();
+                
+                // Añadir respuesta al historial
+                if(data.reply) {
+                    chatHistory.push({ role: 'bot', content: data.reply });
+                }
+                
+                // Limitar tamaño del historial
+                if(chatHistory.length > MAX_HISTORY * 2) {
+                    chatHistory = chatHistory.slice(-MAX_HISTORY);
+                }
+                
                 handleResponse(data);
             } catch (e) {
                 document.getElementById(loadingId).innerText = "Error.";
@@ -1158,44 +1395,359 @@
         }
 
         async function requestLesson() {
+            const btn = event.target.closest('button');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>';
+            
             const id = addMsg("Generando lección...", 'bot');
             try {
                 const prompt = `Lección corta sobre ${getCurrentTopic()} (${getCurrentLevel().name}). JSON type "lesson", field "content" (markdown).`;
                 const data = await callGemini(prompt);
                 document.getElementById(id).remove();
+                addToLessonHistory(getCurrentTopic(), 'lesson');
                 handleResponse(data);
             } catch(e) { 
                 document.getElementById(id).innerText = "Error de conexión."; 
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                lucide.createIcons();
             }
         }
 
         async function requestQuiz() {
+            const btn = event.target.closest('button');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>';
+            
             const id = addMsg("Generando examen...", 'bot');
             try {
                 const prompt = `Pregunta opción múltiple ${getCurrentTopic()}. JSON type "quiz", fields: question, options[], answer.`;
                 const data = await callGemini(prompt);
                 document.getElementById(id).remove();
+                addToLessonHistory(getCurrentTopic(), 'quiz');
                 handleResponse(data);
             } catch(e) { 
                 document.getElementById(id).innerText = "Error de conexión."; 
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                lucide.createIcons();
             }
         }
 
         async function startRoleplay() {
+            const btn = event.target.closest('button');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="w-4 h-4 border-2 border-pink-600 border-t-transparent rounded-full animate-spin mx-auto"></div>';
+            
             const id = addMsg("Iniciando Roleplay...", 'bot');
             try {
                 const prompt = `Roleplay ${getCurrentTopic()}. JSON type "eval", reply="Start phrase", feedback="Roleplay", correction=null.`;
                 const data = await callGemini(prompt);
                 document.getElementById(id).remove();
+                addToLessonHistory(getCurrentTopic(), 'roleplay');
                 handleResponse(data);
             } catch(e) { 
                 document.getElementById(id).innerText = "Error de conexión."; 
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                lucide.createIcons();
             }
         }
 
         function checkMission() {
             if (!currentMission) return;
             analyzeImage(); 
+        }
+        
+        // --- TUTORIAL ---
+        function showTutorial() {
+            const modal = document.getElementById('generic-modal');
+            const content = document.getElementById('modal-content');
+            
+            modal.classList.remove('hidden');
+            content.innerHTML = `
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                        <i data-lucide="sparkles" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <h2 class="text-2xl font-black text-slate-800 mb-2">¡Bienvenido a ProfesorIA!</h2>
+                    <p class="text-slate-600 mb-6 text-sm leading-relaxed">Tu asistente inteligente para aprender inglés de forma divertida</p>
+                    
+                    <div class="space-y-4 text-left mb-6">
+                        <div class="flex gap-3 items-start p-3 bg-blue-50 rounded-xl border border-blue-100">
+                            <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="camera" class="w-4 h-4 text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-sm">Cámara</h3>
+                                <p class="text-xs text-slate-600">Juega encontrando objetos o traduce texto en tiempo real</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-3 items-start p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                            <div class="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="message-square" class="w-4 h-4 text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-sm">Clase</h3>
+                                <p class="text-xs text-slate-600">Chatea con tu profesor IA, toma lecciones y exámenes</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-3 items-start p-3 bg-purple-50 rounded-xl border border-purple-100">
+                            <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="user" class="w-4 h-4 text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-sm">Perfil</h3>
+                                <p class="text-xs text-slate-600">Revisa tu progreso, colección y cambia de tema</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button onclick="closeTutorial()" class="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-black rounded-xl shadow-lg active:scale-95 transition-transform">
+                        ¡Comenzar a Aprender!
+                    </button>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+        
+        function closeTutorial() {
+            state.hasSeenTutorial = true;
+            updateUI();
+            closeModal();
+        }
+        
+        // --- MODO OSCURO ---
+        function toggleDarkMode() {
+            state.darkMode = !state.darkMode;
+            updateUI();
+        }
+        
+        function applyDarkMode() {
+            const toggle = document.getElementById('dark-mode-toggle');
+            const dot = document.getElementById('dark-mode-dot');
+            
+            if (state.darkMode) {
+                document.body.classList.add('dark-mode');
+                if(toggle) toggle.classList.add('bg-blue-600');
+                if(toggle) toggle.classList.remove('bg-slate-200');
+                if(dot) dot.classList.add('translate-x-6');
+                if(dot) dot.classList.remove('translate-x-1');
+            } else {
+                document.body.classList.remove('dark-mode');
+                if(toggle) toggle.classList.remove('bg-blue-600');
+                if(toggle) toggle.classList.add('bg-slate-200');
+                if(dot) dot.classList.remove('translate-x-6');
+                if(dot) dot.classList.add('translate-x-1');
+            }
+        }
+        
+        // --- SISTEMA DE LOGROS ---
+        const ACHIEVEMENTS = [
+            { id: 'first_word', name: 'Primera Palabra', desc: 'Encontraste tu primer objeto', icon: '🎯', condition: () => state.collection.length >= 1 },
+            { id: 'collector', name: 'Coleccionista', desc: 'Recolecta 10 palabras', icon: '📚', condition: () => state.collection.length >= 10 },
+            { id: 'master_collector', name: 'Maestro Coleccionista', desc: 'Recolecta 50 palabras', icon: '🏆', condition: () => state.collection.length >= 50 },
+            { id: 'point_100', name: 'Centenario', desc: 'Alcanza 100 puntos', icon: '💯', condition: () => state.score >= 100 },
+            { id: 'point_500', name: 'Experto', desc: 'Alcanza 500 puntos', icon: '⭐', condition: () => state.score >= 500 },
+            { id: 'level_up', name: 'Subida de Nivel', desc: 'Completa el primer nivel', icon: '📈', condition: () => state.levelIdx >= 1 },
+            { id: 'chat_master', name: 'Conversador', desc: 'Completa 5 lecciones', icon: '💬', condition: () => state.lessonHistory.length >= 5 }
+        ];
+        
+        function checkAchievements() {
+            ACHIEVEMENTS.forEach(ach => {
+                if (!state.achievements.includes(ach.id) && ach.condition()) {
+                    state.achievements.push(ach.id);
+                    showAchievementUnlocked(ach);
+                }
+            });
+            updateUI();
+        }
+        
+        function showAchievementUnlocked(achievement) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 px-6 py-4 rounded-2xl shadow-2xl z-50 font-bold text-sm flex items-center gap-3 fade-in-up bg-gradient-to-r from-amber-400 to-orange-500 text-white';
+            toast.innerHTML = `
+                <span class="text-3xl">${achievement.icon}</span>
+                <div>
+                    <p class="font-black">¡Logro Desbloqueado!</p>
+                    <p class="text-xs opacity-90">${achievement.name}</p>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+        
+        function renderAchievements() {
+            const grid = document.getElementById('achievements-grid');
+            if (!grid) return;
+            
+            if (state.achievements.length === 0) {
+                grid.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">Aún no has desbloqueado logros</p>';
+                return;
+            }
+            
+            grid.innerHTML = ACHIEVEMENTS.filter(a => state.achievements.includes(a.id)).map(ach => `
+                <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                    <div class="text-3xl">${ach.icon}</div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-slate-800 text-sm">${ach.name}</h4>
+                        <p class="text-xs text-slate-600">${ach.desc}</p>
+                    </div>
+                    <i data-lucide="check-circle" class="w-5 h-5 text-green-500"></i>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+        
+        // --- HISTORIAL DE LECCIONES ---
+        function addToLessonHistory(topic, type) {
+            state.lessonHistory.unshift({
+                topic,
+                type,
+                date: new Date().toISOString()
+            });
+            
+            if (state.lessonHistory.length > 20) {
+                state.lessonHistory = state.lessonHistory.slice(0, 20);
+            }
+            
+            checkAchievements();
+            updateUI();
+        }
+        
+        function renderLessonHistory() {
+            const container = document.getElementById('lesson-history');
+            if (!container) return;
+            
+            if (state.lessonHistory.length === 0) {
+                container.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">No hay lecciones registradas</p>';
+                return;
+            }
+            
+            container.innerHTML = state.lessonHistory.map(item => {
+                const date = new Date(item.date);
+                const timeAgo = getTimeAgo(date);
+                const icons = { lesson: '📚', quiz: '📝', roleplay: '🎭' };
+                
+                return `
+                    <div class="flex items-center gap-3 p-2 bg-slate-50 rounded-lg border border-slate-100">
+                        <span class="text-xl">${icons[item.type] || '📖'}</span>
+                        <div class="flex-1">
+                            <p class="font-bold text-slate-800 text-xs">${item.topic}</p>
+                            <p class="text-[10px] text-slate-400">${timeAgo}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+            
+            if (diff < 60) return 'Hace un momento';
+            if (diff < 3600) return `Hace ${Math.floor(diff / 60)} min`;
+            if (diff < 86400) return `Hace ${Math.floor(diff / 3600)} h`;
+            return `Hace ${Math.floor(diff / 86400)} días`;
+        }
+        
+        // --- EXPORTAR A PDF ---
+        async function exportProgress() {
+            const btn = event.target;
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>';
+            
+            try {
+                // Crear contenido HTML para imprimir
+                const printContent = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>ProfesorIA - Mi Progreso</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+                            h1 { color: #1e40af; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; }
+                            h2 { color: #475569; margin-top: 30px; }
+                            .stat { display: inline-block; margin: 10px 20px; }
+                            .stat-value { font-size: 32px; font-weight: bold; color: #3b82f6; }
+                            .stat-label { font-size: 14px; color: #64748b; }
+                            .collection { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
+                            .word-card { border: 2px solid #e2e8f0; border-radius: 10px; padding: 15px; text-align: center; }
+                            .achievement { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px; margin: 10px 0; border-radius: 5px; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>📚 ProfesorIA - Certificado de Progreso</h1>
+                        <p><strong>Fecha de Generación:</strong> ${new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                        
+                        <h2>📊 Estadísticas</h2>
+                        <div class="stat">
+                            <div class="stat-value">${state.score}</div>
+                            <div class="stat-label">Puntos XP</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${state.collection.length}</div>
+                            <div class="stat-label">Palabras Aprendidas</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${getCurrentLevel().name}</div>
+                            <div class="stat-label">Nivel Actual</div>
+                        </div>
+                        
+                        <h2>🏆 Logros Desbloqueados (${state.achievements.length})</h2>
+                        ${state.achievements.map(id => {
+                            const ach = ACHIEVEMENTS.find(a => a.id === id);
+                            return ach ? `<div class="achievement"><strong>${ach.icon} ${ach.name}</strong><br><small>${ach.desc}</small></div>` : '';
+                        }).join('')}
+                        
+                        <h2>📖 Mi Colección de Palabras</h2>
+                        <div class="collection">
+                            ${state.collection.slice(0, 30).map(item => `
+                                <div class="word-card">
+                                    <div style="font-size: 32px;">${item.icon || '📦'}</div>
+                                    <strong>${item.wordEn}</strong><br>
+                                    <small style="color: #64748b;">${item.wordEs}</small>
+                                </div>
+                            `).join('')}
+                        </div>
+                        ${state.collection.length > 30 ? `<p><em>... y ${state.collection.length - 30} palabras más</em></p>` : ''}
+                        
+                        <div style="margin-top: 50px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #94a3b8;">
+                            <p>Generado por ProfesorIA - Tu asistente de inglés con IA</p>
+                        </div>
+                    </body>
+                    </html>
+                `;
+                
+                // Abrir ventana de impresión
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(printContent);
+                printWindow.document.close();
+                
+                // Esperar a que cargue y luego imprimir
+                printWindow.onload = () => {
+                    printWindow.print();
+                };
+                
+                showToast('Ventana de impresión abierta. Usa "Guardar como PDF"');
+                
+            } catch(e) {
+                showToast('Error al generar PDF', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                lucide.createIcons();
+            }
         }
     </script>
 </body>
