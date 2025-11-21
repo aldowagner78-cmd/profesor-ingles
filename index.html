@@ -394,6 +394,7 @@
         } catch(e) { console.log("Error cargando estado"); }
 
         let currentWordEn = "";
+        let currentLessonAudioText = ""; // Variable para almacenar el texto de la lección actual
         let stream = null;
         let isListening = false;
 
@@ -681,11 +682,12 @@
         // --- CLASE Y CHAT ---
         async function requestLesson() {
             const prompt = `Genera una lección completa y estructurada para el Nivel: ${getCurrentLevel().name}, Tema: ${getCurrentTopic()}. 
+            IMPORTANTE: LA EXPLICACIÓN DEBE SER EN ESPAÑOL para que el alumno entienda.
             Estructura requerida:
-            1. Explicación clara del concepto.
-            2. Un diálogo corto de ejemplo (A: ... B: ...).
-            3. Lista de 3-5 palabras clave de vocabulario.
-            4. Un 'Tip' gramatical o de pronunciación.`;
+            1. Explicación clara del concepto (EN ESPAÑOL).
+            2. Un diálogo corto de ejemplo en INGLÉS (con traducción al español entre paréntesis).
+            3. Lista de 3-5 palabras clave de vocabulario (Inglés - Español).
+            4. Un 'Tip' gramatical o de pronunciación (EN ESPAÑOL).`;
             sendQuickMsg(prompt, true); 
         }
 
@@ -715,6 +717,9 @@
 
         function handleResponse(data) {
             if (data.type === 'lesson') {
+                // Guardamos el texto limpio para el audio
+                currentLessonAudioText = cleanTextForSpeech(data.content);
+                
                 const html = `
                     <div class="lesson-card p-4 rounded-xl border border-white shadow-sm">
                         <div class="flex justify-between items-center mb-2">
@@ -723,7 +728,7 @@
                         </div>
                         <h3 class="text-lg font-black text-indigo-700 mb-2 leading-tight">${data.title}</h3>
                         <div class="text-sm text-slate-700 mb-4 prose prose-sm max-w-none">${marked.parse(data.content)}</div>
-                        <button onclick="speakText('${cleanTextForSpeech(data.content).replace(/'/g, "\\'")}', 'en')" class="w-full py-2 bg-white border border-indigo-100 rounded-lg text-indigo-600 font-bold text-xs flex items-center justify-center gap-2 hover:bg-indigo-50">
+                        <button onclick="playLessonAudio()" class="w-full py-2 bg-white border border-indigo-100 rounded-lg text-indigo-600 font-bold text-xs flex items-center justify-center gap-2 hover:bg-indigo-50">
                             <i data-lucide="volume-2" class="w-4 h-4"></i> Escuchar Lección
                         </button>
                     </div>`;
@@ -937,17 +942,31 @@
             u.rate = state.speechRate || 0.9;
             const vs = window.speechSynthesis.getVoices();
             
-            // Selección inteligente de voz
-            if(lang==='es') {
-                u.voice = vs.find(v=>v.name.includes('Google') && v.lang.includes('es')) || 
-                          vs.find(v=>v.lang==='es-AR') || 
-                          vs.find(v=>v.lang.includes('es'));
+            // Selección inteligente de voz MEJORADA
+            if(lang === 'es') {
+                u.voice = vs.find(v => v.lang === 'es-MX') || 
+                          vs.find(v => v.lang === 'es-ES') || 
+                          vs.find(v => v.lang.includes('es'));
             } else {
-                u.voice = vs.find(v=>v.name.includes('Google') && v.lang.includes('en-US')) || 
-                          vs.find(v=>v.lang==='en-US') || 
-                          vs.find(v=>v.lang.includes('en'));
+                // Priorizar inglés nativo (US/UK)
+                u.voice = vs.find(v => v.lang === 'en-US') || 
+                          vs.find(v => v.lang === 'en-GB') || 
+                          vs.find(v => v.lang.includes('en'));
             }
+            
+            // Fallback si no encuentra voz específica
+            if (!u.voice && vs.length > 0) {
+                console.warn(`No se encontró voz para ${lang}, usando predeterminada.`);
+            }
+
             window.speechSynthesis.speak(u);
+        }
+
+        function playLessonAudio() {
+            if(!currentLessonAudioText) return;
+            // Las lecciones ahora son en español con partes en inglés.
+            // Leeremos en español para que se entienda la explicación.
+            speakText(currentLessonAudioText, 'es');
         }
 
         function addToCollection(wordEn, wordEs, icon) {
