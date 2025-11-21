@@ -1,19 +1,20 @@
 // Service Worker para PWA - Profesor IA v4.0
-const CACHE_NAME = 'profesor-ia-v4-cache';
+const CACHE_NAME = 'profesor-ia-v4.1-cache';
+const BASE_PATH = '/profesor-ingles';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/css/styles.css',
-  '/js/app.js',
-  '/js/config.js',
-  '/js/state.js',
-  '/js/services/gemini.js',
-  '/js/services/voice.js',
-  '/js/modules/camera.js',
-  '/js/modules/chat.js',
-  '/js/modules/profile.js',
-  '/js/utils/ui.js',
-  '/manifest.json',
+  `${BASE_PATH}/`,
+  `${BASE_PATH}/index.html`,
+  `${BASE_PATH}/css/styles.css`,
+  `${BASE_PATH}/js/app.js`,
+  `${BASE_PATH}/js/config.js`,
+  `${BASE_PATH}/js/state.js`,
+  `${BASE_PATH}/js/services/gemini.js`,
+  `${BASE_PATH}/js/services/voice.js`,
+  `${BASE_PATH}/js/modules/camera.js`,
+  `${BASE_PATH}/js/modules/chat.js`,
+  `${BASE_PATH}/js/modules/profile.js`,
+  `${BASE_PATH}/js/utils/ui.js`,
+  `${BASE_PATH}/manifest.json`,
   'https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.js',
   'https://cdn.jsdelivr.net/npm/marked@latest/marked.min.js'
 ];
@@ -85,7 +86,7 @@ self.addEventListener('fetch', event => {
           }
           // Si no hay en cache, mostrar página offline
           if (request.destination === 'document') {
-            return caches.match('/index.html');
+            return caches.match(`${BASE_PATH}/index.html`);
           }
         });
       })

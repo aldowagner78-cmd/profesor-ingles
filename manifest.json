@@ -2,12 +2,12 @@
   "name": "Profesor IA - Aprende Inglés",
   "short_name": "Profesor IA",
   "description": "Aprende inglés con inteligencia artificial: cámara, chat y juegos interactivos",
-  "start_url": "/",
+  "start_url": "/profesor-ingles/",
   "display": "standalone",
   "background_color": "#0F172A",
   "theme_color": "#4A90E2",
   "orientation": "portrait-primary",
-  "scope": "/",
+  "scope": "/profesor-ingles/",
   "lang": "es",
   "dir": "ltr",
   "icons": [
@@ -31,14 +31,14 @@
       "name": "Cámara",
       "short_name": "Cámara",
       "description": "Reconocimiento de objetos",
-      "url": "/?view=camera",
+      "url": "/profesor-ingles/?view=camera",
       "icons": []
     },
     {
       "name": "Clase",
       "short_name": "Clase",
       "description": "Chat con el profesor IA",
-      "url": "/?view=class",
+      "url": "/profesor-ingles/?view=class",
       "icons": []
     }
   ],
