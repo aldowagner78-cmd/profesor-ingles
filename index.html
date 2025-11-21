@@ -670,11 +670,15 @@
         async function analyzeImage() {
             const video = document.getElementById('camera-feed');
             const canvas = document.getElementById('photo-canvas');
-            const btn = cameraMode === 'explore' ? document.getElementById('btn-capture-explore') : document.getElementById('btn-capture-translate');
+            
+            let btn;
+            if (cameraMode === 'game') btn = document.getElementById('btn-capture-game');
+            else if (cameraMode === 'explore') btn = document.getElementById('btn-capture-explore');
+            else btn = document.getElementById('btn-capture-translate');
             
             if(!stream) { await startCamera(); return; }
 
-            btn.classList.add('scale-90', 'opacity-50');
+            if(btn) btn.classList.add('scale-90', 'opacity-50');
             
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -803,14 +807,30 @@
             // Restaurar botones
             const btnContainer = document.querySelector('#camera-feedback .flex.gap-3');
             btnContainer.classList.remove('hidden');
-            btnContainer.innerHTML = `
-                <button onclick="closeFeedback()" class="px-8 py-3 bg-white text-slate-900 font-black rounded-xl active:scale-95 transition-transform text-sm shadow-lg">
-                    Continuar
-                </button>
-            `;
+            
+            if (cameraMode === 'game') {
+                btnContainer.innerHTML = `
+                    <button onclick="closeFeedback()" class="px-6 py-3 bg-slate-700 text-white font-bold rounded-xl active:scale-95 transition-transform text-sm">
+                        Cerrar
+                    </button>
+                    <button onclick="speakText(currentCameraAudioText, currentCameraAudioLang)" class="px-6 py-3 bg-blue-100 text-blue-700 font-bold rounded-xl active:scale-95 transition-transform text-sm flex items-center gap-2">
+                        <i data-lucide="volume-2" class="w-4 h-4"></i> Escuchar
+                    </button>
+                    <button id="btn-next-mission" onclick="nextMission()" class="px-6 py-3 bg-white text-blue-600 font-bold rounded-xl active:scale-95 transition-transform text-sm shadow-lg shadow-blue-500/20">
+                        Siguiente
+                    </button>
+                `;
+            } else {
+                btnContainer.innerHTML = `
+                    <button onclick="closeFeedback()" class="px-8 py-3 bg-white text-slate-900 font-black rounded-xl active:scale-95 transition-transform text-sm shadow-lg">
+                        Continuar
+                    </button>
+                `;
+            }
             
             addPoints(10);
             triggerConfetti();
+            lucide.createIcons();
         }
 
         function rejectAnalysis() {
@@ -883,7 +903,7 @@
             content.innerHTML = '<div class="flex flex-col items-center justify-center py-12"><div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div><p class="text-slate-400 font-bold text-sm">Consultando al Profe...</p></div>';
 
             try {
-                const prompt = `Genera 3 oraciones simples en inglés usando la palabra "${word}". Incluye traducción al español. Responde con JSON type "word_details".`;
+                const prompt = `Genera 3 oraciones simples en inglés usando la palabra "${word}". Incluye traducción al español. Responde con JSON type "word_details" with structure { word: string, sentences: [{en: string, es: string}] }.`;
                 const data = await callGemini(prompt);
                 
                 if(data.type === 'word_details') {
@@ -925,6 +945,7 @@
         function renderCollection() {
             const grid = document.getElementById('collection-grid');
             if (!grid) return;
+            if (!state.collection || !Array.isArray(state.collection)) state.collection = [];
             if (state.collection.length === 0) {
                 grid.innerHTML = '<p class="col-span-2 text-center text-slate-400 text-xs py-4">Aún no has encontrado objetos.</p>';
                 return;
