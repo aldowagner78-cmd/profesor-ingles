@@ -72,15 +72,19 @@
 
     <!-- CONFIGURACIÓN -->
     <script>
-        // GESTIÓN DE API KEY
-        let apiKey = localStorage.getItem('profesor_ia_apikey') || "AIzaSyDBNgYIJLCksdy9Ij7gZ-ofQtfmzcVMEGw";
-        
+        // GESTIÓN DE API KEYS (ROTACIÓN)
+        let rawKeys = localStorage.getItem('profesor_ia_apikeys') || "AIzaSyDBNgYIJLCksdy9Ij7gZ-ofQtfmzcVMEGw";
+        let apiKeys = rawKeys.split(',').map(k => k.trim()).filter(k => k !== "");
+        let currentKeyIdx = 0;
+
         function setApiKey() {
-            const newKey = prompt("Ingresa tu Google Gemini API Key:", apiKey);
-            if(newKey && newKey.trim() !== "") {
-                apiKey = newKey.trim();
-                localStorage.setItem('profesor_ia_apikey', apiKey);
-                alert("API Key guardada correctamente.");
+            const newKeys = prompt("Ingresa tus API Keys de Google Gemini (separadas por coma para rotación automática):", rawKeys);
+            if(newKeys && newKeys.trim() !== "") {
+                rawKeys = newKeys.trim();
+                localStorage.setItem('profesor_ia_apikeys', rawKeys);
+                apiKeys = rawKeys.split(',').map(k => k.trim()).filter(k => k !== "");
+                currentKeyIdx = 0;
+                alert(`¡Listo! Guardadas ${apiKeys.length} claves. Si una falla, la app usará la siguiente automáticamente.`);
                 location.reload();
             }
         }
@@ -732,9 +736,16 @@
             }
         }
 
-        async function callGemini(prompt, imageBase64 = null) {
+        async function callGemini(prompt, imageBase64 = null, attempt = 0) {
+            // Si ya probamos todas las llaves y siguen fallando
+            if (attempt >= apiKeys.length) {
+                if(confirm("Todas las API Keys fallaron (Cuota excedida o error). ¿Quieres configurar nuevas?")) setApiKey();
+                throw new Error("Todas las claves API fallaron.");
+            }
+
+            const key = apiKeys[currentKeyIdx];
             // CAMBIO A GEMINI 2.0 FLASH (EXPERIMENTAL/PREVIEW)
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
             
             const context = `Nivel del Alumno: ${getCurrentLevel().name}. Tema Actual: ${getCurrentTopic()}.`;
             
@@ -782,11 +793,13 @@
             });
             
             if (!response.ok) {
-                if(response.status === 400 || response.status === 403) {
-                    if(confirm("Error de API Key (Posiblemente expirada o inválida). ¿Quieres ingresar una nueva?")) {
-                        setApiKey();
-                    }
+                // ROTACIÓN DE LLAVES: Si es error de cliente (4xx) o cuota (429), probamos la siguiente
+                if(response.status === 400 || response.status === 403 || response.status === 429) {
+                    console.warn(`Clave ${currentKeyIdx + 1} falló (${response.status}). Rotando a la siguiente...`);
+                    currentKeyIdx = (currentKeyIdx + 1) % apiKeys.length;
+                    return callGemini(prompt, imageBase64, attempt + 1);
                 }
+
                 const errData = await response.json();
                 throw new Error(errData.error?.message || "API Error: " + response.status);
             }
