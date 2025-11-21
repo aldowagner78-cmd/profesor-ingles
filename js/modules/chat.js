@@ -2,6 +2,7 @@
 import { callGemini } from '../services/gemini.js';
 import { speakText, startListening, stopListening } from '../services/voice.js';
 import { showToast, triggerConfetti, createAudioButton } from '../utils/ui.js';
+import { isEnglishText } from '../utils/helpers.js';
 import { getState, updateState, markTopicCompleted } from '../state.js';
 import { SYLLABUS, CONFIG } from '../config.js';
 
@@ -63,9 +64,15 @@ function toggleMicrophone() {
         startListening(
             (text) => {
                 // onResult
-                const input = document.getElementById('chat-input');
-                if (input) input.value = text;
-                sendTextMsg();
+                if (roleplayState.active) {
+                    // Modo roleplay: evaluar respuesta
+                    evaluateRoleplayResponse(text);
+                } else {
+                    // Modo chat normal
+                    const input = document.getElementById('chat-input');
+                    if (input) input.value = text;
+                    sendTextMsg();
+                }
             },
             () => {
                 // onEnd
@@ -74,6 +81,88 @@ function toggleMicrophone() {
             },
             'en-US' // Escuchar en inglés
         );
+    }
+}
+
+async function evaluateRoleplayResponse(userSpeech) {
+    // Mostrar lo que dijo el usuario
+    addMessageToUI(`<p style="font-style: italic;">"${userSpeech}"</p>`, 'user');
+    
+    const loadingId = addMessageToUI('Evaluando...', 'bot');
+    
+    try {
+        const state = getState();
+        const currentLevel = SYLLABUS[state.levelIdx];
+        const currentTopic = currentLevel.topics[state.topicIdx];
+        
+        const prompt = `
+            You are an English Teacher API evaluating a roleplay response.
+            Topic: ${currentTopic}
+            Level: ${currentLevel.name}
+            Turn: ${roleplayState.turnNumber}/${roleplayState.totalTurns}
+            Last bot speech: "${roleplayState.lastBotSpeech}"
+            User response: "${userSpeech}"
+            
+            Task: Evaluate the user's response and provide feedback.
+            
+            Respond STRICTLY in JSON format:
+            {
+                "type": "roleplay_feedback",
+                "is_correct": true or false,
+                "user_said": "${userSpeech}",
+                "feedback_es": "Detailed feedback in Spanish",
+                "correct_example": "Correct example in English" (if is_correct is false),
+                "suggestion_es": "Helpful tip in Spanish",
+                "allow_retry": true or false
+            }
+            
+            If is_correct is true and turn < total_turns, also include:
+            {
+                "type": "roleplay_continue",
+                "bot_speech": "Next phrase to continue the conversation",
+                "turn_number": ${roleplayState.turnNumber + 1}
+            }
+            
+            Return roleplay_feedback first, then roleplay_continue if applicable.
+        `;
+        
+        const data = await callGemini(prompt);
+        
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) loadingEl.remove();
+        
+        // Manejar feedback
+        if (data.type === 'roleplay_feedback') {
+            handleRoleplayFeedback(data);
+            
+            // Si fue correcto y hay más turnos, continuar
+            if (data.is_correct && roleplayState.turnNumber < roleplayState.totalTurns) {
+                setTimeout(async () => {
+                    // Pedir siguiente turno
+                    const continuePrompt = `
+                        Continue roleplay.
+                        Topic: ${currentTopic}
+                        Turn: ${roleplayState.turnNumber + 1}/${roleplayState.totalTurns}
+                        Last user said: "${userSpeech}"
+                        
+                        JSON type "roleplay_continue", "bot_speech": "Next phrase", "turn_number": ${roleplayState.turnNumber + 1}
+                    `;
+                    
+                    const continueData = await callGemini(continuePrompt);
+                    if (continueData.type === 'roleplay_continue') {
+                        handleRoleplayContinue(continueData);
+                    }
+                }, 1500);
+            }
+        }
+        
+    } catch (e) {
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) {
+            loadingEl.querySelector('.message-bubble').innerHTML = `
+                <span style="color: #EF4444; font-weight: 700;">Error: ${e.message}</span>
+            `;
+        }
     }
 }
 
@@ -230,17 +319,21 @@ async function handleAction(action) {
                 }
             `;
         } else if (action === 'roleplay') {
+            // Iniciar nueva escena de roleplay
             prompt = `
                 You are an English Teacher API.
                 Topic: ${currentTopic}
+                Level: ${currentLevel.name}
                 
-                Task: Start a roleplay scenario.
+                Task: Start an interactive roleplay scenario with step-by-step evaluation.
                 Respond STRICTLY in JSON format:
                 {
-                    "type": "chat",
-                    "reply": "Opening phrase in English to start the roleplay",
-                    "feedback": "Instructions for the user in Spanish (what they should do)",
-                    "correction": null
+                    "type": "roleplay_start",
+                    "scene_description": "Brief scenario description in Spanish (2-3 sentences, text only)",
+                    "bot_speech": "Opening phrase in English to start the conversation",
+                    "expected_responses": ["Example response 1", "Example response 2"],
+                    "turn_number": 1,
+                    "total_turns": 5
                 }
             `;
         } else if (action === 'next') {
@@ -261,6 +354,12 @@ async function handleAction(action) {
             handleQuizResponse(data);
         } else if (data.type === 'chat') {
             handleChatResponse(data);
+        } else if (data.type === 'roleplay_start') {
+            handleRoleplayStart(data);
+        } else if (data.type === 'roleplay_feedback') {
+            handleRoleplayFeedback(data);
+        } else if (data.type === 'roleplay_continue') {
+            handleRoleplayContinue(data);
         }
         
     } catch (e) {
@@ -315,46 +414,20 @@ function handleLessonResponse(data) {
     const msgId = `lesson-${Date.now()}`;
     lessonCard.id = msgId;
     
-    // Agregar botones de audio a los ejemplos en inglés
+    // Agregar botones de audio SOLO a texto en inglés puro
     setTimeout(() => {
         const lessonContent = lessonCard.querySelector('.lesson-content');
         if (lessonContent) {
-            // Función mejorada para detectar inglés puro
-            function isEnglishText(text) {
-                if (!text || text.length < 3) return false;
-                
-                // Remover puntuación para análisis
-                const cleanText = text.replace(/[.,!?;:'"()\[\]]/g, '').trim();
-                
-                // Patrones que indican español
-                const spanishIndicators = [
-                    /á|é|í|ó|ú|ñ|¿|¡/i, // Caracteres españoles
-                    /\b(el|la|los|las|un|una|de|del|al|con|por|para|como|ejemplo|explicación|significa|usa|forma|modo|verbo|sustantivo|adjetivo)\b/i
-                ];
-                
-                // Si contiene indicadores de español, no es inglés puro
-                for (const pattern of spanishIndicators) {
-                    if (pattern.test(cleanText)) return false;
-                }
-                
-                // Debe contener solo caracteres latinos básicos
-                const hasOnlyBasicLatin = /^[a-zA-Z0-9\s\-'']+$/.test(cleanText);
-                
-                // Debe tener al menos una palabra reconocible en inglés
-                const commonEnglishWords = /\b(the|a|an|is|are|was|were|have|has|had|do|does|did|can|could|will|would|should|may|might|must|I|you|he|she|it|we|they|my|your|his|her|its|our|their|this|that|these|those|what|which|who|when|where|why|how|am|be|been|being|to|from|in|on|at|by|with|about|as|into|through|during|before|after|above|below|between|under|over|of|for|and|or|but|not|no|yes|all|some|any|each|every|other|another|such|more|most|very|too|so|just|only|also|even|still|already|yet|now|then|here|there|up|down|out|off|away|back|again)\b/i;
-                
-                return hasOnlyBasicLatin && commonEnglishWords.test(cleanText);
-            }
-            
             // Buscar elementos que potencialmente contengan inglés
-            const elements = lessonContent.querySelectorAll('li, code, strong, p, em');
+            const elements = lessonContent.querySelectorAll('li, code, strong, p, em, blockquote');
             
             elements.forEach(element => {
                 const text = element.textContent.trim();
                 
-                // Si el elemento es corto y es inglés puro, agregar botón
+                // Verificar si es inglés puro y no tiene ya un botón
                 if (isEnglishText(text) && !element.querySelector('.audio-btn')) {
                     const audioBtn = createAudioButton(text, 'en-US');
+                    audioBtn.className = 'audio-btn';
                     audioBtn.style.display = 'inline-flex';
                     audioBtn.style.verticalAlign = 'middle';
                     audioBtn.style.marginLeft = '0.5rem';
@@ -497,3 +570,298 @@ function addMessageToUI(html, role, animate = true) {
     
     return msgId;
 }
+
+// ============================================
+// SISTEMA DE ROLEPLAY INTERACTIVO
+// ============================================
+
+let roleplayState = {
+    active: false,
+    turnNumber: 0,
+    totalTurns: 0,
+    sceneDescription: '',
+    lastBotSpeech: ''
+};
+
+function handleRoleplayStart(data) {
+    roleplayState = {
+        active: true,
+        turnNumber: data.turn_number || 1,
+        totalTurns: data.total_turns || 5,
+        sceneDescription: data.scene_description || '',
+        lastBotSpeech: data.bot_speech || ''
+    };
+    
+    // Tarjeta de descripción de escena (solo texto en español)
+    const sceneCard = document.createElement('div');
+    sceneCard.className = 'roleplay-scene-card';
+    sceneCard.style.cssText = `
+        width: 100vw;
+        margin-left: calc(-1 * var(--spacing-lg));
+        margin-right: calc(-1 * var(--spacing-lg));
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #F5F3FF 0%, #FFF7ED 100%);
+        border-radius: 0;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-top: 2px solid rgba(123, 104, 238, 0.3);
+        border-bottom: 2px solid rgba(123, 104, 238, 0.3);
+    `;
+    
+    sceneCard.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+            <div style="width: 2.5rem; height: 2.5rem; background: #7B68EE; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <div>
+                <h3 style="font-weight: 900; font-size: 1.25rem; color: #1E293B; margin: 0;">🎭 Escena de Roleplay</h3>
+                <p style="font-size: 0.75rem; color: #64748B; margin: 0;">Turno ${roleplayState.turnNumber} de ${roleplayState.totalTurns}</p>
+            </div>
+        </div>
+        <p style="font-size: 0.95rem; line-height: 1.7; color: #334155; margin: 0;">
+            ${roleplayState.sceneDescription}
+        </p>
+    `;
+    
+    const chatArea = document.getElementById('chat-area');
+    if (chatArea) {
+        chatArea.appendChild(sceneCard);
+    }
+    
+    // Mensaje del bot con botón de audio
+    const botCard = document.createElement('div');
+    botCard.className = 'roleplay-bot-turn';
+    botCard.style.cssText = `
+        margin: 1rem 0;
+        background: white;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        border: 2px solid #E8F4FD;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    `;
+    
+    botCard.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+            <div style="width: 2rem; height: 2rem; background: #4A90E2; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="15"></line></svg>
+            </div>
+            <span style="font-size: 0.875rem; font-weight: 700; color: #64748B;">Profesor (presiona 🔊 para escuchar)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <p style="font-size: 1.05rem; font-weight: 600; color: #1E293B; margin: 0; flex: 1;">
+                ${roleplayState.lastBotSpeech}
+            </p>
+            <div id="roleplay-audio-btn"></div>
+        </div>
+    `;
+    
+    if (chatArea) {
+        chatArea.appendChild(botCard);
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+    
+    // Agregar botón de audio
+    setTimeout(() => {
+        const audioContainer = botCard.querySelector('#roleplay-audio-btn');
+        if (audioContainer) {
+            const audioBtn = createAudioButton(roleplayState.lastBotSpeech, 'en-US');
+            audioBtn.style.transform = 'scale(1.3)';
+            audioContainer.appendChild(audioBtn);
+            if (window.lucide) window.lucide.createIcons();
+        }
+    }, 50);
+    
+    // Activar botón de micrófono para respuesta del usuario
+    const micBtn = document.getElementById('mic-btn');
+    if (micBtn) {
+        micBtn.style.background = 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
+        micBtn.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.4)';
+        micBtn.style.animation = 'pulse 2s infinite';
+        showToast('🎤 Tu turno: Responde en inglés', 'info');
+    }
+}
+
+function handleRoleplayContinue(data) {
+    roleplayState.turnNumber = data.turn_number || roleplayState.turnNumber + 1;
+    roleplayState.lastBotSpeech = data.bot_speech || '';
+    
+    // Mensaje del bot con botón de audio
+    const botCard = document.createElement('div');
+    botCard.className = 'roleplay-bot-turn';
+    botCard.style.cssText = `
+        margin: 1rem 0;
+        background: white;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        border: 2px solid #E8F4FD;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    `;
+    
+    botCard.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+            <div style="width: 2rem; height: 2rem; background: #4A90E2; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="15"></line></svg>
+            </div>
+            <span style="font-size: 0.875rem; font-weight: 700; color: #64748B;">Profesor (Turno ${roleplayState.turnNumber}/${roleplayState.totalTurns})</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <p style="font-size: 1.05rem; font-weight: 600; color: #1E293B; margin: 0; flex: 1;">
+                ${roleplayState.lastBotSpeech}
+            </p>
+            <div id="roleplay-audio-btn-${Date.now()}"></div>
+        </div>
+    `;
+    
+    const chatArea = document.getElementById('chat-area');
+    if (chatArea) {
+        chatArea.appendChild(botCard);
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+    
+    // Agregar botón de audio
+    const audioId = `roleplay-audio-btn-${Date.now()}`;
+    setTimeout(() => {
+        const audioContainer = botCard.querySelector(`#${audioId}`);
+        if (audioContainer) {
+            const audioBtn = createAudioButton(roleplayState.lastBotSpeech, 'en-US');
+            audioBtn.style.transform = 'scale(1.3)';
+            audioContainer.appendChild(audioBtn);
+            if (window.lucide) window.lucide.createIcons();
+        }
+    }, 50);
+    
+    // Activar micrófono
+    const micBtn = document.getElementById('mic-btn');
+    if (micBtn) {
+        micBtn.style.background = 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
+        micBtn.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.4)';
+        showToast('🎤 Tu turno: Responde en inglés', 'info');
+    }
+    
+    // Si es el último turno, mostrar mensaje de finalización
+    if (roleplayState.turnNumber >= roleplayState.totalTurns) {
+        setTimeout(() => {
+            showToast('🎉 ¡Roleplay completado!', 'success');
+            roleplayState.active = false;
+        }, 1000);
+    }
+}
+
+function handleRoleplayFeedback(data) {
+    const feedbackCard = document.createElement('div');
+    feedbackCard.className = 'roleplay-feedback';
+    
+    const isCorrect = data.is_correct !== false;
+    
+    feedbackCard.style.cssText = `
+        margin: 1rem 0;
+        background: ${isCorrect ? 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)' : 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)'};
+        padding: 1rem;
+        border-radius: 0.75rem;
+        border: 2px solid ${isCorrect ? '#10B981' : '#EF4444'};
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    `;
+    
+    let feedbackHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+            <div style="font-size: 1.5rem;">${isCorrect ? '✅' : '❌'}</div>
+            <span style="font-size: 0.875rem; font-weight: 700; color: #1E293B;">
+                ${isCorrect ? '¡Muy bien!' : 'Necesitas mejorar esto'}
+            </span>
+        </div>
+    `;
+    
+    if (data.user_said) {
+        feedbackHTML += `
+            <p style="font-size: 0.85rem; color: #64748B; margin-bottom: 0.5rem;">
+                <strong>Dijiste:</strong> "${data.user_said}"
+            </p>
+        `;
+    }
+    
+    if (data.feedback_es) {
+        feedbackHTML += `
+            <p style="font-size: 0.95rem; color: #1E293B; margin-bottom: 0.75rem;">
+                ${data.feedback_es}
+            </p>
+        `;
+    }
+    
+    if (data.correct_example) {
+        feedbackHTML += `
+            <div style="background: white; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.75rem;">
+                <p style="font-size: 0.75rem; color: #64748B; margin: 0 0 0.25rem 0; text-transform: uppercase; font-weight: 700;">Ejemplo correcto:</p>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <p style="font-size: 1rem; font-weight: 600; color: #10B981; margin: 0; flex: 1;">
+                        ${data.correct_example}
+                    </p>
+                    <div id="feedback-audio-${Date.now()}"></div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (data.suggestion_es) {
+        feedbackHTML += `
+            <p style="font-size: 0.85rem; color: #64748B; margin: 0; font-style: italic;">
+                💡 ${data.suggestion_es}
+            </p>
+        `;
+    }
+    
+    if (data.allow_retry) {
+        feedbackHTML += `
+            <button id="roleplay-retry-btn" style="
+                margin-top: 0.75rem;
+                padding: 0.5rem 1rem;
+                background: #7B68EE;
+                color: white;
+                border: none;
+                border-radius: 0.5rem;
+                font-weight: 700;
+                font-size: 0.875rem;
+                cursor: pointer;
+            ">🔄 Reintentar</button>
+        `;
+    }
+    
+    feedbackCard.innerHTML = feedbackHTML;
+    
+    const chatArea = document.getElementById('chat-area');
+    if (chatArea) {
+        chatArea.appendChild(feedbackCard);
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+    
+    // Agregar botón de audio para el ejemplo correcto
+    if (data.correct_example) {
+        const audioId = `feedback-audio-${Date.now()}`;
+        setTimeout(() => {
+            const audioContainer = feedbackCard.querySelector(`#${audioId}`);
+            if (audioContainer) {
+                const audioBtn = createAudioButton(data.correct_example, 'en-US');
+                audioContainer.appendChild(audioBtn);
+                if (window.lucide) window.lucide.createIcons();
+            }
+        }, 50);
+    }
+    
+    // Botón de reintentar
+    if (data.allow_retry) {
+        setTimeout(() => {
+            const retryBtn = feedbackCard.querySelector('#roleplay-retry-btn');
+            if (retryBtn) {
+                retryBtn.addEventListener('click', () => {
+                    showToast('🎤 Intenta de nuevo', 'info');
+                    const micBtn = document.getElementById('mic-btn');
+                    if (micBtn) {
+                        micBtn.style.background = 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
+                        micBtn.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.4)';
+                    }
+                });
+            }
+        }, 50);
+    }
+}
+
