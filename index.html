@@ -15,6 +15,9 @@
     <style>
         body { font-family: 'Nunito', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f0f9ff; }
         
+        /* Safe Area for Mobile */
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
         /* Estilo Cristal (Glassmorphism) */
         .glass {
             background: rgba(255, 255, 255, 0.9);
@@ -58,7 +61,7 @@
         .confetti { position: fixed; width: 10px; height: 10px; background-color: #f00; animation: confetti-fall 3s linear infinite; z-index: 50; pointer-events: none; }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden text-slate-800" onclick="initVoice()">
+<body class="fixed inset-0 w-full flex flex-col overflow-hidden text-slate-800" onclick="initVoice()">
 
     <!-- CONFIGURACIÓN -->
     <script>
