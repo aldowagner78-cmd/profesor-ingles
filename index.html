@@ -73,7 +73,7 @@
     <!-- CONFIGURACIÓN -->
     <script>
         // GESTIÓN DE API KEYS (ROTACIÓN)
-        let rawKeys = localStorage.getItem('profesor_ia_apikeys') || "AIzaSyDBNgYIJLCksdy9Ij7gZ-ofQtfmzcVMEGw";
+        let rawKeys = localStorage.getItem('profesor_ia_apikeys') || "AIzaSyDBNgYIJLCksdy9Ij7gZ-ofQtfmzcVMEGw,AIzaSyBQhp4KQZgmaSpt3a1cz7al7qUah5TbODI,AIzaSyA8_qSO0lUpx2rO6LOmXQ8F5gsmiRF7B5E,AIzaSyC-SxodAxeSL-XYEauF49hy4_qsVxIUPKc";
         let apiKeys = rawKeys.split(',').map(k => k.trim()).filter(k => k !== "");
         let currentKeyIdx = 0;
 
