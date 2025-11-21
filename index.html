@@ -196,9 +196,12 @@
                         <h3 id="feedback-title" class="text-2xl font-black text-white mb-2">¡Encontrado!</h3>
                         <p id="feedback-msg" class="text-slate-300 text-sm font-medium leading-relaxed mb-6">Has encontrado una Silla.</p>
                         
-                        <div class="flex gap-3 justify-center">
+                        <div class="flex gap-3 justify-center flex-wrap">
                             <button onclick="closeFeedback()" class="px-6 py-3 bg-slate-700 text-white font-bold rounded-xl active:scale-95 transition-transform text-sm">
                                 Cerrar
+                            </button>
+                            <button onclick="speakText(currentCameraAudioText, currentCameraAudioLang)" class="px-6 py-3 bg-blue-100 text-blue-700 font-bold rounded-xl active:scale-95 transition-transform text-sm flex items-center gap-2">
+                                <i data-lucide="volume-2" class="w-4 h-4"></i> Escuchar
                             </button>
                             <button id="btn-next-mission" onclick="nextMission()" class="px-6 py-3 bg-white text-blue-600 font-bold rounded-xl active:scale-95 transition-transform text-sm shadow-lg shadow-blue-500/20">
                                 Siguiente
@@ -395,6 +398,8 @@
 
         let currentWordEn = "";
         let currentLessonAudioText = ""; // Variable para almacenar el texto de la lección actual
+        let currentCameraAudioText = ""; // Variable para almacenar el texto del resultado de cámara
+        let currentCameraAudioLang = "es"; // Idioma del resultado de cámara
         let stream = null;
         let isListening = false;
 
@@ -600,7 +605,11 @@
                 title.className = "text-2xl font-black text-purple-400 mb-2";
                 msg.innerText = `${data.word_es}\n"${data.sentence}"`;
                 
-                speakText(data.word_en, 'en');
+                // Guardar para replay
+                currentCameraAudioText = `${data.word_en}. ${data.sentence}`;
+                currentCameraAudioLang = 'en';
+                
+                speakText(currentCameraAudioText, 'en');
                 addToCollection(data.word_en, data.word_es, data.emoji);
                 lucide.createIcons();
 
@@ -655,7 +664,9 @@
                     msg.innerText = data.message || `¡Encontraste: ${currentMission.en}!`;
                     
                     // FEEDBACK EN INGLÉS (ÉXITO)
-                    speakText(cleanTextForSpeech(data.message || `Perfect! You found the ${currentMission.en}.`), 'en');
+                    currentCameraAudioText = cleanTextForSpeech(data.message || `Perfect! You found the ${currentMission.en}.`);
+                    currentCameraAudioLang = 'en';
+                    speakText(currentCameraAudioText, 'en');
                     
                     addToCollection(currentMission.en, currentMission.es, data.emoji);
                     addPoints(50);
@@ -668,7 +679,9 @@
                     msg.innerText = data.message || `Eso parece ser: ${data.word_en || "otra cosa"}.`;
                     
                     // FEEDBACK EN ESPAÑOL (FALLO)
-                    speakText(cleanTextForSpeech(data.message || "Intenta de nuevo."), 'es');
+                    currentCameraAudioText = cleanTextForSpeech(data.message || "Intenta de nuevo.");
+                    currentCameraAudioLang = 'es';
+                    speakText(currentCameraAudioText, 'es');
                 }
                 lucide.createIcons();
 
@@ -825,7 +838,7 @@
             
             2. MISIÓN DE BÚSQUEDA (Juego):
             - Si encuentra el objeto (ÉXITO): {"type":"mission_success", "word_en":"[Objeto]", "message":"Perfect! You found the [Objeto]. Example: [Frase corta en inglés con la palabra].", "emoji":"[Emoji]"}
-            - Si NO lo encuentra (FALLO): {"type":"mission_fail", "word_en":"[Lo que ves]", "message":"Eso parece ser un [Lo que ves en Español]. Sigue buscando un [Objeto buscado]."}
+            - Si NO lo encuentra (FALLO): {"type":"mission_fail", "word_en":"[Lo que ves]", "message":"Vaya... eso parece ser un [Lo que ves en Español]. Sigue buscando un [Objeto buscado]."}
             
             3. LECCIÓN (Explicación detallada):
             {"type":"lesson", "title":"[Título]", "content":"[Explicación en Markdown. Incluye: 1. Definición. 2. Diálogo corto de ejemplo. 3. Lista de vocabulario. 4. Tip gramatical. Usa emojis.]"}
@@ -893,9 +906,12 @@
         
         function cleanTextForSpeech(text) {
             // Elimina markdown, emojis y caracteres especiales que no se deben leer
-            return text.replace(/[*#_]/g, '')
+            // FIX: Reemplaza "Mmm..." o "mmm..." por una pausa o nada para evitar "eme eme eme"
+            let clean = text.replace(/[*#_]/g, '')
                        .replace(/[\u{1F600}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}]/gu, '')
+                       .replace(/\b(Mmm+|mmm+)\b\.{0,3}/g, '') // Elimina Mmm... mmm...
                        .trim();
+            return clean;
         }
 
         function addBubble(content, type, isLoading=false, isHtml=false) {
