@@ -196,6 +196,10 @@
                 </div>
             </div>
             
+            <button id="install-btn" onclick="installApp()" class="hidden w-full py-4 mb-4 bg-blue-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-blue-200 active:scale-95 transition-transform">
+                <i data-lucide="download" class="w-5 h-5"></i> Instalar App
+            </button>
+
             <button onclick="resetApp()" class="w-full py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-transform">
                 <i data-lucide="refresh-cw" class="w-4 h-4"></i> Reiniciar Todo
             </button>
@@ -220,6 +224,32 @@
     </nav>
 
     <script>
+        // --- SERVICE WORKER & PWA INSTALL ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registrado:', reg))
+                    .catch(err => console.log('SW error:', err));
+            });
+        }
+
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const btn = document.getElementById('install-btn');
+            if(btn) btn.classList.remove('hidden');
+        });
+
+        async function installApp() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log('User response:', outcome);
+            deferredPrompt = null;
+            document.getElementById('install-btn').classList.add('hidden');
+        }
+
         // --- MANEJO DE ERRORES GLOBAL ---
         window.onerror = function(msg, url, line) {
             alert("Error: " + msg + "\nLínea: " + line);
