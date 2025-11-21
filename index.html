@@ -141,18 +141,21 @@
             
             <!-- Selector de Modo -->
             <div class="absolute top-4 left-0 right-0 flex justify-center z-30 px-4">
-                <div class="bg-white/90 backdrop-blur p-1 rounded-xl flex shadow-lg border border-blue-100 w-full max-w-xs">
+                <div class="bg-white/90 backdrop-blur p-1 rounded-xl flex shadow-lg border border-blue-100 w-full max-w-sm">
                     <button onclick="setCameraMode('game')" id="btn-mode-game" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-blue-600 text-white shadow-sm flex items-center justify-center gap-1">
                         <i data-lucide="gamepad-2" class="w-3 h-3"></i> Juego
                     </button>
                     <button onclick="setCameraMode('explore')" id="btn-mode-explore" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-slate-500 hover:bg-slate-100 flex items-center justify-center gap-1">
                         <i data-lucide="search" class="w-3 h-3"></i> Explorar
                     </button>
+                    <button onclick="setCameraMode('translate')" id="btn-mode-translate" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-slate-500 hover:bg-slate-100 flex items-center justify-center gap-1">
+                        <i data-lucide="languages" class="w-3 h-3"></i> Traducir
+                    </button>
                 </div>
             </div>
 
             <!-- Banner de Misión (Solo Juego) -->
-            <div id="mission-banner" class="absolute top-20 left-4 right-4 z-20 bg-white/95 backdrop-blur rounded-2xl p-3 shadow-xl border-l-4 border-blue-500 flex items-center gap-3 transition-all">
+            <div id="mission-banner" class="absolute top-20 left-4 right-4 z-20 bg-white/95 backdrop-blur rounded-2xl p-3 shadow-xl border-l-4 border-blue-500 flex items-center gap-3 transition-all hidden">
                 <div class="bg-blue-100 p-2 rounded-full text-blue-600">
                     <i data-lucide="target" class="w-5 h-5"></i>
                 </div>
@@ -166,13 +169,27 @@
                 </button>
             </div>
 
+            <!-- Overlay Inicio Juego -->
+            <div id="game-start-overlay" class="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
+                <div class="text-center p-6">
+                    <div class="w-24 h-24 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/50 animate-bounce">
+                        <i data-lucide="gamepad-2" class="w-12 h-12 text-white"></i>
+                    </div>
+                    <h2 class="text-3xl font-black text-white mb-2">Modo Juego</h2>
+                    <p class="text-slate-300 text-sm mb-8 max-w-xs mx-auto">Encuentra objetos reales con tu cámara para ganar puntos.</p>
+                    <button onclick="startGame()" class="px-8 py-4 bg-white text-blue-600 font-black rounded-2xl shadow-xl active:scale-95 transition-transform flex items-center gap-2 mx-auto">
+                        <i data-lucide="play" class="w-5 h-5"></i> COMENZAR
+                    </button>
+                </div>
+            </div>
+
             <!-- Área de Cámara -->
             <div class="flex-1 relative overflow-hidden group">
                 <video id="camera-feed" autoplay playsinline class="absolute inset-0 w-full h-full object-cover opacity-90"></video>
                 <canvas id="photo-canvas" class="hidden"></canvas>
                 
                 <!-- Guía de Enfoque (Juego) -->
-                <div id="guide-game" class="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300">
+                <div id="guide-game" class="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 opacity-0">
                     <div class="w-64 h-64 border-2 border-dashed border-white/60 rounded-3xl relative">
                         <div class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-blue-500 -mt-1 -ml-1 rounded-tl-xl"></div>
                         <div class="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-blue-500 -mt-1 -mr-1 rounded-tr-xl"></div>
@@ -186,6 +203,13 @@
                     <div class="w-full h-1 bg-white/30 absolute top-1/2 -translate-y-1/2"></div>
                     <div class="h-full w-1 bg-white/30 absolute left-1/2 -translate-x-1/2"></div>
                     <i data-lucide="scan" class="w-16 h-16 text-white/50"></i>
+                </div>
+
+                <!-- Guía de Enfoque (Traducir) -->
+                <div id="guide-translate" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300">
+                    <div class="w-64 h-32 border-2 border-white/40 rounded-xl bg-black/20 backdrop-blur-sm flex items-center justify-center">
+                        <p class="text-white/70 text-xs font-bold uppercase tracking-widest">Enfoca Texto</p>
+                    </div>
                 </div>
 
                 <!-- Feedback Visual (Overlay) -->
@@ -216,13 +240,18 @@
             <div class="h-32 bg-gradient-to-t from-black/80 to-transparent absolute bottom-0 left-0 right-0 flex items-center justify-center gap-8 pb-4">
                 
                 <!-- Botón Captura Juego -->
-                <button id="btn-capture-game" onclick="checkMission()" class="w-20 h-20 bg-white rounded-full border-[6px] border-blue-500 shadow-xl shadow-blue-600/40 flex items-center justify-center active:scale-90 transition-transform btn-pulse relative z-10">
+                <button id="btn-capture-game" onclick="checkMission()" class="hidden w-20 h-20 bg-white rounded-full border-[6px] border-blue-500 shadow-xl shadow-blue-600/40 flex items-center justify-center active:scale-90 transition-transform btn-pulse relative z-10">
                     <i data-lucide="camera" class="w-8 h-8 text-blue-600"></i>
                 </button>
 
                 <!-- Botón Captura Explorar -->
                 <button id="btn-capture-explore" onclick="analyzeImage()" class="hidden w-20 h-20 bg-white rounded-full border-[6px] border-purple-500 shadow-xl shadow-purple-600/40 flex items-center justify-center active:scale-90 transition-transform relative z-10">
                     <i data-lucide="search" class="w-8 h-8 text-purple-600"></i>
+                </button>
+
+                <!-- Botón Captura Traducir -->
+                <button id="btn-capture-translate" onclick="analyzeImage()" class="hidden w-20 h-20 bg-white rounded-full border-[6px] border-indigo-500 shadow-xl shadow-indigo-600/40 flex items-center justify-center active:scale-90 transition-transform relative z-10">
+                    <i data-lucide="languages" class="w-8 h-8 text-indigo-600"></i>
                 </button>
 
             </div>
@@ -443,15 +472,15 @@
             const level = getCurrentLevel();
             if (state.topicIdx < level.topics.length - 1) {
                 state.topicIdx++;
-                addBubble(`¡Avanzamos! Nuevo tema: <b>${getCurrentTopic()}</b>`, 'bot');
+                showToast(`Nuevo tema: ${getCurrentTopic()}`);
             } else {
                 if (state.levelIdx < SYLLABUS.length - 1) {
                     state.levelIdx++;
                     state.topicIdx = 0;
                     triggerConfetti();
-                    addBubble(`🎉 ¡FELICIDADES! Has subido al nivel <b>${getCurrentLevel().name}</b>`, 'bot');
+                    showToast(`¡Nivel ${getCurrentLevel().name} desbloqueado!`);
                 } else {
-                    addBubble("¡Eres un maestro! Has completado todo el curso.", 'bot');
+                    showToast("¡Curso completado!");
                 }
             }
             updateUI();
@@ -464,7 +493,7 @@
             updateUI();
             renderSyllabus();
             switchTab('class');
-            addBubble(`Saltaste al tema: <b>${getCurrentTopic()}</b>`, 'bot');
+            showToast(`Tema: ${getCurrentTopic()}`);
         }
 
         // --- NAVEGACIÓN ---
@@ -507,7 +536,8 @@
 
         // --- CÁMARA & JUEGO ---
         let currentMission = null;
-        let cameraMode = 'game'; // 'game' | 'explore'
+        let cameraMode = 'game'; // 'game' | 'explore' | 'translate'
+        let isGameActive = false;
         
         const COMMON_OBJECTS = [
             {es: "Silla", en: "Chair"}, {es: "Mesa", en: "Table"}, {es: "Taza", en: "Cup"}, 
@@ -541,21 +571,41 @@
                 ? "flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-purple-600 text-white shadow-sm flex items-center justify-center gap-1"
                 : "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-slate-500 hover:bg-slate-100 flex items-center justify-center gap-1";
 
+            document.getElementById('btn-mode-translate').className = mode === 'translate'
+                ? "flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-indigo-600 text-white shadow-sm flex items-center justify-center gap-1"
+                : "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-slate-500 hover:bg-slate-100 flex items-center justify-center gap-1";
+
             // Toggle Elements
+            document.getElementById('mission-banner').classList.add('hidden');
+            document.getElementById('game-start-overlay').classList.add('hidden');
+            document.getElementById('guide-game').classList.add('opacity-0');
+            document.getElementById('guide-explore').classList.add('opacity-0');
+            document.getElementById('guide-translate').classList.add('opacity-0');
+            document.getElementById('btn-capture-game').classList.add('hidden');
+            document.getElementById('btn-capture-explore').classList.add('hidden');
+            document.getElementById('btn-capture-translate').classList.add('hidden');
+
             if(mode === 'game') {
-                document.getElementById('mission-banner').classList.remove('hidden');
-                document.getElementById('guide-game').classList.remove('opacity-0');
-                document.getElementById('guide-explore').classList.add('opacity-0');
-                document.getElementById('btn-capture-game').classList.remove('hidden');
-                document.getElementById('btn-capture-explore').classList.add('hidden');
-                if(!currentMission) nextMission();
-            } else {
-                document.getElementById('mission-banner').classList.add('hidden');
-                document.getElementById('guide-game').classList.add('opacity-0');
+                if(isGameActive) {
+                    document.getElementById('mission-banner').classList.remove('hidden');
+                    document.getElementById('guide-game').classList.remove('opacity-0');
+                    document.getElementById('btn-capture-game').classList.remove('hidden');
+                } else {
+                    document.getElementById('game-start-overlay').classList.remove('hidden');
+                }
+            } else if (mode === 'explore') {
                 document.getElementById('guide-explore').classList.remove('opacity-0');
-                document.getElementById('btn-capture-game').classList.add('hidden');
                 document.getElementById('btn-capture-explore').classList.remove('hidden');
+            } else if (mode === 'translate') {
+                document.getElementById('guide-translate').classList.remove('opacity-0');
+                document.getElementById('btn-capture-translate').classList.remove('hidden');
             }
+        }
+
+        function startGame() {
+            isGameActive = true;
+            setCameraMode('game');
+            nextMission();
         }
 
         async function startCamera() {
@@ -600,7 +650,7 @@
         async function analyzeImage() {
             const video = document.getElementById('camera-feed');
             const canvas = document.getElementById('photo-canvas');
-            const btn = document.getElementById('btn-capture-explore');
+            const btn = cameraMode === 'explore' ? document.getElementById('btn-capture-explore') : document.getElementById('btn-capture-translate');
             
             if(!stream) { await startCamera(); return; }
 
@@ -612,7 +662,13 @@
             const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
 
             try {
-                const prompt = `Analiza esta imagen. Dime qué objeto principal ves. Responde con JSON type "analysis".`;
+                let prompt = "";
+                if (cameraMode === 'explore') {
+                    prompt = `Analiza esta imagen. Dime qué objeto principal ves. Si hay duda, dame opciones. Responde con JSON type "analysis".`;
+                } else {
+                    prompt = `Lee el texto en esta imagen y tradúcelo al inglés. Responde con JSON type "translation".`;
+                }
+                
                 const data = await callGemini(prompt, base64);
                 
                 const feedback = document.getElementById('camera-feedback');
@@ -622,30 +678,63 @@
                 const btnNext = document.getElementById('btn-next-mission');
                 
                 feedback.classList.remove('hidden');
-                btnNext.classList.add('hidden'); // No hay "siguiente misión" en explorar
+                btnNext.classList.add('hidden'); // No hay "siguiente misión" en explorar/traducir
 
-                icon.className = "w-20 h-20 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/50";
-                icon.innerHTML = '<i data-lucide="search" class="w-10 h-10 text-white"></i>';
-                title.innerText = data.word_en;
-                title.className = "text-2xl font-black text-purple-400 mb-2";
-                
-                // Mostrar traducción visualmente (sin leerla)
-                msg.innerHTML = `
-                    <span class="block text-xl text-white font-bold mb-1">${data.word_es}</span>
-                    <span class="block text-purple-300 font-medium text-lg mb-2">"${data.sentence}"</span>
-                    <span class="block text-slate-400 text-sm italic border-t border-slate-700 pt-2">${data.sentence_es || ''}</span>
-                `;
-                
-                // Guardar para replay
-                currentCameraAudioText = `${data.word_en}. ${data.sentence}`;
-                currentCameraAudioLang = 'en';
-                
-                speakText(currentCameraAudioText, 'en');
-                addToCollection(data.word_en, data.word_es, data.emoji);
+                if (data.type === 'analysis') {
+                    icon.className = "w-20 h-20 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/50";
+                    icon.innerHTML = '<i data-lucide="search" class="w-10 h-10 text-white"></i>';
+                    title.innerText = data.word_en;
+                    title.className = "text-2xl font-black text-purple-400 mb-2";
+                    
+                    // Mostrar traducción visualmente (sin leerla)
+                    let content = `
+                        <span class="block text-xl text-white font-bold mb-1">${data.word_es}</span>
+                        <span class="block text-purple-300 font-medium text-lg mb-2">"${data.sentence}"</span>
+                        <span class="block text-slate-400 text-sm italic border-t border-slate-700 pt-2">${data.sentence_es || ''}</span>
+                    `;
+
+                    // Si hay opciones (ambigüedad)
+                    if (data.options && data.options.length > 0) {
+                        content += `<div class="mt-4 pt-2 border-t border-slate-700">
+                            <p class="text-xs text-slate-400 mb-2">¿O quizás es esto?</p>
+                            <div class="flex flex-wrap gap-2 justify-center">
+                                ${data.options.map(opt => `<span class="px-2 py-1 bg-slate-700 rounded text-xs text-slate-300">${opt}</span>`).join('')}
+                            </div>
+                        </div>`;
+                    }
+
+                    msg.innerHTML = content;
+                    
+                    // Guardar para replay
+                    currentCameraAudioText = `${data.word_en}. ${data.sentence}`;
+                    currentCameraAudioLang = 'en';
+                    
+                    speakText(currentCameraAudioText, 'en');
+                    addToCollection(data.word_en, data.word_es, data.emoji);
+                } 
+                else if (data.type === 'translation') {
+                    icon.className = "w-20 h-20 bg-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/50";
+                    icon.innerHTML = '<i data-lucide="languages" class="w-10 h-10 text-white"></i>';
+                    title.innerText = "Traducción";
+                    title.className = "text-2xl font-black text-indigo-400 mb-2";
+                    
+                    msg.innerHTML = `
+                        <p class="text-slate-400 text-xs mb-1">Original:</p>
+                        <p class="text-white font-medium text-sm mb-3 italic">"${data.original}"</p>
+                        <p class="text-slate-400 text-xs mb-1">Inglés:</p>
+                        <p class="text-indigo-300 font-bold text-lg leading-tight mb-2">"${data.translated}"</p>
+                        <p class="text-slate-500 text-xs">${data.pronunciation}</p>
+                    `;
+                    
+                    currentCameraAudioText = data.translated;
+                    currentCameraAudioLang = 'en';
+                    speakText(currentCameraAudioText, 'en');
+                }
+
                 lucide.createIcons();
 
             } catch (e) { 
-                showToast("Error analizando imagen.", 'error');
+                showToast("No pude analizar la imagen. Intenta de nuevo.", 'error');
             }
             btn.classList.remove('scale-90', 'opacity-50');
         }
@@ -832,7 +921,7 @@
                         </div>
                     </div>`;
                 addBubble(html, 'bot', false, true);
-                speakText("Aquí tienes tu lección. Pulsa los iconos para escuchar la pronunciación.", 'es');
+                // NO LEER AUTOMÁTICAMENTE LA LECCIÓN
             } 
             else if (data.type === 'quiz') {
                 const correctText = data.options[data.correct_index];
@@ -855,16 +944,25 @@
                         <h3 class="font-bold text-lg mt-2 text-pink-700 leading-tight">Situación:</h3>
                         <p class="text-sm text-slate-600 mb-2">${data.scenario_es}</p>
                         <p class="text-xs italic text-slate-400 mb-4 border-l-2 border-pink-200 pl-2">${data.scenario_en}</p>
-                        <div class="bg-white p-3 rounded-lg border border-pink-100">
+                        <div class="bg-white p-3 rounded-lg border border-pink-100 mb-3">
                             <p class="text-xs font-bold text-slate-500 uppercase mb-1">Tu Misión:</p>
                             <p class="text-sm font-bold text-slate-800">${data.task}</p>
                         </div>
+                        
+                        <div class="grid gap-2">
+                            ${data.options ? data.options.map(opt => `
+                                <button onclick="sendQuickMsg('${opt.replace(/'/g, "\\'")}')" class="text-left px-3 py-2 bg-pink-50 text-pink-700 rounded-lg text-xs font-bold border border-pink-100 hover:bg-pink-100 transition-colors">
+                                    💬 ${opt}
+                                </button>
+                            `).join('') : ''}
+                        </div>
+
                         <button onclick="speakText('${cleanTextForSpeech(data.scenario_en).replace(/'/g, "\\'")}', 'en')" class="w-full mt-3 py-2 bg-white border border-pink-100 rounded-lg text-pink-600 font-bold text-xs flex items-center justify-center gap-2 hover:bg-pink-50">
                             <i data-lucide="volume-2" class="w-4 h-4"></i> Escuchar Escenario
                         </button>
                     </div>`;
                 addBubble(html, 'bot', false, true);
-                speakText("¡Hora de actuar! " + data.task, 'es');
+                // NO LEER AUTOMÁTICAMENTE EL ROLEPLAY
             }
             else if (data.type === 'eval') {
                 let html = "";
@@ -876,13 +974,53 @@
                 } else {
                     html = `<div class="flex items-center gap-2 text-red-500 font-bold mb-1"><i data-lucide="x-circle" class="w-5 h-5"></i> Casi...</div><p class="text-sm mb-2">${data.feedback}</p>`;
                     if(data.phonetic_advice) html += `<div class="bg-orange-50 p-2 rounded text-xs text-orange-700 border border-orange-100">💡 <b>Tip:</b> ${data.phonetic_advice}</div>`;
-                    speakText(cleanTextForSpeech(data.feedback), 'es');
+                    // NO LEER AUTOMÁTICAMENTE EL FEEDBACK NEGATIVO
                     
                     // Botón para escuchar la respuesta correcta (solo si falló y tenemos el texto)
                     if(data.correct_text) {
                          html += `<button onclick="speakText('${data.correct_text.replace(/'/g, "\\'")}', 'en')" class="mt-2 py-2 px-3 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-blue-100 transition-colors"><i data-lucide="volume-2" class="w-4 h-4"></i> Escuchar respuesta correcta</button>`;
                     }
                 }
+                addBubble(html, 'bot', false, true);
+            }
+            else if (data.type === 'word_details') {
+                const html = `
+                    <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                        <h3 class="font-black text-xl text-slate-800 mb-3 flex items-center gap-2">
+                            <span class="bg-blue-100 text-blue-600 px-2 py-1 rounded text-sm">WORD</span> ${data.word}
+                        </h3>
+                        <div class="space-y-3">
+                            ${data.sentences.map(s => `
+                                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                    <div class="flex items-start gap-2 mb-1">
+                                        <button onclick="speakText('${s.en.replace(/'/g, "\\'")}', 'en')" class="mt-0.5 p-1.5 bg-white text-blue-600 rounded-full shadow-sm border border-blue-100 active:scale-90 transition-transform flex-shrink-0">
+                                            <i data-lucide="volume-2" class="w-3 h-3"></i>
+                                        </button>
+                                        <p class="text-slate-800 font-medium text-sm leading-snug">${s.en}</p>
+                                    </div>
+                                    <p class="text-xs text-slate-500 italic pl-8">${s.es}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>`;
+                addBubble(html, 'bot', false, true);
+            }
+            else if (data.type === 'translation') {
+                const html = `
+                    <div class="bg-white border border-purple-200 p-4 rounded-xl shadow-sm">
+                        <span class="text-[10px] font-black bg-purple-100 text-purple-600 px-2 py-1 rounded uppercase">Traducción</span>
+                        <p class="text-slate-500 text-xs mt-2 mb-1">Original:</p>
+                        <p class="text-slate-800 font-medium text-sm mb-3 border-l-2 border-slate-200 pl-2">${data.original}</p>
+                        
+                        <p class="text-slate-500 text-xs mb-1">Inglés:</p>
+                        <div class="flex items-start gap-2">
+                            <p class="text-purple-700 font-bold text-lg leading-tight flex-1">${data.translated}</p>
+                            <button onclick="speakText('${data.translated.replace(/'/g, "\\'")}', 'en')" class="p-2 bg-purple-600 text-white rounded-lg shadow-md active:scale-90 transition-transform">
+                                <i data-lucide="volume-2" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                        <p class="text-slate-400 text-xs italic mt-1">${data.pronunciation}</p>
+                    </div>`;
                 addBubble(html, 'bot', false, true);
             }
             else {
@@ -920,7 +1058,7 @@
             
             MODOS DE RESPUESTA:
             1. ANÁLISIS DE FOTO (General):
-            {"type":"analysis", "word_en":"[Nombre Inglés]", "word_es":"[Nombre Español]", "sentence":"[Frase simple en inglés]", "sentence_es":"[Traducción de la frase]", "pronunciation":"/pronunciación/", "emoji":"[Emoji representativo]"}
+            {"type":"analysis", "word_en":"[Nombre Inglés]", "word_es":"[Nombre Español]", "sentence":"[Frase simple en inglés]", "sentence_es":"[Traducción de la frase]", "pronunciation":"/pronunciación/", "emoji":"[Emoji representativo]", "options": ["Opción 1", "Opción 2", "Opción 3"]}
             
             2. MISIÓN DE BÚSQUEDA (Juego):
             - Si encuentra el objeto (ÉXITO): {"type":"mission_success", "word_en":"[Objeto]", "message":"Perfect! You found the [Objeto]. Example: [Frase corta en inglés con la palabra].", "emoji":"[Emoji]"}
@@ -936,10 +1074,17 @@
             {"type":"eval", "is_correct":true/false, "feedback":"[Mensaje en Español fluido]", "phonetic_advice":"[Consejo si aplica]"}
             
             6. ROLEPLAY (Situación):
-            {"type":"roleplay", "scenario_es":"[Descripción situación ES]", "scenario_en":"[Descripción EN]", "task":"[Tarea para el usuario]"}
+            {"type":"roleplay", "scenario_es":"[Descripción situación ES]", "scenario_en":"[Descripción EN]", "task":"[Tarea para el usuario]", "options":["Opción 1 (EN)", "Opción 2 (EN)", "Opción 3 (EN)"]}
             
             7. CHAT (Conversación):
-            {"type":"chat", "text_es":"[Respuesta ES]", "text_en":"[Respuesta EN]"}`;
+            {"type":"chat", "text_es":"[Respuesta ES]", "text_en":"[Respuesta EN]"}
+            
+            8. TRADUCCIÓN (Texto):
+            {"type":"translation", "original":"[Texto original]", "translated":"[Traducción EN]", "pronunciation":"/pronunciación/"}
+            
+            9. DETALLES PALABRA (Colección):
+            {"type":"word_details", "word":"[Palabra]", "sentences":[{"en":"[Frase 1]", "es":"[Trad 1]"}, {"en":"[Frase 2]", "es":"[Trad 2]"}, {"en":"[Frase 3]", "es":"[Trad 3]"}]}
+            `;
 
             let contents = [];
 
@@ -1136,7 +1281,12 @@
             if(state.collection.length > 50) state.collection.pop();
             
             updateUI();
-            addBubble(`¡Nueva palabra guardada en tu colección: <b>${wordEn}</b>!`, 'bot');
+            showToast(`¡Nueva palabra guardada: ${wordEn}!`);
+        }
+
+        function showWordDetails(word) {
+            const prompt = `Genera 3 oraciones simples en inglés usando la palabra "${word}". Incluye traducción al español. Responde con JSON type "word_details".`;
+            sendQuickMsg(prompt, true);
         }
 
         function renderCollection() {
@@ -1149,7 +1299,7 @@
             }
 
             container.innerHTML = state.collection.map(item => `
-                <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
+                <div onclick="showWordDetails('${item.wordEn}')" class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3 active:scale-95 transition-transform cursor-pointer hover:border-blue-200">
                     <div class="text-2xl">${item.icon}</div>
                     <div>
                         <p class="font-bold text-slate-800 text-sm leading-none">${item.wordEn}</p>
