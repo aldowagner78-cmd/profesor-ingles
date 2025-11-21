@@ -584,7 +584,8 @@
             currentMission = obj;
             document.getElementById('mission-text').innerText = obj.en;
             document.getElementById('mission-sub').innerText = `Encuentra: ${obj.es}`;
-            speakText(`Busca una ${obj.es}`, 'es');
+            // FIX: Frase neutra para evitar errores de género (un/una)
+            speakText(`El objeto que debes encontrar es: ${obj.es}`, 'es');
         }
 
         function skipMission() {
