@@ -76,6 +76,7 @@
         let rawKeys = localStorage.getItem('profesor_ia_apikeys') || "AIzaSyDBNgYIJLCksdy9Ij7gZ-ofQtfmzcVMEGw,AIzaSyBQhp4KQZgmaSpt3a1cz7al7qUah5TbODI,AIzaSyA8_qSO0lUpx2rO6LOmXQ8F5gsmiRF7B5E,AIzaSyC-SxodAxeSL-XYEauF49hy4_qsVxIUPKc";
         let apiKeys = rawKeys.split(',').map(k => k.trim()).filter(k => k !== "");
         let currentKeyIdx = 0;
+        let chatHistory = []; // Historial de conversación para evitar bucles
 
         function setApiKey() {
             const newKeys = prompt("Ingresa tus API Keys de Google Gemini (separadas por coma para rotación automática):", rawKeys);
@@ -902,14 +903,42 @@
             7. CHAT (Conversación):
             {"type":"chat", "text_es":"[Respuesta ES]", "text_en":"[Respuesta EN]"}`;
 
-            const parts = imageBase64 
-                ? [{ text: sysPrompt + "\n\nINSTRUCCIÓN ESPECÍFICA PARA ESTA IMAGEN: " + prompt }, { inline_data: { mime_type: "image/jpeg", data: imageBase64 } }]
-                : [{ text: sysPrompt + "\nUsuario dice: " + prompt }];
+            let contents = [];
+
+            if (imageBase64) {
+                // MODO IMAGEN (Sin historial para simplificar)
+                contents = [{
+                    role: 'user',
+                    parts: [
+                        { text: sysPrompt + "\n\nINSTRUCCIÓN ESPECÍFICA PARA ESTA IMAGEN: " + prompt },
+                        { inline_data: { mime_type: "image/jpeg", data: imageBase64 } }
+                    ]
+                }];
+            } else {
+                // MODO TEXTO (Con historial de chat)
+                // 1. Construir historial previo
+                contents = chatHistory.map(msg => ({
+                    role: msg.role,
+                    parts: [{ text: msg.text }]
+                }));
+
+                // 2. Añadir mensaje actual
+                contents.push({ role: 'user', parts: [{ text: prompt }] });
+
+                // 3. Inyectar System Prompt en el PRIMER mensaje del historial (o el actual si es el primero)
+                if (contents.length > 0) {
+                    const firstMsgText = contents[0].parts[0].text;
+                    // Solo inyectamos si no parece estar ya (simple check)
+                    if (!firstMsgText.includes("Eres \"Teacher AI\"")) {
+                        contents[0].parts[0].text = sysPrompt + "\n\n" + firstMsgText;
+                    }
+                }
+            }
 
             const response = await fetch(url, {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ 
-                    contents: [{ parts: parts }], 
+                    contents: contents, 
                     generationConfig: { response_mime_type: "application/json" },
                     safetySettings: [
                         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -938,6 +967,15 @@
             }
             
             const text = json.candidates[0].content.parts[0].text;
+            
+            // ACTUALIZAR HISTORIAL (Solo si es texto)
+            if (!imageBase64) {
+                chatHistory.push({ role: 'user', text: prompt });
+                chatHistory.push({ role: 'model', text: text });
+                // Limitar historial a últimos 20 mensajes (10 turnos)
+                if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+            }
+
             return JSON.parse(cleanJSON(text));
         }
 
@@ -954,8 +992,11 @@
         function cleanTextForSpeech(text) {
             // Elimina markdown, emojis y caracteres especiales que no se deben leer
             // FIX: Reemplaza "Mmm..." o "mmm..." por una pausa o nada para evitar "eme eme eme"
-            let clean = text.replace(/[*#_]/g, '')
-                       .replace(/[\u{1F600}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}]/gu, '')
+            // FIX: Reemplaza "IA" por "Inteligencia Artificial" para mejor pronunciación
+            let clean = text
+                       .replace(/\bIA\b/g, 'Inteligencia Artificial')
+                       .replace(/[*#_`]/g, '') // Markdown chars
+                       .replace(/[\u{1F600}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{1F004}\u{1F0CF}\u{1F170}-\u{1F251}\u{2B50}\u{2B55}\u{2934}-\u{2935}\u{2B05}-\u{2B07}\u{2B1B}-\u{2B1C}\u{3297}\u{3299}\u{3030}\u{303D}\u{00A9}\u{00AE}\u{2122}\u{23F3}\u{24C2}\u{23E9}-\u{23EF}\u{25B6}\u{23F8}-\u{23FA}]/gu, '') // Rango extendido de emojis
                        .replace(/\b(Mmm+|mmm+)\b\.{0,3}/g, '') // Elimina Mmm... mmm...
                        .trim();
             return clean;
@@ -977,7 +1018,11 @@
         }
 
         function addPoints(n) { state.score += n; updateUI(); }
-        function resetApp() { localStorage.removeItem('profesor_ia_state'); location.reload(); }
+        function resetApp() { 
+            localStorage.removeItem('profesor_ia_state'); 
+            chatHistory = []; // Limpiar historial
+            location.reload(); 
+        }
 
         function triggerConfetti() {
             for(let i=0; i<30; i++) {
@@ -1009,7 +1054,9 @@
         
         function speakText(text, lang) {
             window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(text); 
+            // Limpiamos el texto de emojis y markdown antes de hablar
+            const clean = cleanTextForSpeech(text);
+            const u = new SpeechSynthesisUtterance(clean); 
             u.rate = state.speechRate || 0.9;
             
             // FIX CRÍTICO: Forzar el código de idioma para que el navegador elija el motor correcto
