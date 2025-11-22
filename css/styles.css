@@ -55,6 +55,27 @@
     --transition-fast: 150ms ease;
     --transition-base: 200ms ease;
     --transition-slow: 300ms ease;
+
+    /* Colores Semánticos (Modo Claro) */
+    --color-bg-warning: #FEF3C7;
+    --color-text-warning: #92400E;
+    --color-border-warning: #F59E0B;
+    
+    --color-bg-info: #DBEAFE;
+    --color-text-info: #1E40AF;
+    --color-border-info: #4A90E2;
+    
+    --color-bg-success: #D1FAE5;
+    --color-text-success: #065F46;
+    --color-border-success: #10B981;
+    
+    --color-bg-error: #FEE2E2;
+    --color-text-error: #991B1B;
+    --color-border-error: #EF4444;
+    
+    --color-bg-neutral: #F8FAFC;
+    --color-text-neutral: #1E293B;
+    --color-border-neutral: #E2E8F0;
 }
 
 /* ============================================
@@ -78,7 +99,53 @@
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+
+    /* Colores Semánticos (Modo Oscuro) */
+    --color-bg-warning: #451a03;
+    --color-text-warning: #FEF3C7;
+    --color-border-warning: #F59E0B;
+    
+    --color-bg-info: #172554;
+    --color-text-info: #DBEAFE;
+    --color-border-info: #3B82F6;
+    
+    --color-bg-success: #064e3b;
+    --color-text-success: #D1FAE5;
+    --color-border-success: #10B981;
+    
+    --color-bg-error: #7f1d1d;
+    --color-text-error: #FEE2E2;
+    --color-border-error: #EF4444;
+    
+    --color-bg-neutral: #334155;
+    --color-text-neutral: #F1F5F9;
+    --color-border-neutral: #475569;
 }
+
+/* Clases de Utilidad Semánticas */
+.bg-warning { background-color: var(--color-bg-warning) !important; }
+.text-warning { color: var(--color-text-warning) !important; }
+.border-warning { border-color: var(--color-border-warning) !important; }
+
+.bg-info { background-color: var(--color-bg-info) !important; }
+.text-info { color: var(--color-text-info) !important; }
+.border-info { border-color: var(--color-border-info) !important; }
+
+.bg-success { background-color: var(--color-bg-success) !important; }
+.text-success { color: var(--color-text-success) !important; }
+.border-success { border-color: var(--color-border-success) !important; }
+
+.bg-error { background-color: var(--color-bg-error) !important; }
+.text-error { color: var(--color-text-error) !important; }
+.border-error { border-color: var(--color-border-error) !important; }
+
+.bg-neutral { background-color: var(--color-bg-neutral) !important; }
+.text-neutral { color: var(--color-text-neutral) !important; }
+.border-neutral { border-color: var(--color-border-neutral) !important; }
+
+.text-primary { color: var(--color-text-primary) !important; }
+.text-secondary { color: var(--color-text-secondary) !important; }
+.text-muted { color: var(--color-text-muted) !important; }
 
 /* Ajustes específicos para componentes en modo oscuro */
 [data-theme="dark"] .lesson-card-full {

@@ -457,18 +457,18 @@ async function showVocabModal(word) {
         <div style="padding: 1rem;">
             <div style="text-align: center; margin-bottom: 1.5rem;">
                 <div style="font-size: 3rem; margin-bottom: 0.5rem;">${icon}</div>
-                <h2 style="font-size: 2rem; font-weight: 900; color: #4A90E2; margin-bottom: 0.5rem;">
+                <h2 class="text-primary" style="font-size: 2rem; font-weight: 900; margin-bottom: 0.5rem;">
                     ${word.object}
                 </h2>
-                <p style="font-size: 0.875rem; color: #64748B; font-family: monospace; margin-bottom: 0.25rem;">
+                <p class="text-secondary" style="font-size: 0.875rem; font-family: monospace; margin-bottom: 0.25rem;">
                     ${word.ipa || ''}
                 </p>
-                <p style="color: #64748B;">
+                <p class="text-secondary">
                     <strong>Español:</strong> ${word.translation}
                 </p>
             </div>
             <div id="vocab-examples" style="margin-top: 1rem;">
-                <p style="font-weight: 700; margin-bottom: 0.75rem; color: #1E293B;">
+                <p class="text-primary" style="font-weight: 700; margin-bottom: 0.75rem;">
                     Ejemplos de uso:
                 </p>
             </div>
@@ -516,19 +516,20 @@ async function showVocabModal(word) {
         if (data.sentences && Array.isArray(data.sentences)) {
             data.sentences.forEach(sentence => {
                 const div = document.createElement('div');
+                div.className = 'bg-neutral border-neutral';
                 div.style.cssText = `
                     display: flex;
                     align-items: center;
                     gap: 0.75rem;
                     padding: 1rem;
-                    background: #F8FAFC;
                     border-radius: 0.75rem;
                     margin-bottom: 0.5rem;
-                    border: 1px solid #E2E8F0;
+                    border: 1px solid;
                 `;
                 
                 const text = document.createElement('span');
                 text.textContent = sentence;
+                text.className = 'text-primary';
                 text.style.cssText = 'flex: 1; font-size: 0.875rem; line-height: 1.5;';
                 
                 // Extraer solo inglés para audio

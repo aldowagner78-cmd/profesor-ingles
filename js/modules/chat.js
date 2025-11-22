@@ -201,7 +201,7 @@ async function evaluateRoleplayResponse(userSpeech) {
         const loadingEl = document.getElementById(loadingId);
         if (loadingEl) {
             loadingEl.querySelector('.message-bubble').innerHTML = `
-                <span style="color: #EF4444; font-weight: 700;">Error: ${e.message}</span>
+                <span class="text-error" style="font-weight: 700;">Error: ${e.message}</span>
             `;
         }
     }
@@ -261,7 +261,7 @@ async function sendTextMsg() {
         }
     } catch (error) {
         console.error("Error en flujo conversacional:", error);
-        addMessageToUI(`<span style="color: #EF4444;">Error al procesar tu solicitud: ${error.message}</span>`, 'bot');
+        addMessageToUI(`<span class="text-error">Error al procesar tu solicitud: ${error.message}</span>`, 'bot');
     }
 }
 
@@ -351,7 +351,7 @@ async function handleSmartChat(text, history) {
         const loadingEl = document.getElementById(loadingId);
         if (loadingEl) {
             loadingEl.querySelector('.message-bubble').innerHTML = `
-                <span style="color: #EF4444; font-weight: 700;">Error: ${e.message}</span>
+                <span class="text-error" style="font-weight: 700;">Error: ${e.message}</span>
             `;
         }
     }
@@ -361,19 +361,19 @@ function handleChatResponse(data) {
     let html = '';
     
     if (data.correction) {
-        html += `<div style="background: #FEE2E2; padding: 0.5rem; border-radius: 0.5rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: #991B1B;">
+        html += `<div class="bg-error text-error" style="padding: 0.5rem; border-radius: 0.5rem; margin-bottom: 0.5rem; font-size: 0.75rem;">
             <strong>Corrección:</strong> ${data.correction}
         </div>`;
     }
     
     if (data.feedback) {
-        html += `<div style="font-size: 0.875rem; color: #64748B; margin-bottom: 0.75rem;">
+        html += `<div class="text-secondary" style="font-size: 0.875rem; margin-bottom: 0.75rem;">
             ${data.feedback}
         </div>`;
     }
     
     if (data.reply) {
-        html += `<div style="font-size: 1rem; font-weight: 600; color: #1E293B; display: flex; align-items: center; gap: 0.5rem;">
+        html += `<div class="text-primary" style="font-size: 1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
             <span>${data.reply}</span>
             <span id="reply-audio-btn"></span>
         </div>`;
@@ -493,7 +493,7 @@ async function handleAction(action) {
         const loadingEl = document.getElementById(loadingId);
         if (loadingEl) {
             loadingEl.querySelector('.message-bubble').innerHTML = `
-                <span style="color: #EF4444; font-weight: 700;">Error: ${e.message}</span>
+                <span class="text-error" style="font-weight: 700;">Error: ${e.message}</span>
             `;
         }
     }
@@ -599,8 +599,8 @@ function handleLessonResponse(data) {
 
 function handleQuizResponse(data) {
     const html = `
-        <div style="background: #F5F3FF; padding: 1rem; border-radius: 0.75rem; border: 2px solid #DDD6FE;">
-            <p style="font-weight: 700; margin-bottom: 1rem; color: #1E293B;">${data.question}</p>
+        <div class="bg-info border-info" style="padding: 1rem; border-radius: 0.75rem; border: 2px solid;">
+            <p class="text-primary" style="font-weight: 700; margin-bottom: 1rem;">${data.question}</p>
             <div class="quiz-options" style="display: flex; flex-direction: column; gap: 0.5rem;">
                 ${data.options.map((opt, idx) => {
                     // Extraer solo texto en inglés (sin traducción en quiz)
@@ -608,11 +608,10 @@ function handleQuizResponse(data) {
                     const englishText = isObject ? opt.en : opt;
                     
                     return `
-                    <button class="quiz-option" data-index="${idx}" style="
+                    <button class="quiz-option bg-surface border-neutral text-primary" data-index="${idx}" style="
                         padding: 0.75rem;
-                        border: 1px solid #E2E8F0;
+                        border: 1px solid;
                         border-radius: 0.5rem;
-                        background: white;
                         text-align: left;
                         cursor: pointer;
                         transition: all 0.2s ease;
@@ -622,7 +621,7 @@ function handleQuizResponse(data) {
                         gap: 0.75rem;
                         justify-content: space-between;
                     ">
-                        <span style="font-weight: 600; color: #1E293B; flex: 1;">${englishText}</span>
+                        <span style="font-weight: 600; flex: 1;">${englishText}</span>
                         <span class="audio-button-container"></span>
                     </button>
                     `;
@@ -651,12 +650,10 @@ function handleQuizResponse(data) {
             
             // Event listeners
             btn.addEventListener('mouseenter', (e) => {
-                e.currentTarget.style.background = '#F8FAFC';
-                e.currentTarget.style.borderColor = '#4A90E2';
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
             });
             btn.addEventListener('mouseleave', (e) => {
-                e.currentTarget.style.background = 'white';
-                e.currentTarget.style.borderColor = '#E2E8F0';
+                e.currentTarget.style.borderColor = 'var(--color-border)';
             });
             btn.addEventListener('click', (e) => {
                 const selectedIdx = parseInt(e.currentTarget.dataset.index);
@@ -667,10 +664,11 @@ function handleQuizResponse(data) {
                 
                 if (selectedIdx === data.answer_index) {
                     // Correcto
-                    e.currentTarget.style.background = '#D1FAE5';
-                    e.currentTarget.style.borderColor = '#10B981';
-                    feedback.style.background = '#D1FAE5';
-                    feedback.style.color = '#065F46';
+                    e.currentTarget.classList.add('bg-success', 'border-success');
+                    e.currentTarget.classList.remove('bg-surface', 'border-neutral');
+                    
+                    feedback.className = 'bg-success text-success';
+                    feedback.classList.remove('hidden');
                     
                     // Felicitaciones bilingües aleatorias
                     const congratulations = [
@@ -719,18 +717,17 @@ function handleQuizResponse(data) {
                     triggerConfetti();
                 } else {
                     // Incorrecto
-                    e.currentTarget.style.background = '#FEE2E2';
-                    e.currentTarget.style.borderColor = '#EF4444';
+                    e.currentTarget.classList.add('bg-error', 'border-error');
+                    e.currentTarget.classList.remove('bg-surface', 'border-neutral');
                     
                     // Mostrar la correcta
-                    options[data.answer_index].style.background = '#D1FAE5';
-                    options[data.answer_index].style.borderColor = '#10B981';
+                    options[data.answer_index].classList.add('bg-success', 'border-success');
+                    options[data.answer_index].classList.remove('bg-surface', 'border-neutral');
                     
                     const correctOpt = data.options[data.answer_index];
                     const correctText = typeof correctOpt === 'object' ? correctOpt.en : correctOpt;
                     
-                    feedback.style.background = '#FEE2E2';
-                    feedback.style.color = '#991B1B';
+                    feedback.className = 'bg-error text-error';
                     feedback.textContent = `Incorrecto. La respuesta era: ${correctText}`;
                     feedback.classList.remove('hidden');
                 }
@@ -829,25 +826,25 @@ function handleRoleplayStart(data) {
         margin-right: calc(-1 * var(--spacing-lg));
         margin-top: 1rem;
         margin-bottom: 1rem;
-        background: linear-gradient(135deg, #F5F3FF 0%, #FFF7ED 100%);
+        background: var(--color-bg-info);
         border-radius: 0;
         padding: 1.5rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        border-top: 2px solid rgba(123, 104, 238, 0.3);
-        border-bottom: 2px solid rgba(123, 104, 238, 0.3);
+        box-shadow: var(--shadow-sm);
+        border-top: 2px solid var(--color-border-info);
+        border-bottom: 2px solid var(--color-border-info);
     `;
     
     sceneCard.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
-            <div style="width: 2.5rem; height: 2.5rem; background: #7B68EE; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+            <div style="width: 2.5rem; height: 2.5rem; background: var(--color-secondary); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
             </div>
             <div>
-                <h3 style="font-weight: 900; font-size: 1.25rem; color: #1E293B; margin: 0;">🎭 Escena de Roleplay</h3>
-                <p style="font-size: 0.75rem; color: #64748B; margin: 0;">Turno ${roleplayState.turnNumber} de ${roleplayState.totalTurns}</p>
+                <h3 class="text-primary" style="font-weight: 900; font-size: 1.25rem; margin: 0;">🎭 Escena de Roleplay</h3>
+                <p class="text-secondary" style="font-size: 0.75rem; margin: 0;">Turno ${roleplayState.turnNumber} de ${roleplayState.totalTurns}</p>
             </div>
         </div>
-        <p style="font-size: 0.95rem; line-height: 1.7; color: #334155; margin: 0;">
+        <p class="text-primary" style="font-size: 0.95rem; line-height: 1.7; margin: 0;">
             ${roleplayState.sceneDescription}
         </p>
     `;
@@ -862,22 +859,22 @@ function handleRoleplayStart(data) {
     botCard.className = 'roleplay-bot-turn';
     botCard.style.cssText = `
         margin: 1rem 0;
-        background: white;
+        background: var(--color-surface);
         padding: 1rem;
         border-radius: 0.75rem;
-        border: 2px solid #E8F4FD;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border: 2px solid var(--color-border);
+        box-shadow: var(--shadow-sm);
     `;
     
     botCard.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-            <div style="width: 2rem; height: 2rem; background: #4A90E2; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <div style="width: 2rem; height: 2rem; background: var(--color-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="15"></line></svg>
             </div>
-            <span style="font-size: 0.875rem; font-weight: 700; color: #64748B;">Profesor (presiona 🔊 para escuchar)</span>
+            <span class="text-secondary" style="font-size: 0.875rem; font-weight: 700;">Profesor (presiona 🔊 para escuchar)</span>
         </div>
         <div style="display: flex; align-items: center; gap: 1rem;">
-            <p style="font-size: 1.05rem; font-weight: 600; color: #1E293B; margin: 0; flex: 1;">
+            <p class="text-primary" style="font-size: 1.05rem; font-weight: 600; margin: 0; flex: 1;">
                 ${roleplayState.lastBotSpeech}
             </p>
             <div id="roleplay-audio-btn"></div>
@@ -919,22 +916,22 @@ function handleRoleplayContinue(data) {
     botCard.className = 'roleplay-bot-turn';
     botCard.style.cssText = `
         margin: 1rem 0;
-        background: white;
+        background: var(--color-surface);
         padding: 1rem;
         border-radius: 0.75rem;
-        border: 2px solid #E8F4FD;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border: 2px solid var(--color-border);
+        box-shadow: var(--shadow-sm);
     `;
     
     botCard.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-            <div style="width: 2rem; height: 2rem; background: #4A90E2; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <div style="width: 2rem; height: 2rem; background: var(--color-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="15"></line></svg>
             </div>
-            <span style="font-size: 0.875rem; font-weight: 700; color: #64748B;">Profesor (Turno ${roleplayState.turnNumber}/${roleplayState.totalTurns})</span>
+            <span class="text-secondary" style="font-size: 0.875rem; font-weight: 700;">Profesor (Turno ${roleplayState.turnNumber}/${roleplayState.totalTurns})</span>
         </div>
         <div style="display: flex; align-items: center; gap: 1rem;">
-            <p style="font-size: 1.05rem; font-weight: 600; color: #1E293B; margin: 0; flex: 1;">
+            <p class="text-primary" style="font-size: 1.05rem; font-weight: 600; margin: 0; flex: 1;">
                 ${roleplayState.lastBotSpeech}
             </p>
             <div id="roleplay-audio-btn-${Date.now()}"></div>
@@ -982,19 +979,20 @@ function handleRoleplayFeedback(data) {
     
     const isCorrect = data.is_correct !== false;
     
+    // Usar clases semánticas en lugar de estilos inline hardcoded
+    feedbackCard.className = isCorrect ? 'bg-success border-success' : 'bg-error border-error';
     feedbackCard.style.cssText = `
         margin: 1rem 0;
-        background: ${isCorrect ? 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)' : 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)'};
         padding: 1rem;
         border-radius: 0.75rem;
-        border: 2px solid ${isCorrect ? '#10B981' : '#EF4444'};
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border: 2px solid;
+        box-shadow: var(--shadow-sm);
     `;
     
     let feedbackHTML = `
         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
             <div style="font-size: 1.5rem;">${isCorrect ? '✅' : '❌'}</div>
-            <span style="font-size: 0.875rem; font-weight: 700; color: #1E293B;">
+            <span class="${isCorrect ? 'text-success' : 'text-error'}" style="font-size: 0.875rem; font-weight: 700;">
                 ${isCorrect ? '¡Muy bien!' : 'Necesitas mejorar esto'}
             </span>
         </div>
@@ -1002,7 +1000,7 @@ function handleRoleplayFeedback(data) {
     
     if (data.user_said) {
         feedbackHTML += `
-            <p style="font-size: 0.85rem; color: #64748B; margin-bottom: 0.5rem;">
+            <p class="${isCorrect ? 'text-success' : 'text-error'}" style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;">
                 <strong>Dijiste:</strong> "${data.user_said}"
             </p>
         `;
@@ -1010,7 +1008,7 @@ function handleRoleplayFeedback(data) {
     
     if (data.feedback_es) {
         feedbackHTML += `
-            <p style="font-size: 0.95rem; color: #1E293B; margin-bottom: 0.75rem;">
+            <p class="${isCorrect ? 'text-success' : 'text-error'}" style="font-size: 0.95rem; margin-bottom: 0.75rem;">
                 ${data.feedback_es}
             </p>
         `;
@@ -1018,10 +1016,10 @@ function handleRoleplayFeedback(data) {
     
     if (data.correct_example) {
         feedbackHTML += `
-            <div style="background: white; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.75rem;">
-                <p style="font-size: 0.75rem; color: #64748B; margin: 0 0 0.25rem 0; text-transform: uppercase; font-weight: 700;">Ejemplo correcto:</p>
+            <div class="bg-surface" style="padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.75rem;">
+                <p class="text-secondary" style="font-size: 0.75rem; margin: 0 0 0.25rem 0; text-transform: uppercase; font-weight: 700;">Ejemplo correcto:</p>
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <p style="font-size: 1rem; font-weight: 600; color: #10B981; margin: 0; flex: 1;">
+                    <p class="text-success" style="font-size: 1rem; font-weight: 600; margin: 0; flex: 1;">
                         ${data.correct_example}
                     </p>
                     <div id="feedback-audio-${Date.now()}"></div>
@@ -1032,7 +1030,7 @@ function handleRoleplayFeedback(data) {
     
     if (data.suggestion_es) {
         feedbackHTML += `
-            <p style="font-size: 0.85rem; color: #64748B; margin: 0; font-style: italic;">
+            <p class="${isCorrect ? 'text-success' : 'text-error'}" style="font-size: 0.85rem; margin: 0; font-style: italic; opacity: 0.9;">
                 💡 ${data.suggestion_es}
             </p>
         `;

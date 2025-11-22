@@ -235,8 +235,8 @@ function showAnalysisResult(data) {
             content.innerHTML = `
                 <div style="padding: 2rem; text-align: center;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">❌</div>
-                    <p style="color: #EF4444; font-weight: 700;">No se detectó texto (No text detected)</p>
-                    <p style="color: #64748B; font-size: 0.875rem; margin-top: 0.5rem;">
+                    <p class="text-error" style="font-weight: 700;">No se detectó texto (No text detected)</p>
+                    <p class="text-secondary" style="font-size: 0.875rem; margin-top: 0.5rem;">
                         Intenta con mejor iluminación o acerca más la cámara
                     </p>
                 </div>
@@ -256,21 +256,21 @@ function showAnalysisResult(data) {
                         </h2>
                     </div>
                     
-                    <div style="background: #FEF3C7; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 2px solid #F59E0B;">
-                        <p style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #92400E; margin-bottom: 0.5rem;">
+                    <div class="bg-warning border-warning" style="padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 2px solid;">
+                        <p class="text-warning" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; margin-bottom: 0.5rem;">
                             Texto Original (${sourceLang}):
                         </p>
-                        <p style="font-size: 1rem; color: #1E293B; font-weight: 600;">
+                        <p class="text-primary" style="font-size: 1rem; font-weight: 600;">
                             ${data.detected_text}
                         </p>
                     </div>
                     
-                    <div style="background: #DBEAFE; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 2px solid #4A90E2;">
-                        <p style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #1E40AF; margin-bottom: 0.5rem;">
+                    <div class="bg-info border-info" style="padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 2px solid;">
+                        <p class="text-info" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; margin-bottom: 0.5rem;">
                             Traducción (${targetLang}):
                         </p>
                         <div style="display: flex; align-items: center; gap: 1rem;">
-                            <p style="font-size: 1.125rem; color: #1E293B; font-weight: 700; flex: 1;">
+                            <p class="text-primary" style="font-size: 1.125rem; font-weight: 700; flex: 1;">
                                 ${data.translation}
                             </p>
                             <div id="translation-audio-container"></div>
@@ -317,31 +317,31 @@ function showAnalysisResult(data) {
                 <div style="padding: 2rem;">
                     <div style="text-align: center; margin-bottom: 1.5rem;">
                         <div style="font-size: 4rem; margin-bottom: 1rem;">🎉</div>
-                        <h2 style="font-size: 1.5rem; font-weight: 900; color: #10B981; margin-bottom: 0.5rem;">
+                        <h2 class="text-success" style="font-size: 1.5rem; font-weight: 900; margin-bottom: 0.5rem;">
                             ¡Encontrado!
                         </h2>
-                        <p style="color: #64748B; font-size: 0.875rem; margin-bottom: 1rem;">
+                        <p class="text-secondary" style="font-size: 0.875rem; margin-bottom: 1rem;">
                             Buscabas: <strong>${data.object_es || currentMission.es}</strong>
                         </p>
                     </div>
                     
-                    <div style="background: #F8FAFC; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 2px solid #4A90E2;">
-                        <p style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #64748B; margin-bottom: 0.5rem;">
+                    <div class="bg-neutral border-info" style="padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 2px solid;">
+                        <p class="text-secondary" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; margin-bottom: 0.5rem;">
                             En Inglés:
                         </p>
                         <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
                             <h3 style="font-size: 1.5rem; font-weight: 900; color: #4A90E2; flex: 1;">
-                                ${data.object_en || currentMission.en} <span style="color: #64748B; font-size: 1rem; font-weight: 400;">(${data.object_es || currentMission.es})</span>
+                                ${data.object_en || currentMission.en} <span class="text-secondary" style="font-size: 1rem; font-weight: 400;">(${data.object_es || currentMission.es})</span>
                             </h3>
                             <div id="object-audio-container"></div>
                         </div>
-                        <p style="font-size: 0.875rem; color: #64748B; font-family: monospace;">
+                        <p class="text-secondary" style="font-size: 0.875rem; font-family: monospace;">
                             ${data.ipa || ''}
                         </p>
                     </div>
                     
                     <div id="game-examples" style="margin-bottom: 1rem;">
-                        <p style="font-weight: 700; margin-bottom: 0.75rem; font-size: 0.875rem; color: #1E293B;">
+                        <p class="text-primary" style="font-weight: 700; margin-bottom: 0.75rem; font-size: 0.875rem;">
                             Ejemplos:
                         </p>
                     </div>
@@ -403,10 +403,10 @@ function showAnalysisResult(data) {
             content.innerHTML = `
                 <div style="text-align: center; padding: 2rem;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
-                    <h2 style="font-size: 1.5rem; font-weight: 900; color: #F59E0B; margin-bottom: 1rem;">
+                    <h2 class="text-warning" style="font-size: 1.5rem; font-weight: 900; margin-bottom: 1rem;">
                         Intenta de nuevo
                     </h2>
-                    <p style="color: #64748B; margin-bottom: 1.5rem;">
+                    <p class="text-secondary" style="margin-bottom: 1.5rem;">
                         ${data.description_es || 'No veo el objeto buscado.'}
                     </p>
                     <button id="exit-game-fail-btn" class="btn btn-secondary" style="width: 100%;">
@@ -432,10 +432,10 @@ function showAnalysisResult(data) {
             <div style="padding: 1.5rem;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
                     <div style="flex: 1;">
-                        <h3 style="font-size: 1.5rem; font-weight: 900; color: #4A90E2; margin-bottom: 0.25rem;">
-                            ${data.object || 'Unknown'} <span style="color: #64748B; font-size: 1rem; font-weight: 400;">(${data.object_es || data.translation || ''})</span>
+                        <h3 class="text-primary" style="font-size: 1.5rem; font-weight: 900; margin-bottom: 0.25rem;">
+                            ${data.object || 'Unknown'} <span class="text-secondary" style="font-size: 1rem; font-weight: 400;">(${data.object_es || data.translation || ''})</span>
                         </h3>
-                        <p style="font-size: 0.75rem; color: #64748B; font-family: monospace;">
+                        <p class="text-secondary" style="font-size: 0.75rem; font-family: monospace;">
                             ${data.ipa || ''}
                         </p>
                     </div>
@@ -443,7 +443,7 @@ function showAnalysisResult(data) {
                 </div>
                 
                 <div id="explore-examples" style="margin-bottom: 1rem;">
-                    <p style="font-weight: 700; margin-bottom: 0.75rem; font-size: 0.875rem; color: #1E293B;">
+                    <p class="text-primary" style="font-weight: 700; margin-bottom: 0.75rem; font-size: 0.875rem;">
                         Ejemplos:
                     </p>
                 </div>
@@ -461,7 +461,8 @@ function showAnalysisResult(data) {
                 </button>
                 <div id="correction-input" class="hidden" style="margin-top: 1rem;">
                     <input type="text" id="correction-text" placeholder="¿Qué objeto es? (en español)" 
-                           style="width: 100%; padding: 0.75rem; border: 1px solid #E2E8F0; border-radius: 0.5rem; margin-bottom: 0.5rem;">
+                           class="bg-neutral text-primary border-neutral"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid; border-radius: 0.5rem; margin-bottom: 0.5rem;">
                     <button id="submit-correction-btn" class="btn btn-primary" style="width: 100%;">
                         Enviar corrección
                     </button>
@@ -591,10 +592,12 @@ function renderExamples(examples, containerId) {
     
     examples.forEach(example => {
         const div = document.createElement('div');
-        div.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; padding: 0.75rem; background: #F8FAFC; border-radius: 0.5rem;';
+        div.className = 'bg-neutral';
+        div.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; padding: 0.75rem; border-radius: 0.5rem;';
         
         const text = document.createElement('span');
         text.textContent = `${example.en} (${example.es})`;
+        text.className = 'text-primary';
         text.style.cssText = 'flex: 1; font-size: 0.875rem; line-height: 1.4;';
         
         const audioBtn = createAudioButton(example.en, 'en-US');
