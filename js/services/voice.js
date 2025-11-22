@@ -11,17 +11,38 @@ export function getSpeechRate() {
 }
 
 // Text-to-Speech
+let currentText = null;
+
 export function speakText(text, lang = 'en-US') {
-    if (!text) return;
+    if (!text) return null;
     
     // Cancelar cualquier speech en curso
-    window.speechSynthesis.cancel();
+    if (window.speechSynthesis.speaking) {
+        // Si es el mismo texto, es una acción de "Stop"
+        if (currentText === text) {
+            window.speechSynthesis.cancel();
+            currentText = null;
+            return null;
+        }
+        // Si es otro texto, cancelamos el anterior para empezar el nuevo
+        window.speechSynthesis.cancel();
+    }
+    
+    currentText = text;
     
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
     utterance.rate = speechRate;
     utterance.pitch = 1.0;
     utterance.volume = 1.0;
+    
+    utterance.onend = () => {
+        currentText = null;
+    };
+    
+    utterance.onerror = () => {
+        currentText = null;
+    };
     
     // Seleccionar una voz apropiada si está disponible
     const voices = window.speechSynthesis.getVoices();
@@ -31,6 +52,7 @@ export function speakText(text, lang = 'en-US') {
     }
     
     window.speechSynthesis.speak(utterance);
+    return utterance;
 }
 
 // Speech-to-Text

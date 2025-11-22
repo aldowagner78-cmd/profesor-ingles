@@ -177,9 +177,61 @@ export function createAudioButton(text, lang = 'en-US') {
     btn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
+        
+        // Resetear visualmente otros botones activos
+        document.querySelectorAll('.audio-btn.playing').forEach(b => {
+            if (b !== btn) {
+                b.classList.remove('playing');
+                b.innerHTML = '<i data-lucide="volume-2"></i>';
+                if (window.lucide && window.lucide.icons['volume-2']) {
+                    window.lucide.createIcons({ 
+                        root: b,
+                        icons: { 'volume-2': window.lucide.icons['volume-2'] } 
+                    });
+                }
+            }
+        });
+
         // Importar dinámicamente desde la ruta correcta
         import('../services/voice.js').then(({ speakText }) => {
-            speakText(text, lang);
+            const result = speakText(text, lang);
+            
+            if (result) {
+                // Comenzó a reproducir
+                btn.classList.add('playing');
+                btn.innerHTML = '<i data-lucide="square"></i>'; // Icono de Stop
+                
+                if (window.lucide && window.lucide.icons['square']) {
+                    window.lucide.createIcons({ 
+                        root: btn,
+                        icons: { 'square': window.lucide.icons['square'] } 
+                    });
+                }
+                
+                const resetBtn = () => {
+                    btn.classList.remove('playing');
+                    btn.innerHTML = '<i data-lucide="volume-2"></i>';
+                    if (window.lucide && window.lucide.icons['volume-2']) {
+                        window.lucide.createIcons({ 
+                            root: btn,
+                            icons: { 'volume-2': window.lucide.icons['volume-2'] } 
+                        });
+                    }
+                };
+                
+                result.addEventListener('end', resetBtn);
+                result.addEventListener('error', resetBtn);
+            } else {
+                // Se detuvo (toggle off)
+                btn.classList.remove('playing');
+                btn.innerHTML = '<i data-lucide="volume-2"></i>';
+                if (window.lucide && window.lucide.icons['volume-2']) {
+                    window.lucide.createIcons({ 
+                        root: btn,
+                        icons: { 'volume-2': window.lucide.icons['volume-2'] } 
+                    });
+                }
+            }
         }).catch(err => {
             console.error('Error importing voice service:', err);
             // Fallback: intentar con el objeto global si existe
