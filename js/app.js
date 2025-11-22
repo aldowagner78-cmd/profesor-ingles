@@ -3,7 +3,7 @@ import { getApiKey, setApiKey } from './services/gemini.js';
 import { updateDailyStreak, getState, updateState } from './state.js';
 import { initCamera, cleanupCamera } from './modules/camera.js';
 import { initChat } from './modules/chat.js';
-import { initProfile } from './modules/profile.js';
+import { initProfile, renderProfile } from './modules/profile.js';
 import { showToast } from './utils/ui.js';
 
 // Estado de la vista actual
@@ -148,9 +148,7 @@ function switchView(viewName) {
     
     // Si entramos a perfil, forzar re-render
     if (viewName === 'profile') {
-        import('./modules/profile.js').then(({ renderProfile }) => {
-            renderProfile();
-        });
+        renderProfile();
     }
 }
 

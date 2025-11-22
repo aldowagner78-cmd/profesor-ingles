@@ -89,15 +89,15 @@ export function initProfile() {
     // Botón Reset
     document.getElementById('reset-btn')?.addEventListener('click', () => {
         if (confirm('¿Estás seguro de borrar todo tu progreso? Esta acción no se puede deshacer.')) {
-            // Guardar API key antes de limpiar
-            const apiKey = localStorage.getItem('gemini_api_key');
+            // Guardar API key antes de limpiar usando la clave correcta de CONFIG
+            const apiKey = localStorage.getItem(CONFIG.API_KEYS_KEY);
             
             resetState();
             localStorage.clear();
             
             // Restaurar API key
             if (apiKey) {
-                localStorage.setItem('gemini_api_key', apiKey);
+                localStorage.setItem(CONFIG.API_KEYS_KEY, apiKey);
             }
             
             location.reload();
@@ -154,53 +154,59 @@ function updateThemeUI(isDark) {
 
 // Obtener icono específico según categoría de palabra
 function getWordIcon(word) {
-    const w = word.toLowerCase();
+    const w = word.toLowerCase().trim();
     
     // Animales
-    if (/dog|cat|bird|fish|lion|tiger|elephant|bear|cow|horse|sheep|pig|chicken|duck|rabbit|mouse|snake|frog|monkey|giraffe|zebra|kangaroo/.test(w)) return '🐾';
+    if (/dog|cat|bird|fish|lion|tiger|elephant|bear|cow|horse|sheep|pig|chicken|duck|rabbit|mouse|snake|frog|monkey|giraffe|zebra|kangaroo|pet|animal/.test(w)) return '🐾';
     
     // Frutas
-    if (/apple|banana|orange|grape|lemon|watermelon|strawberry|pear|peach|cherry|mango|pineapple|kiwi|melon/.test(w)) return '🍎';
+    if (/apple|banana|orange|grape|lemon|watermelon|strawberry|pear|peach|cherry|mango|pineapple|kiwi|melon|fruit|berry/.test(w)) return '🍎';
     
     // Comida
-    if (/food|meal|dinner|lunch|breakfast|pizza|burger|sandwich|bread|cheese|egg|meat|chicken|rice|pasta|soup|salad|cake|cookie/.test(w)) return '🍽️';
+    if (/food|meal|dinner|lunch|breakfast|pizza|burger|sandwich|bread|cheese|egg|meat|chicken|rice|pasta|soup|salad|cake|cookie|chocolate|candy|sugar|salt/.test(w)) return '🍽️';
     
     // Bebidas
-    if (/water|juice|milk|coffee|tea|soda|beer|wine|drink/.test(w)) return '🥤';
+    if (/water|juice|milk|coffee|tea|soda|beer|wine|drink|beverage|bottle|cup|glass/.test(w)) return '🥤';
     
     // Partes del cuerpo
-    if (/mouth|eye|hand|foot|head|nose|ear|arm|leg|finger|toe|knee|elbow|shoulder|neck|face|body|hair|tooth|teeth/.test(w)) return '👤';
+    if (/mouth|eye|hand|foot|head|nose|ear|arm|leg|finger|toe|knee|elbow|shoulder|neck|face|body|hair|tooth|teeth|back|stomach/.test(w)) return '👤';
     
-    // Útiles escolares
-    if (/pencil|pen|book|notebook|eraser|ruler|scissors|glue|paper|crayon|marker/.test(w)) return '📝';
+    // Útiles escolares / Oficina
+    if (/pencil|pen|book|notebook|eraser|ruler|scissors|glue|paper|crayon|marker|desk|school|class|student|teacher|board/.test(w)) return '📝';
     
-    // Vehículos
-    if (/car|bus|train|plane|bike|motorcycle|truck|boat|ship|taxi|subway/.test(w)) return '🚗';
+    // Vehículos / Transporte
+    if (/car|bus|train|plane|bike|motorcycle|truck|boat|ship|taxi|subway|vehicle|drive|ride|wheel/.test(w)) return '🚗';
     
     // Naturaleza
-    if (/tree|flower|plant|sun|moon|star|cloud|rain|snow|wind|mountain|river|ocean|beach|forest|grass|leaf/.test(w)) return '🌿';
+    if (/tree|flower|plant|sun|moon|star|cloud|rain|snow|wind|mountain|river|ocean|beach|forest|grass|leaf|sky|nature|world|earth/.test(w)) return '🌿';
     
     // Casa/Muebles
-    if (/chair|table|bed|door|window|house|room|kitchen|bathroom|sofa|couch|desk|lamp|mirror/.test(w)) return '🏠';
+    if (/chair|table|bed|door|window|house|room|kitchen|bathroom|sofa|couch|desk|lamp|mirror|home|apartment|floor|wall|roof/.test(w)) return '🏠';
     
     // Ropa
-    if (/shirt|pants|shoes|dress|hat|jacket|coat|socks|skirt|jeans|sweater|tie|belt|gloves/.test(w)) return '👕';
+    if (/shirt|pants|shoes|dress|hat|jacket|coat|socks|skirt|jeans|sweater|tie|belt|gloves|clothes|wear|fashion/.test(w)) return '👕';
     
     // Números/Tiempo
-    if (/number|time|clock|hour|minute|day|week|month|year|today|tomorrow|yesterday|morning|afternoon|evening|night/.test(w)) return '🕐';
+    if (/number|time|clock|hour|minute|day|week|month|year|today|tomorrow|yesterday|morning|afternoon|evening|night|monday|tuesday|wednesday|thursday|friday|saturday|sunday/.test(w)) return '🕐';
     
     // Colores
-    if (/red|blue|green|yellow|black|white|color|pink|purple|orange|brown|gray|grey/.test(w)) return '🎨';
+    if (/red|blue|green|yellow|black|white|color|pink|purple|orange|brown|gray|grey|dark|light/.test(w)) return '🎨';
     
     // Verbos/Acciones
-    if (/walk|run|jump|eat|drink|sleep|play|read|write|speak|talk|listen|see|look|watch|go|come|work|study/.test(w)) return '🏃';
+    if (/walk|run|jump|eat|drink|sleep|play|read|write|speak|talk|listen|see|look|watch|go|come|work|study|learn|teach|do|make/.test(w)) return '🏃';
     
     // Emociones
-    if (/happy|sad|angry|tired|excited|scared|surprised|worried|love|hate|feel|emotion/.test(w)) return '😊';
+    if (/happy|sad|angry|tired|excited|scared|surprised|worried|love|hate|feel|emotion|smile|cry|laugh/.test(w)) return '😊';
     
     // Tecnología
-    if (/computer|phone|tablet|laptop|internet|email|app|website|software|screen|keyboard|mouse/.test(w)) return '💻';
+    if (/computer|phone|tablet|laptop|internet|email|app|website|software|screen|keyboard|mouse|wifi|digital|tech/.test(w)) return '💻';
     
+    // Lugares
+    if (/city|town|country|park|shop|store|market|hospital|bank|restaurant|hotel|airport|station|street|road/.test(w)) return '🏙️';
+
+    // Familia
+    if (/family|mother|father|mom|dad|brother|sister|son|daughter|grandma|grandpa|parent|child|baby|friend|boy|girl|man|woman/.test(w)) return '👨‍👩‍👧';
+
     // Default
     return '📚';
 }

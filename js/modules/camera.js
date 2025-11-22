@@ -277,8 +277,11 @@ function showAnalysisResult(data) {
                         </div>
                     </div>
                     
-                    <button id="translate-again-btn" class="btn btn-primary" style="width: 100%;">
-                        🔄 Traducir Otro Texto
+                    <button id="translate-again-btn" class="btn btn-primary" style="flex: 1;">
+                        🔄 Traducir Otro
+                    </button>
+                    <button id="exit-translate-btn" class="btn btn-secondary" style="flex: 1;">
+                        🚪 Salir
                     </button>
                 </div>
             `;
@@ -292,9 +295,13 @@ function showAnalysisResult(data) {
                 if (window.lucide) window.lucide.createIcons();
             }
             
-            // Event listener para traducir de nuevo
+            // Event listener para traducir de nuevo y salir
             setTimeout(() => {
                 document.getElementById('translate-again-btn')?.addEventListener('click', closeAnalysis);
+                document.getElementById('exit-translate-btn')?.addEventListener('click', () => {
+                    closeAnalysis();
+                    stopCamera();
+                });
             }, 100);
         }
         
