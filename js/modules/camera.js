@@ -6,7 +6,7 @@ import { getState, updateState, addToVocabulary } from '../state.js';
 import { GAME_OBJECTS } from '../config.js';
 
 let stream = null;
-let currentMode = null; // 'explore' | 'game'
+let currentMode = null; // 'explore' | 'game' | 'translate'
 let currentMission = null;
 let isAnalyzing = false;
 let usedObjects = []; // Objetos ya usados en esta sesión
@@ -17,6 +17,7 @@ export function initCamera() {
     // Selector de Modo
     document.getElementById('mode-explore-btn')?.addEventListener('click', () => startMode('explore'));
     document.getElementById('mode-game-btn')?.addEventListener('click', () => startMode('game'));
+    document.getElementById('mode-translate-btn')?.addEventListener('click', () => startMode('translate'));
     
     // Botón Volver
     document.getElementById('back-to-selector-btn')?.addEventListener('click', stopCamera);
@@ -51,6 +52,9 @@ async function startMode(mode) {
     // Configurar modo
     if (mode === 'game') {
         startNewMission();
+    } else if (mode === 'translate') {
+        document.getElementById('mission-overlay')?.classList.add('hidden');
+        showToast('Apunta la cámara al texto que quieres traducir (Point camera at text to translate)', 'info');
     } else {
         document.getElementById('mission-overlay')?.classList.add('hidden');
     }
@@ -153,7 +157,26 @@ async function handleCapture() {
         // Preparar prompt según modo
         let prompt = '';
         
-        if (currentMode === 'game' && currentMission) {
+        if (currentMode === 'translate') {
+            // Modo Traducir: OCR + detección de idioma + traducción
+            prompt = `
+                You are a Translation AI with OCR capabilities.
+                Task: 1) Extract ALL visible text from this image (OCR)
+                      2) Detect the language (Spanish or English)
+                      3) Translate to the opposite language
+                      
+                Respond STRICTLY in JSON format:
+                {
+                    "type": "translation",
+                    "detected_text": "Extracted text from image",
+                    "detected_language": "es" or "en",
+                    "translation": "Translated text",
+                    "target_language": "en" or "es"
+                }
+                
+                If no text is found, return: {"type": "error", "message": "No text detected in image"}
+            `;
+        } else if (currentMode === 'game' && currentMission) {
             prompt = `
                 You are an English Teacher API. Analyze this image.
                 Task: Check if the image contains a "${currentMission.en}".
@@ -206,6 +229,80 @@ function showAnalysisResult(data) {
     
     if (!panel || !content) return;
     
+    // Modo Traducir
+    if (currentMode === 'translate') {
+        if (data.type === 'error') {
+            content.innerHTML = `
+                <div style="padding: 2rem; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">❌</div>
+                    <p style="color: #EF4444; font-weight: 700;">No se detectó texto (No text detected)</p>
+                    <p style="color: #64748B; font-size: 0.875rem; margin-top: 0.5rem;">
+                        Intenta con mejor iluminación o acerca más la cámara
+                    </p>
+                </div>
+            `;
+        } else {
+            const isSpanishToEnglish = data.detected_language === 'es';
+            const sourceLang = isSpanishToEnglish ? 'Español' : 'English';
+            const targetLang = isSpanishToEnglish ? 'English' : 'Español';
+            const audioLang = isSpanishToEnglish ? 'en-US' : 'es-ES';
+            
+            content.innerHTML = `
+                <div style="padding: 2rem;">
+                    <div style="text-align: center; margin-bottom: 1.5rem;">
+                        <div style="font-size: 3rem; margin-bottom: 0.5rem;">🔤</div>
+                        <h2 style="font-size: 1.25rem; font-weight: 900; color: #4A90E2;">
+                            Traducción (Translation)
+                        </h2>
+                    </div>
+                    
+                    <div style="background: #FEF3C7; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 2px solid #F59E0B;">
+                        <p style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #92400E; margin-bottom: 0.5rem;">
+                            Texto Original (${sourceLang}):
+                        </p>
+                        <p style="font-size: 1rem; color: #1E293B; font-weight: 600;">
+                            ${data.detected_text}
+                        </p>
+                    </div>
+                    
+                    <div style="background: #DBEAFE; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 2px solid #4A90E2;">
+                        <p style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #1E40AF; margin-bottom: 0.5rem;">
+                            Traducción (${targetLang}):
+                        </p>
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <p style="font-size: 1.125rem; color: #1E293B; font-weight: 700; flex: 1;">
+                                ${data.translation}
+                            </p>
+                            <div id="translation-audio-container"></div>
+                        </div>
+                    </div>
+                    
+                    <button id="translate-again-btn" class="btn btn-primary" style="width: 100%;">
+                        🔄 Traducir Otro Texto
+                    </button>
+                </div>
+            `;
+            
+            // Botón de audio para la traducción
+            const audioContainer = content.querySelector('#translation-audio-container');
+            if (audioContainer) {
+                const audioBtn = createAudioButton(data.translation, audioLang);
+                audioBtn.style.marginLeft = '0';
+                audioContainer.appendChild(audioBtn);
+                if (window.lucide) window.lucide.createIcons();
+            }
+            
+            // Event listener para traducir de nuevo
+            setTimeout(() => {
+                document.getElementById('translate-again-btn')?.addEventListener('click', closeAnalysis);
+            }, 100);
+        }
+        
+        panel.classList.remove('hidden');
+        return;
+    }
+    
+    // Modo Juego
     if (currentMode === 'game') {
         if (data.found) {
             // ¡Éxito!

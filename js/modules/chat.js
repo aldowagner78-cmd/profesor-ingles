@@ -68,6 +68,11 @@ export function initChat() {
         });
     });
     
+    // Botones de Control
+    document.getElementById('clear-chat-btn')?.addEventListener('click', clearChat);
+    document.getElementById('restart-lesson-btn')?.addEventListener('click', restartLesson);
+    document.getElementById('prev-lesson-btn')?.addEventListener('click', prevLesson);
+    
     // Restaurar historial
     renderHistory();
 }
@@ -598,10 +603,9 @@ function handleQuizResponse(data) {
             <p style="font-weight: 700; margin-bottom: 1rem; color: #1E293B;">${data.question}</p>
             <div class="quiz-options" style="display: flex; flex-direction: column; gap: 0.5rem;">
                 ${data.options.map((opt, idx) => {
-                    // Soporte para formato antiguo (string) y nuevo (objeto {en, es})
+                    // Extraer solo texto en inglés (sin traducción en quiz)
                     const isObject = typeof opt === 'object';
                     const englishText = isObject ? opt.en : opt;
-                    const spanishText = isObject ? opt.es : '';
                     
                     return `
                     <button class="quiz-option" data-index="${idx}" style="
@@ -613,12 +617,13 @@ function handleQuizResponse(data) {
                         cursor: pointer;
                         transition: all 0.2s ease;
                         font-size: 0.875rem;
+                        display: flex;
+                        align-items: center;
+                        gap: 0.75rem;
+                        justify-content: space-between;
                     ">
-                        <div style="font-weight: 600; color: #1E293B; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
-                            <span>${englishText}</span>
-                            <span class="audio-button-container"></span>
-                        </div>
-                        ${spanishText ? `<div style="font-size: 0.75rem; color: #64748B;">(${spanishText})</div>` : ''}
+                        <span style="font-weight: 600; color: #1E293B; flex: 1;">${englishText}</span>
+                        <span class="audio-button-container"></span>
                     </button>
                     `;
                 }).join('')}
@@ -666,7 +671,47 @@ function handleQuizResponse(data) {
                     e.currentTarget.style.borderColor = '#10B981';
                     feedback.style.background = '#D1FAE5';
                     feedback.style.color = '#065F46';
-                    feedback.textContent = '¡Correcto! 🎉 +10 puntos';
+                    
+                    // Felicitaciones bilingües aleatorias
+                    const congratulations = [
+                        'Excellent! (¡Excelente!)',
+                        'Great job! (¡Buen trabajo!)',
+                        'Perfect! (¡Perfecto!)',
+                        'Well done! (¡Bien hecho!)',
+                        'Amazing! (¡Increíble!)'
+                    ];
+                    const congrat = congratulations[Math.floor(Math.random() * congratulations.length)];
+                    const congratEnglish = congrat.split('(')[0].trim();
+                    
+                    feedback.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 0.5rem; justify-content: center;">
+                            <span>${congrat} 🎉 +10 puntos</span>
+                            <button class="congrat-audio-btn" style="
+                                background: #10B981;
+                                color: white;
+                                border: none;
+                                border-radius: 50%;
+                                width: 2rem;
+                                height: 2rem;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                cursor: pointer;
+                            ">
+                                <i data-lucide="volume-2" style="width: 1rem; height: 1rem;"></i>
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Audio de felicitación
+                    setTimeout(() => {
+                        const congratBtn = feedback.querySelector('.congrat-audio-btn');
+                        if (congratBtn) {
+                            congratBtn.addEventListener('click', () => speakText(congratEnglish, 'en-US'));
+                        }
+                        if (window.lucide) window.lucide.createIcons();
+                    }, 50);
+                    
                     feedback.classList.remove('hidden');
                     
                     const state = getState();
@@ -1047,4 +1092,66 @@ function handleRoleplayFeedback(data) {
         }, 50);
     }
 }
+
+// Limpiar chat (borrar todos los mensajes)
+function clearChat() {
+    if (confirm('¿Borrar toda la conversación? (Clear the conversation?)')) {
+        const chatMessages = document.getElementById('chat-messages');
+        if (chatMessages) {
+            chatMessages.innerHTML = '';
+        }
+        
+        // Limpiar historial del estado
+        updateState({ chatHistory: [] });
+        
+        // Reiniciar contexto conversacional
+        conversationContext.lastAction = null;
+        conversationContext.lastTopic = null;
+        conversationContext.quizCount = 0;
+        conversationContext.canContinue = false;
+        
+        showToast('Chat limpiado (Chat cleared)', 'success');
+    }
+}
+
+// Reiniciar lección actual
+function restartLesson() {
+    const state = getState();
+    const currentLevel = SYLLABUS[state.levelIdx];
+    const currentTopic = currentLevel.topics[state.topicIdx];
+    
+    if (confirm(`¿Reiniciar la lección de "${currentTopic}"? (Restart the lesson?)`)) {
+        clearChat();
+        
+        // Generar lección nuevamente
+        setTimeout(() => {
+            handleAction('lesson');
+        }, 300);
+    }
+}
+
+// Ir a lección anterior
+function prevLesson() {
+    const state = getState();
+    
+    if (state.topicIdx > 0) {
+        // Retroceder en el mismo nivel
+        updateState({ topicIdx: state.topicIdx - 1 });
+        const currentLevel = SYLLABUS[state.levelIdx];
+        showToast(`Tema anterior: ${currentLevel.topics[state.topicIdx - 1]} (Previous topic)`, 'success');
+        clearChat();
+    } else if (state.levelIdx > 0) {
+        // Retroceder al nivel anterior (último tema)
+        const prevLevel = SYLLABUS[state.levelIdx - 1];
+        updateState({ 
+            levelIdx: state.levelIdx - 1,
+            topicIdx: prevLevel.topics.length - 1
+        });
+        showToast(`Nivel anterior: ${prevLevel.name} (Previous level)`, 'success');
+        clearChat();
+    } else {
+        showToast('Ya estás en el primer tema (Already at first topic)', 'info');
+    }
+}
+
 
