@@ -89,8 +89,17 @@ export function initProfile() {
     // Botón Reset
     document.getElementById('reset-btn')?.addEventListener('click', () => {
         if (confirm('¿Estás seguro de borrar todo tu progreso? Esta acción no se puede deshacer.')) {
+            // Guardar API key antes de limpiar
+            const apiKey = localStorage.getItem('gemini_api_key');
+            
             resetState();
             localStorage.clear();
+            
+            // Restaurar API key
+            if (apiKey) {
+                localStorage.setItem('gemini_api_key', apiKey);
+            }
+            
             location.reload();
         }
     });
@@ -141,6 +150,59 @@ function updateThemeUI(isDark) {
         label.textContent = isDark ? 'Desactivar modo oscuro' : 'Activar modo oscuro';
         if (window.lucide) window.lucide.createIcons();
     }
+}
+
+// Obtener icono específico según categoría de palabra
+function getWordIcon(word) {
+    const w = word.toLowerCase();
+    
+    // Animales
+    if (/dog|cat|bird|fish|lion|tiger|elephant|bear|cow|horse|sheep|pig|chicken|duck|rabbit|mouse|snake|frog|monkey|giraffe|zebra|kangaroo/.test(w)) return '🐾';
+    
+    // Frutas
+    if (/apple|banana|orange|grape|lemon|watermelon|strawberry|pear|peach|cherry|mango|pineapple|kiwi|melon/.test(w)) return '🍎';
+    
+    // Comida
+    if (/food|meal|dinner|lunch|breakfast|pizza|burger|sandwich|bread|cheese|egg|meat|chicken|rice|pasta|soup|salad|cake|cookie/.test(w)) return '🍽️';
+    
+    // Bebidas
+    if (/water|juice|milk|coffee|tea|soda|beer|wine|drink/.test(w)) return '🥤';
+    
+    // Partes del cuerpo
+    if (/mouth|eye|hand|foot|head|nose|ear|arm|leg|finger|toe|knee|elbow|shoulder|neck|face|body|hair|tooth|teeth/.test(w)) return '👤';
+    
+    // Útiles escolares
+    if (/pencil|pen|book|notebook|eraser|ruler|scissors|glue|paper|crayon|marker/.test(w)) return '📝';
+    
+    // Vehículos
+    if (/car|bus|train|plane|bike|motorcycle|truck|boat|ship|taxi|subway/.test(w)) return '🚗';
+    
+    // Naturaleza
+    if (/tree|flower|plant|sun|moon|star|cloud|rain|snow|wind|mountain|river|ocean|beach|forest|grass|leaf/.test(w)) return '🌿';
+    
+    // Casa/Muebles
+    if (/chair|table|bed|door|window|house|room|kitchen|bathroom|sofa|couch|desk|lamp|mirror/.test(w)) return '🏠';
+    
+    // Ropa
+    if (/shirt|pants|shoes|dress|hat|jacket|coat|socks|skirt|jeans|sweater|tie|belt|gloves/.test(w)) return '👕';
+    
+    // Números/Tiempo
+    if (/number|time|clock|hour|minute|day|week|month|year|today|tomorrow|yesterday|morning|afternoon|evening|night/.test(w)) return '🕐';
+    
+    // Colores
+    if (/red|blue|green|yellow|black|white|color|pink|purple|orange|brown|gray|grey/.test(w)) return '🎨';
+    
+    // Verbos/Acciones
+    if (/walk|run|jump|eat|drink|sleep|play|read|write|speak|talk|listen|see|look|watch|go|come|work|study/.test(w)) return '🏃';
+    
+    // Emociones
+    if (/happy|sad|angry|tired|excited|scared|surprised|worried|love|hate|feel|emotion/.test(w)) return '😊';
+    
+    // Tecnología
+    if (/computer|phone|tablet|laptop|internet|email|app|website|software|screen|keyboard|mouse/.test(w)) return '💻';
+    
+    // Default
+    return '📚';
 }
 
 function updateFilterButtons() {
@@ -287,25 +349,86 @@ function renderVocabulary() {
         const message = currentVocabFilter === 'all' 
             ? 'Aún no has aprendido palabras. ¡Usa la cámara para empezar!'
             : `No hay palabras del nivel ${currentVocabFilter.toUpperCase()}`;
-        list.innerHTML = `<p style="text-align: center; color: #94A3B8; font-size: 0.875rem; grid-column: 1 / -1;">${message}</p>`;
+        list.innerHTML = `<p style="text-align: center; color: #94A3B8; font-size: 0.875rem; padding: 2rem;">${message}</p>`;
         return;
     }
     
+    // Cambiar a lista vertical
+    list.style.display = 'flex';
+    list.style.flexDirection = 'column';
+    list.style.gap = '0.5rem';
     list.innerHTML = '';
     
     filteredVocab.forEach(word => {
         const card = document.createElement('div');
-        card.className = 'vocab-card';
-        card.innerHTML = `
-            <div class="vocab-icon">📚</div>
-            <div class="vocab-word">${word.object}</div>
-            <div class="vocab-translation">${word.translation}</div>
+        card.className = 'vocab-item-list';
+        card.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
         `;
         
-        card.addEventListener('click', () => showVocabModal(word));
+        // Icono específico por categoría
+        const icon = getWordIcon(word.object);
+        
+        card.innerHTML = `
+            <span style="font-size: 1.5rem;">${icon}</span>
+            <div style="flex: 1;">
+                <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.9375rem;">
+                    ${word.object} <span style="color: var(--color-text-muted); font-weight: 400;">(${word.translation})</span>
+                </div>
+            </div>
+            <button class="vocab-audio-btn" style="
+                background: var(--color-primary);
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 2.5rem;
+                height: 2.5rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: transform 0.2s ease;
+            ">
+                <i data-lucide="volume-2" style="width: 1.25rem; height: 1.25rem;"></i>
+            </button>
+        `;
+        
+        // Hover effect
+        card.addEventListener('mouseenter', () => {
+            card.style.borderColor = 'var(--color-primary)';
+            card.style.transform = 'translateX(4px)';
+        });
+        card.addEventListener('mouseleave', () => {
+            card.style.borderColor = 'var(--color-border)';
+            card.style.transform = 'translateX(0)';
+        });
+        
+        // Click en tarjeta → abrir modal
+        card.addEventListener('click', (e) => {
+            if (!e.target.closest('.vocab-audio-btn')) {
+                showVocabModal(word);
+            }
+        });
+        
+        // Click en botón de audio → reproducir solo inglés
+        const audioBtn = card.querySelector('.vocab-audio-btn');
+        audioBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            speakText(word.object, 'en-US');
+        });
         
         list.appendChild(card);
     });
+    
+    if (window.lucide) window.lucide.createIcons();
 }
 
 async function showVocabModal(word) {
@@ -318,12 +441,16 @@ async function showVocabModal(word) {
     content.className = 'modal-content';
     content.style.maxWidth = '500px';
     
+    // Icono específico
+    const icon = getWordIcon(word.object);
+    
     content.innerHTML = `
         <button id="vocab-modal-close" class="btn-close">
             <i data-lucide="x"></i>
         </button>
         <div style="padding: 1rem;">
             <div style="text-align: center; margin-bottom: 1.5rem;">
+                <div style="font-size: 3rem; margin-bottom: 0.5rem;">${icon}</div>
                 <h2 style="font-size: 2rem; font-weight: 900; color: #4A90E2; margin-bottom: 0.5rem;">
                     ${word.object}
                 </h2>
@@ -354,7 +481,7 @@ async function showVocabModal(word) {
         if (e.target === modal) modal.remove();
     });
     
-    // Generar ejemplos
+    // Generar ejemplos bilingües
     const examplesContainer = content.querySelector('#vocab-examples');
     const loader = showLoading(examplesContainer, 'Generando ejemplos...');
     
@@ -362,10 +489,17 @@ async function showVocabModal(word) {
         const prompt = `
             You are an English Teacher API.
             Task: Generate 3 simple example sentences using the word "${word.object}".
+            IMPORTANT: Each sentence must include Spanish translation in parentheses.
+            Format: "English sentence (Traducción al español)"
+            
             Respond STRICTLY in JSON format:
             {
                 "type": "examples",
-                "sentences": ["Sentence 1", "Sentence 2", "Sentence 3"]
+                "sentences": [
+                    "I eat an apple every day (Como una manzana todos los días)",
+                    "The apple is red (La manzana es roja)",
+                    "She likes green apples (A ella le gustan las manzanas verdes)"
+                ]
             }
         `;
         
@@ -391,7 +525,9 @@ async function showVocabModal(word) {
                 text.textContent = sentence;
                 text.style.cssText = 'flex: 1; font-size: 0.875rem; line-height: 1.5;';
                 
-                const audioBtn = createAudioButton(sentence, 'en-US');
+                // Extraer solo inglés para audio
+                const englishOnly = sentence.split('(')[0].trim();
+                const audioBtn = createAudioButton(englishOnly, 'en-US');
                 audioBtn.style.marginLeft = '0';
                 
                 div.appendChild(text);
