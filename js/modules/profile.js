@@ -77,6 +77,25 @@ export function initProfile() {
             speedValue.textContent = `${rate.toFixed(1)}x`;
         });
     }
+
+    // Slider de Tamaño de Fuente
+    const fontSlider = document.getElementById('font-size-slider');
+    const fontValue = document.getElementById('font-size-value');
+    
+    if (fontSlider && fontValue) {
+        // Cargar valor guardado
+        const savedSize = localStorage.getItem('fontSize') || '100';
+        fontSlider.value = savedSize;
+        updateFontSize(savedSize);
+        updateFontLabel(savedSize, fontValue);
+
+        fontSlider.addEventListener('input', (e) => {
+            const size = e.target.value;
+            updateFontSize(size);
+            updateFontLabel(size, fontValue);
+            localStorage.setItem('fontSize', size);
+        });
+    }
     
     // Botón Cambiar API Key
     document.getElementById('change-key-btn')?.addEventListener('click', () => {
@@ -159,6 +178,19 @@ function updateThemeUI(isDark) {
     if (label) {
         label.textContent = isDark ? 'Desactivar modo oscuro' : 'Activar modo oscuro';
     }
+}
+
+function updateFontSize(size) {
+    // Ajustar el tamaño de fuente raíz (afecta a todos los rem)
+    // 100% = 16px (default), 125% = 20px
+    document.documentElement.style.fontSize = `${size}%`;
+}
+
+function updateFontLabel(size, labelEl) {
+    const s = parseInt(size);
+    if (s <= 105) labelEl.textContent = 'Pequeño';
+    else if (s <= 115) labelEl.textContent = 'Mediano';
+    else labelEl.textContent = 'Grande';
 }
 
 // Obtener icono específico según categoría de palabra

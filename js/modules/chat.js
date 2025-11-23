@@ -666,6 +666,28 @@ function handleLessonResponse(data) {
             nextBtn.addEventListener('click', () => handleAction('lesson', (data.part || 1) + 1));
         }
 
+        // Botones de navegación cruzada (Quiz / Roleplay)
+        const goToQuizBtn = document.createElement('button');
+        goToQuizBtn.className = 'btn btn-secondary';
+        goToQuizBtn.style.cssText = 'width: 100%; margin-top: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;';
+        goToQuizBtn.innerHTML = '<i data-lucide="clipboard-list"></i> Ir a Evaluación (Quiz)';
+        goToQuizBtn.addEventListener('click', () => handleAction('quiz'));
+
+        const goToRoleplayBtn = document.createElement('button');
+        goToRoleplayBtn.className = 'btn btn-secondary';
+        goToRoleplayBtn.style.cssText = 'width: 100%; margin-top: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;';
+        goToRoleplayBtn.innerHTML = '<i data-lucide="mic"></i> Ir a Roleplay (Práctica)';
+        goToRoleplayBtn.addEventListener('click', () => handleAction('roleplay'));
+
+        const footer = lessonCard.querySelector('.card-footer');
+        if (footer) {
+            const actionsContainer = document.createElement('div');
+            actionsContainer.style.cssText = 'margin-top: 1rem; border-top: 1px solid var(--color-border); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;';
+            actionsContainer.appendChild(goToQuizBtn);
+            actionsContainer.appendChild(goToRoleplayBtn);
+            footer.parentNode.insertBefore(actionsContainer, footer.nextSibling);
+        }
+
         if (window.lucide) window.lucide.createIcons();
     }, 100);
 }
@@ -878,6 +900,18 @@ function handleQuizResponse(data) {
             nextBtn.addEventListener('click', () => handleAction('quiz', 'next'));
         }
 
+        // Botón Volver a Lección
+        const backToLessonBtn = document.createElement('button');
+        backToLessonBtn.className = 'btn btn-secondary';
+        backToLessonBtn.style.cssText = 'width: 100%; margin-top: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; border-top: 1px solid var(--color-border); padding-top: 1rem; border-radius: 0; border-left: none; border-right: none; border-bottom: none;';
+        backToLessonBtn.innerHTML = '<i data-lucide="book-open"></i> Volver a la Lección';
+        backToLessonBtn.addEventListener('click', () => handleAction('lesson'));
+        
+        const footer = quizCard.querySelector('.card-footer');
+        if (footer) {
+            footer.parentNode.insertBefore(backToLessonBtn, footer.nextSibling);
+        }
+
         // Inicializar iconos de Lucide para botones de audio
         if (window.lucide) window.lucide.createIcons();
     }, 100);
@@ -1049,6 +1083,18 @@ function handleRoleplayStart(data) {
         chatArea.appendChild(botCard);
         chatArea.scrollTop = chatArea.scrollHeight;
     }
+
+    // Botón Volver a Lección
+    const backToLessonBtn = document.createElement('button');
+    backToLessonBtn.className = 'btn btn-secondary';
+    backToLessonBtn.style.cssText = 'width: 100%; margin-top: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem; border-top: 1px solid var(--color-border); padding: 1rem; border-radius: 0; border-left: none; border-right: none; border-bottom: none; background: var(--color-surface);';
+    backToLessonBtn.innerHTML = '<i data-lucide="book-open"></i> Volver a la Lección';
+    backToLessonBtn.addEventListener('click', () => handleAction('lesson'));
+    
+    const footer = botCard.querySelector('.card-footer');
+    if (footer) {
+        footer.parentNode.insertBefore(backToLessonBtn, footer.nextSibling);
+    }
     
     // Agregar botón de audio
     setTimeout(() => {
@@ -1127,6 +1173,19 @@ function handleRoleplayContinue(data) {
     if (chatArea) {
         chatArea.appendChild(botCard);
         chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    // Botón Volver a Lección (Solo si es el último turno o si el usuario quiere salir)
+    // Lo agregamos siempre al final de la tarjeta del bot para facilitar la navegación
+    const backToLessonBtn = document.createElement('button');
+    backToLessonBtn.className = 'btn btn-secondary';
+    backToLessonBtn.style.cssText = 'width: 100%; margin-top: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem; border-top: 1px solid var(--color-border); padding: 1rem; border-radius: 0; border-left: none; border-right: none; border-bottom: none; background: var(--color-surface);';
+    backToLessonBtn.innerHTML = '<i data-lucide="book-open"></i> Volver a la Lección';
+    backToLessonBtn.addEventListener('click', () => handleAction('lesson'));
+    
+    const footer = botCard.querySelector('.card-footer');
+    if (footer) {
+        footer.parentNode.insertBefore(backToLessonBtn, footer.nextSibling);
     }
     
     // Agregar botón de audio
