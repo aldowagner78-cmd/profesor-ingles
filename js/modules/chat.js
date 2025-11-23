@@ -9,6 +9,20 @@ import { SYLLABUS, CONFIG } from '../config.js';
 const MAX_HISTORY = 10;
 
 // ============================================
+// ESTADO DE NAVEGACIÓN INTERNA (Lecciones, Quiz, Roleplay)
+// ============================================
+let lessonState = {
+    currentPart: 1,
+    totalParts: 3, // Valor por defecto, ajustable
+    currentTopicRequest: ''
+};
+
+let quizState = {
+    currentQuestion: 0,
+    totalQuestions: 5
+};
+
+// ============================================
 // ESTADO CONVERSACIONAL Y DETECCIÓN DE INTENCIONES
 // ============================================
 
@@ -392,7 +406,7 @@ function handleChatResponse(data) {
     }
 }
 
-async function handleAction(action) {
+async function handleAction(action, param = null) {
     const state = getState();
     const currentLevel = SYLLABUS[state.levelIdx];
     const currentTopic = currentLevel.topics[state.topicIdx];
@@ -403,12 +417,29 @@ async function handleAction(action) {
         let prompt = '';
         
         if (action === 'lesson') {
+            // Lógica de navegación interna para lecciones
+            if (typeof param === 'number') {
+                lessonState.currentPart = param;
+            } else {
+                // Nueva lección
+                lessonState.currentPart = 1;
+                lessonState.totalParts = 3; // Default
+                lessonState.currentTopicRequest = param || '';
+            }
+
+            const topicStr = lessonState.currentTopicRequest ? `${currentTopic} (${lessonState.currentTopicRequest})` : currentTopic;
+
             prompt = `
                 You are an English Teacher API.
                 Level: ${currentLevel.name}
-                Topic: ${currentTopic}
+                Topic: ${topicStr}
+                Part: ${lessonState.currentPart} of ${lessonState.totalParts}
                 
-                Task: Generate a lesson explanation.
+                Task: Generate content for part ${lessonState.currentPart} of a ${lessonState.totalParts}-part lesson series about this topic.
+                - Part 1: Introduction and basic vocabulary.
+                - Part 2: Grammar rules and usage.
+                - Part 3: Common phrases and practice examples.
+                
                 - Explanation in Spanish
                 - Examples in BILINGUAL format: "English (Español)"
                 - Use Markdown formatting
@@ -417,20 +448,32 @@ async function handleAction(action) {
                 Respond STRICTLY in JSON format:
                 {
                     "type": "lesson",
-                    "title": "Lesson title",
-                    "content_markdown": "# Title\\n\\nExplanation in Spanish...\\n\\n## Examples\\n- Good morning (Buenos días)\\n- Good night (Buenas noches)"
+                    "title": "Lesson Title (Part ${lessonState.currentPart}/${lessonState.totalParts})",
+                    "content_markdown": "# Title\\n\\nContent...",
+                    "part": ${lessonState.currentPart},
+                    "total_parts": ${lessonState.totalParts}
                 }
             `;
         } else if (action === 'quiz') {
+            // Lógica de navegación interna para quizzes
+            if (param === 'next') {
+                quizState.currentQuestion++;
+            } else if (param === 'prev') {
+                if (quizState.currentQuestion > 1) quizState.currentQuestion--;
+            } else {
+                // Nuevo quiz
+                quizState.currentQuestion = 1;
+            }
+
             prompt = `
                 You are an English Teacher API.
                 Topic: ${currentTopic}
+                Question Number: ${quizState.currentQuestion} of ${quizState.totalQuestions}
                 
                 Task: Generate a multiple choice question to test English knowledge.
                 - Question must be in SPANISH asking about English usage
                 - All options must be objects with English text AND Spanish translation
                 - Format: {"en": "English text", "es": "Traducción"}
-                - Example: "¿Cómo se dice 'Buenos días' en inglés?" with options [{"en": "Good morning", "es": "Buenos días"}, {"en": "Good night", "es": "Buenas noches"}, ...]
                 
                 Respond STRICTLY in JSON format:
                 {
@@ -442,7 +485,9 @@ async function handleAction(action) {
                         {"en": "English Option C", "es": "Traducción C"},
                         {"en": "English Option D", "es": "Traducción D"}
                     ],
-                    "answer_index": 0
+                    "answer_index": 0,
+                    "question_number": ${quizState.currentQuestion},
+                    "total_questions": ${quizState.totalQuestions}
                 }
             `;
         } else if (action === 'roleplay') {
@@ -529,6 +574,23 @@ function handleLessonResponse(data) {
         <div class="lesson-content text-primary" style="font-size: 1rem; line-height: 1.8;">
             ${content}
         </div>
+        
+        <!-- Navegación Interna -->
+        <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+            <button class="btn-nav-internal prev-part-btn" ${(!data.part || data.part <= 1) ? 'disabled' : ''} style="
+                background: none; border: none; color: var(--color-primary); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; opacity: ${(!data.part || data.part <= 1) ? '0.5' : '1'};
+            ">
+                <i data-lucide="chevron-left"></i> Anterior
+            </button>
+            <span class="text-secondary" style="font-weight: 700; font-size: 0.9rem;">
+                ${data.part || 1} / ${data.total_parts || 1}
+            </span>
+            <button class="btn-nav-internal next-part-btn" ${(!data.part || data.part >= data.total_parts) ? 'disabled' : ''} style="
+                background: none; border: none; color: var(--color-primary); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; opacity: ${(!data.part || data.part >= data.total_parts) ? '0.5' : '1'};
+            ">
+                Siguiente <i data-lucide="chevron-right"></i>
+            </button>
+        </div>
     `;
     
     // Agregar directamente al chat area (no como mensaje)
@@ -591,9 +653,20 @@ function handleLessonResponse(data) {
                     }
                 }
             });
-            
-            if (window.lucide) window.lucide.createIcons();
         }
+        
+        // Listeners para navegación
+        const prevBtn = lessonCard.querySelector('.prev-part-btn');
+        const nextBtn = lessonCard.querySelector('.next-part-btn');
+        
+        if (prevBtn && !prevBtn.disabled) {
+            prevBtn.addEventListener('click', () => handleAction('lesson', (data.part || 1) - 1));
+        }
+        if (nextBtn && !nextBtn.disabled) {
+            nextBtn.addEventListener('click', () => handleAction('lesson', (data.part || 1) + 1));
+        }
+
+        if (window.lucide) window.lucide.createIcons();
     }, 100);
 }
 
@@ -654,6 +727,23 @@ function handleQuizResponse(data) {
             }).join('')}
         </div>
         <div id="quiz-feedback" class="hidden" style="margin-top: 1rem; padding: 1rem; border-radius: 0.75rem; font-weight: 700; font-size: 1rem;"></div>
+
+        <!-- Navegación Interna -->
+        <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+            <button class="btn-nav-internal prev-quiz-btn" disabled style="
+                background: none; border: none; color: var(--color-primary); font-weight: 600; cursor: not-allowed; display: flex; align-items: center; gap: 0.5rem; opacity: 0.5;
+            ">
+                <i data-lucide="chevron-left"></i> Anterior
+            </button>
+            <span class="text-secondary" style="font-weight: 700; font-size: 0.9rem;">
+                ${data.question_number || 1} / ${data.total_questions || 5}
+            </span>
+            <button class="btn-nav-internal next-quiz-btn" style="
+                background: none; border: none; color: var(--color-primary); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;
+            ">
+                Siguiente <i data-lucide="chevron-right"></i>
+            </button>
+        </div>
     `;
     
     const chatArea = document.getElementById('chat-area');
@@ -782,6 +872,12 @@ function handleQuizResponse(data) {
             });
         });
         
+        // Listeners para navegación
+        const nextBtn = quizCard.querySelector('.next-quiz-btn');
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => handleAction('quiz', 'next'));
+        }
+
         // Inicializar iconos de Lucide para botones de audio
         if (window.lucide) window.lucide.createIcons();
     }, 100);
@@ -930,6 +1026,23 @@ function handleRoleplayStart(data) {
             </p>
             <div id="roleplay-audio-btn"></div>
         </div>
+
+        <!-- Navegación Interna (Visual) -->
+        <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+            <button class="btn-nav-internal prev-roleplay-btn" disabled style="
+                background: none; border: none; color: var(--color-primary); font-weight: 600; cursor: not-allowed; display: flex; align-items: center; gap: 0.5rem; opacity: 0.5;
+            ">
+                <i data-lucide="chevron-left"></i> Anterior
+            </button>
+            <span class="text-secondary" style="font-weight: 700; font-size: 0.9rem;">
+                Turno ${roleplayState.turnNumber} / ${roleplayState.totalTurns}
+            </span>
+            <button class="btn-nav-internal next-roleplay-btn" disabled style="
+                background: none; border: none; color: var(--color-primary); font-weight: 600; cursor: not-allowed; display: flex; align-items: center; gap: 0.5rem; opacity: 0.5;
+            ">
+                Siguiente <i data-lucide="chevron-right"></i>
+            </button>
+        </div>
     `;
     
     if (chatArea) {
@@ -990,6 +1103,23 @@ function handleRoleplayContinue(data) {
                 ${roleplayState.lastBotSpeech}
             </p>
             <div id="roleplay-audio-btn-${Date.now()}"></div>
+        </div>
+
+        <!-- Navegación Interna (Visual) -->
+        <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+            <button class="btn-nav-internal prev-roleplay-btn" disabled style="
+                background: none; border: none; color: var(--color-primary); font-weight: 600; cursor: not-allowed; display: flex; align-items: center; gap: 0.5rem; opacity: 0.5;
+            ">
+                <i data-lucide="chevron-left"></i> Anterior
+            </button>
+            <span class="text-secondary" style="font-weight: 700; font-size: 0.9rem;">
+                Turno ${roleplayState.turnNumber} / ${roleplayState.totalTurns}
+            </span>
+            <button class="btn-nav-internal next-roleplay-btn" disabled style="
+                background: none; border: none; color: var(--color-primary); font-weight: 600; cursor: not-allowed; display: flex; align-items: center; gap: 0.5rem; opacity: 0.5;
+            ">
+                Siguiente <i data-lucide="chevron-right"></i>
+            </button>
         </div>
     `;
     
