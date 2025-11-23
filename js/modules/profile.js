@@ -156,59 +156,77 @@ function updateThemeUI(isDark) {
 function getWordIcon(word) {
     const w = word.toLowerCase().trim();
     
+    // Helper para regex de palabra completa
+    const matches = (keywords) => new RegExp(`\\b(${keywords})\\b`, 'i').test(w);
+
+    // Electrónica / Gadgets (Prioridad alta para 'remote')
+    if (matches('remote|remote control|tv|television|camera|battery|charger|plug|switch|button|control')) return '📺';
+    
+    // Baño / Higiene (Prioridad alta para 'paper' compuesto)
+    if (matches('toilet paper|soap|shampoo|towel|toothbrush|toothpaste|bath|shower|toilet|tissue|hygiene')) return '🧻';
+
     // Animales
-    if (/dog|cat|bird|fish|lion|tiger|elephant|bear|cow|horse|sheep|pig|chicken|duck|rabbit|mouse|snake|frog|monkey|giraffe|zebra|kangaroo|pet|animal/.test(w)) return '🐾';
+    if (matches('dog|cat|bird|fish|lion|tiger|elephant|bear|cow|horse|sheep|pig|chicken|duck|rabbit|mouse|snake|frog|monkey|giraffe|zebra|kangaroo|pet|animal|insect|spider|fly|bee|butterfly')) return '🐾';
     
-    // Frutas
-    if (/apple|banana|orange|grape|lemon|watermelon|strawberry|pear|peach|cherry|mango|pineapple|kiwi|melon|fruit|berry/.test(w)) return '🍎';
+    // Frutas / Verduras
+    if (matches('apple|banana|orange|grape|lemon|watermelon|strawberry|pear|peach|cherry|mango|pineapple|kiwi|melon|fruit|berry|vegetable|carrot|potato|tomato|onion|garlic|lettuce|cucumber')) return '🍎';
     
-    // Comida
-    if (/food|meal|dinner|lunch|breakfast|pizza|burger|sandwich|bread|cheese|egg|meat|chicken|rice|pasta|soup|salad|cake|cookie|chocolate|candy|sugar|salt/.test(w)) return '🍽️';
+    // Comida (General)
+    if (matches('food|meal|dinner|lunch|breakfast|pizza|burger|sandwich|bread|cheese|egg|meat|chicken|rice|pasta|soup|salad|cake|cookie|chocolate|candy|sugar|salt|pepper|butter|oil')) return '🍔';
     
     // Bebidas
-    if (/water|juice|milk|coffee|tea|soda|beer|wine|drink|beverage|bottle|cup|glass/.test(w)) return '🥤';
+    if (matches('water|juice|milk|coffee|tea|soda|beer|wine|drink|beverage|bottle')) return '🥤';
+    
+    // Vajilla / Cocina (Glass específico aquí)
+    if (matches('glass|cup|mug|plate|dish|fork|spoon|knife|pan|pot|bowl|kitchen|cooker|oven|fridge|microwave')) return '🍽️';
     
     // Partes del cuerpo
-    if (/mouth|eye|hand|foot|head|nose|ear|arm|leg|finger|toe|knee|elbow|shoulder|neck|face|body|hair|tooth|teeth|back|stomach/.test(w)) return '👤';
+    if (matches('mouth|eye|hand|foot|head|nose|ear|arm|leg|finger|toe|knee|elbow|shoulder|neck|face|body|hair|tooth|teeth|back|stomach|heart|brain')) return '👤';
     
-    // Útiles escolares / Oficina
-    if (/pencil|pen|book|notebook|eraser|ruler|scissors|glue|paper|crayon|marker|desk|school|class|student|teacher|board/.test(w)) return '📝';
+    // Útiles escolares / Oficina (Paper genérico aquí, después de toilet paper)
+    if (matches('pencil|pen|book|notebook|eraser|ruler|scissors|glue|paper|crayon|marker|desk|school|class|student|teacher|board|backpack|bag')) return '📝';
     
     // Vehículos / Transporte
-    if (/car|bus|train|plane|bike|motorcycle|truck|boat|ship|taxi|subway|vehicle|drive|ride|wheel/.test(w)) return '🚗';
+    if (matches('car|bus|train|plane|airplane|bike|bicycle|motorcycle|truck|boat|ship|taxi|subway|vehicle|drive|ride|wheel|tire')) return '🚗';
     
     // Naturaleza
-    if (/tree|flower|plant|sun|moon|star|cloud|rain|snow|wind|mountain|river|ocean|beach|forest|grass|leaf|sky|nature|world|earth/.test(w)) return '🌿';
+    if (matches('tree|flower|plant|sun|moon|star|cloud|rain|snow|wind|mountain|river|ocean|beach|forest|grass|leaf|sky|nature|world|earth|stone|rock|sand')) return '🌿';
     
-    // Casa/Muebles
-    if (/chair|table|bed|door|window|house|room|kitchen|bathroom|sofa|couch|desk|lamp|mirror|home|apartment|floor|wall|roof/.test(w)) return '🏠';
+    // Casa / Muebles
+    if (matches('chair|table|bed|door|window|house|room|kitchen|bathroom|bedroom|living room|sofa|couch|desk|lamp|mirror|home|apartment|floor|wall|roof|ceiling|carpet|rug')) return '🏠';
     
     // Ropa
-    if (/shirt|pants|shoes|dress|hat|jacket|coat|socks|skirt|jeans|sweater|tie|belt|gloves|clothes|wear|fashion/.test(w)) return '👕';
+    if (matches('shirt|t-shirt|pants|trousers|shoes|dress|hat|cap|jacket|coat|socks|skirt|jeans|sweater|tie|belt|gloves|clothes|wear|fashion|scarf|boots')) return '👕';
     
-    // Números/Tiempo
-    if (/number|time|clock|hour|minute|day|week|month|year|today|tomorrow|yesterday|morning|afternoon|evening|night|monday|tuesday|wednesday|thursday|friday|saturday|sunday/.test(w)) return '🕐';
+    // Números / Tiempo
+    if (matches('number|time|clock|hour|minute|second|day|week|month|year|today|tomorrow|yesterday|morning|afternoon|evening|night|monday|tuesday|wednesday|thursday|friday|saturday|sunday')) return '🕐';
     
     // Colores
-    if (/red|blue|green|yellow|black|white|color|pink|purple|orange|brown|gray|grey|dark|light/.test(w)) return '🎨';
+    if (matches('red|blue|green|yellow|black|white|color|pink|purple|orange|brown|gray|grey|dark|light|gold|silver')) return '🎨';
     
-    // Verbos/Acciones
-    if (/walk|run|jump|eat|drink|sleep|play|read|write|speak|talk|listen|see|look|watch|go|come|work|study|learn|teach|do|make/.test(w)) return '🏃';
+    // Verbos / Acciones
+    if (matches('walk|run|jump|eat|drink|sleep|play|read|write|speak|talk|listen|see|look|watch|go|come|work|study|learn|teach|do|make|buy|sell|open|close')) return '🏃';
     
     // Emociones
-    if (/happy|sad|angry|tired|excited|scared|surprised|worried|love|hate|feel|emotion|smile|cry|laugh/.test(w)) return '😊';
+    if (matches('happy|sad|angry|tired|excited|scared|surprised|worried|love|hate|feel|emotion|smile|cry|laugh|bored')) return '😊';
     
     // Tecnología
-    if (/computer|phone|tablet|laptop|internet|email|app|website|software|screen|keyboard|mouse|wifi|digital|tech/.test(w)) return '💻';
+    if (matches('computer|phone|mobile|cellphone|tablet|laptop|internet|email|app|website|software|screen|keyboard|mouse|wifi|digital|tech|robot')) return '💻';
     
     // Lugares
-    if (/city|town|country|park|shop|store|market|hospital|bank|restaurant|hotel|airport|station|street|road/.test(w)) return '🏙️';
+    if (matches('city|town|country|park|shop|store|market|supermarket|hospital|bank|restaurant|hotel|airport|station|street|road|bridge|building')) return '🏙️';
 
-    // Familia
-    if (/family|mother|father|mom|dad|brother|sister|son|daughter|grandma|grandpa|parent|child|baby|friend|boy|girl|man|woman/.test(w)) return '👨‍👩‍👧';
+    // Familia / Personas
+    if (matches('family|mother|father|mom|dad|brother|sister|son|daughter|grandma|grandpa|parent|child|baby|friend|boy|girl|man|woman|person|people')) return '👨‍👩‍👧';
+
+    // Música / Arte
+    if (matches('music|song|sing|dance|guitar|piano|drum|art|draw|paint|picture|photo')) return '🎵';
+
+    // Deportes
+    if (matches('sport|football|soccer|basketball|tennis|ball|game|player|team|swim|run')) return '⚽';
 
     // Default
-    return '📚';
+    return '🔹';
 }
 
 function updateFilterButtons() {
