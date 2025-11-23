@@ -442,7 +442,12 @@ async function handleAction(action, param = null) {
                 - Part 2: Grammar rules and usage.
                 - Part 3: Common phrases and practice examples.
                 
-                - Explanation in Spanish (Markdown). Do NOT include the examples in the markdown text, put them in the "examples" array.
+                - Explanation in Spanish (Markdown). 
+                - Use # for Main Title (e.g. # Topic)
+                - Use ## for Subtitles (e.g. ## Introduction)
+                - Use paragraphs with clear line breaks.
+                - Use bullet points for lists.
+                - Do NOT include the examples in the markdown text, put them in the "examples" array.
                 - Provide 3-5 clear examples in English with Spanish translation.
                 - Determine if this specific topic allows for a Roleplay exercise (conversation practice).
                 
@@ -450,7 +455,7 @@ async function handleAction(action, param = null) {
                 {
                     "type": "lesson",
                     "title": "Lesson Title (Part ${lessonState.currentPart}/${lessonState.totalParts})",
-                    "content_markdown": "# Title\\n\\nExplanation in Spanish...",
+                    "content_markdown": "# Title\\n\\n## Introduction\\n\\nExplanation in Spanish...\\n\\n## Grammar Rule\\n\\nMore explanation...",
                     "examples": [
                         {"en": "English sentence", "es": "Frase en español"},
                         {"en": "Another sentence", "es": "Otra frase"}
