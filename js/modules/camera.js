@@ -21,6 +21,7 @@ export function initCamera() {
     
     // Botón Volver
     document.getElementById('back-to-selector-btn')?.addEventListener('click', stopCamera);
+    document.getElementById('camera-exit-top-btn')?.addEventListener('click', stopCamera);
     
     // Botón Captura
     document.getElementById('capture-btn')?.addEventListener('click', handleCapture);
