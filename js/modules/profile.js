@@ -10,6 +10,19 @@ import { showToast, createAudioButton, showLoading } from '../utils/ui.js';
 let currentVocabFilter = 'all';
 let deferredPrompt = null;
 
+// Capturar evento lo antes posible (fuera de initProfile)
+window.addEventListener('beforeinstallprompt', (e) => {
+    console.log('✨ Evento beforeinstallprompt capturado');
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // Intentar mostrar el botón si el DOM ya está listo
+    const installBtn = document.getElementById('install-app-btn');
+    if (installBtn) {
+        installBtn.style.display = 'flex';
+    }
+});
+
 const AVATARS = [
     '👨‍🎓', '👩‍🎓', '🧑‍🏫', '🤖', '👽', '🦊', 
     '🦁', '🐯', '🐨', '🐼', '🐸', '🦄',
@@ -77,17 +90,13 @@ export function initProfile() {
         document.getElementById('avatar-modal').classList.add('hidden');
     });
 
-    // Detectar evento beforeinstallprompt
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        
-        // Mostrar botón de instalar
+    // Verificar si ya tenemos el evento guardado
+    if (deferredPrompt) {
         const installBtn = document.getElementById('install-app-btn');
         if (installBtn) {
             installBtn.style.display = 'flex';
         }
-    });
+    }
     
     // Botón Instalar App
     document.getElementById('install-app-btn')?.addEventListener('click', async () => {
