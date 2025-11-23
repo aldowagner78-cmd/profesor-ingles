@@ -506,27 +506,27 @@ function handleLessonResponse(data) {
     const lessonCard = document.createElement('div');
     lessonCard.className = 'lesson-card-full';
     lessonCard.style.cssText = `
-        width: 100vw;
-        margin-left: calc(-1 * var(--spacing-lg));
-        margin-right: calc(-1 * var(--spacing-lg));
+        width: calc(100% + 3rem);
+        margin-left: -1.5rem;
+        margin-right: -1.5rem;
         margin-top: 1rem;
         margin-bottom: 1rem;
-        background: linear-gradient(135deg, #FFF1EB 0%, #E8F4FD 100%);
+        background: var(--color-surface);
         border-radius: 0;
         padding: 1.5rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        border-top: 2px solid rgba(74, 144, 226, 0.3);
-        border-bottom: 2px solid rgba(74, 144, 226, 0.3);
+        box-shadow: var(--shadow-sm);
+        border-top: 1px solid var(--color-border);
+        border-bottom: 1px solid var(--color-border);
     `;
     
     lessonCard.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 2px solid rgba(74, 144, 226, 0.2); padding-bottom: 0.75rem;">
-            <div style="width: 2.5rem; height: 2.5rem; background: #4A90E2; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.75rem;">
+            <div style="width: 2.5rem; height: 2.5rem; background: var(--color-primary); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
             </div>
-            <h3 style="font-weight: 900; font-size: 1.25rem; color: #1E293B; margin: 0;">${data.title || 'Lección'}</h3>
+            <h3 class="text-primary" style="font-weight: 900; font-size: 1.25rem; margin: 0;">${data.title || 'Lección'}</h3>
         </div>
-        <div class="lesson-content" style="font-size: 0.95rem; line-height: 1.8; color: #334155;">
+        <div class="lesson-content text-primary" style="font-size: 1rem; line-height: 1.8;">
             ${content}
         </div>
     `;
@@ -598,44 +598,76 @@ function handleLessonResponse(data) {
 }
 
 function handleQuizResponse(data) {
-    const html = `
-        <div class="bg-info border-info" style="padding: 1rem; border-radius: 0.75rem; border: 2px solid;">
-            <p class="text-primary" style="font-weight: 700; margin-bottom: 1rem;">${data.question}</p>
-            <div class="quiz-options" style="display: flex; flex-direction: column; gap: 0.5rem;">
-                ${data.options.map((opt, idx) => {
-                    // Extraer solo texto en inglés (sin traducción en quiz)
-                    const isObject = typeof opt === 'object';
-                    const englishText = isObject ? opt.en : opt;
-                    
-                    return `
-                    <button class="quiz-option bg-surface border-neutral text-primary" data-index="${idx}" style="
-                        padding: 0.75rem;
-                        border: 1px solid;
-                        border-radius: 0.5rem;
-                        text-align: left;
-                        cursor: pointer;
-                        transition: all 0.2s ease;
-                        font-size: 0.875rem;
-                        display: flex;
-                        align-items: center;
-                        gap: 0.75rem;
-                        justify-content: space-between;
-                    ">
-                        <span style="font-weight: 600; flex: 1;">${englishText}</span>
-                        <span class="audio-button-container"></span>
-                    </button>
-                    `;
-                }).join('')}
+    // Crear tarjeta de quiz full width
+    const quizCard = document.createElement('div');
+    quizCard.className = 'quiz-card-full bg-surface';
+    quizCard.style.cssText = `
+        width: calc(100% + 3rem);
+        margin-left: -1.5rem;
+        margin-right: -1.5rem;
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+        padding: 1.5rem;
+        border-top: 1px solid var(--color-border);
+        border-bottom: 1px solid var(--color-border);
+        background: var(--color-surface);
+        box-shadow: var(--shadow-sm);
+    `;
+
+    quizCard.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+            <div style="width: 2.5rem; height: 2.5rem; background: var(--color-accent); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
             </div>
-            <div id="quiz-feedback" class="hidden" style="margin-top: 1rem; padding: 0.75rem; border-radius: 0.5rem; font-weight: 700;"></div>
+            <h3 class="text-primary" style="font-weight: 900; font-size: 1.25rem; margin: 0;">Quiz Time!</h3>
         </div>
+
+        <div class="bg-info border-info" style="padding: 1rem; border-radius: 0.75rem; border: 2px solid; margin-bottom: 1.5rem;">
+            <p class="text-primary" style="font-weight: 700; font-size: 1.1rem; line-height: 1.4;">${data.question}</p>
+        </div>
+        
+        <div class="quiz-options" style="display: flex; flex-direction: column; gap: 0.75rem;">
+            ${data.options.map((opt, idx) => {
+                // Extraer solo texto en inglés (sin traducción en quiz)
+                const isObject = typeof opt === 'object';
+                const englishText = isObject ? opt.en : opt;
+                
+                return `
+                <button class="quiz-option bg-surface border-neutral text-primary" data-index="${idx}" style="
+                    padding: 1rem;
+                    border: 1px solid;
+                    border-radius: 0.75rem;
+                    text-align: left;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    font-size: 1rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    justify-content: space-between;
+                    box-shadow: var(--shadow-sm);
+                ">
+                    <span style="font-weight: 600; flex: 1;">${englishText}</span>
+                    <span class="audio-button-container"></span>
+                </button>
+                `;
+            }).join('')}
+        </div>
+        <div id="quiz-feedback" class="hidden" style="margin-top: 1rem; padding: 1rem; border-radius: 0.75rem; font-weight: 700; font-size: 1rem;"></div>
     `;
     
-    const msgId = addMessageToUI(html, 'bot');
+    const chatArea = document.getElementById('chat-area');
+    if (chatArea) {
+        chatArea.appendChild(quizCard);
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+    
+    const msgId = `quiz-${Date.now()}`;
+    quizCard.id = msgId;
     
     // Agregar botones de audio para opciones en inglés
     setTimeout(() => {
-        const options = document.querySelectorAll(`#${msgId} .quiz-option`);
+        const options = quizCard.querySelectorAll('.quiz-option');
         options.forEach((btn, idx) => {
             const opt = data.options[idx];
             const englishText = typeof opt === 'object' ? opt.en : opt;
@@ -650,17 +682,31 @@ function handleQuizResponse(data) {
             
             // Event listeners
             btn.addEventListener('mouseenter', (e) => {
-                e.currentTarget.style.borderColor = 'var(--color-primary)';
+                if (!e.currentTarget.classList.contains('disabled')) {
+                    e.currentTarget.style.borderColor = 'var(--color-primary)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                }
             });
             btn.addEventListener('mouseleave', (e) => {
-                e.currentTarget.style.borderColor = 'var(--color-border)';
+                if (!e.currentTarget.classList.contains('disabled')) {
+                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                }
             });
             btn.addEventListener('click', (e) => {
+                if (e.currentTarget.classList.contains('disabled')) return;
+
                 const selectedIdx = parseInt(e.currentTarget.dataset.index);
-                const feedback = document.querySelector(`#${msgId} #quiz-feedback`);
+                const feedback = quizCard.querySelector('#quiz-feedback');
                 
                 // Deshabilitar todas las opciones
-                options.forEach(o => o.style.pointerEvents = 'none');
+                options.forEach(o => {
+                    o.classList.add('disabled');
+                    o.style.pointerEvents = 'none';
+                    o.style.opacity = '0.7';
+                });
+                
+                e.currentTarget.style.opacity = '1';
                 
                 if (selectedIdx === data.answer_index) {
                     // Correcto
@@ -721,8 +767,10 @@ function handleQuizResponse(data) {
                     e.currentTarget.classList.remove('bg-surface', 'border-neutral');
                     
                     // Mostrar la correcta
-                    options[data.answer_index].classList.add('bg-success', 'border-success');
-                    options[data.answer_index].classList.remove('bg-surface', 'border-neutral');
+                    const correctOption = options[data.answer_index];
+                    correctOption.classList.add('bg-success', 'border-success');
+                    correctOption.classList.remove('bg-surface', 'border-neutral');
+                    correctOption.style.opacity = '1';
                     
                     const correctOpt = data.options[data.answer_index];
                     const correctText = typeof correctOpt === 'object' ? correctOpt.en : correctOpt;
@@ -821,17 +869,17 @@ function handleRoleplayStart(data) {
     const sceneCard = document.createElement('div');
     sceneCard.className = 'roleplay-scene-card';
     sceneCard.style.cssText = `
-        width: 100vw;
-        margin-left: calc(-1 * var(--spacing-lg));
-        margin-right: calc(-1 * var(--spacing-lg));
+        width: calc(100% + 3rem);
+        margin-left: -1.5rem;
+        margin-right: -1.5rem;
         margin-top: 1rem;
         margin-bottom: 1rem;
         background: var(--color-bg-info);
         border-radius: 0;
         padding: 1.5rem;
         box-shadow: var(--shadow-sm);
-        border-top: 2px solid var(--color-border-info);
-        border-bottom: 2px solid var(--color-border-info);
+        border-top: 1px solid var(--color-border-info);
+        border-bottom: 1px solid var(--color-border-info);
     `;
     
     sceneCard.innerHTML = `
@@ -844,7 +892,7 @@ function handleRoleplayStart(data) {
                 <p class="text-secondary" style="font-size: 0.75rem; margin: 0;">Turno ${roleplayState.turnNumber} de ${roleplayState.totalTurns}</p>
             </div>
         </div>
-        <p class="text-primary" style="font-size: 0.95rem; line-height: 1.7; margin: 0;">
+        <p class="text-primary" style="font-size: 1rem; line-height: 1.7; margin: 0;">
             ${roleplayState.sceneDescription}
         </p>
     `;
@@ -854,15 +902,18 @@ function handleRoleplayStart(data) {
         chatArea.appendChild(sceneCard);
     }
     
-    // Mensaje del bot con botón de audio
+    // Mensaje del bot con botón de audio (AHORA FULL WIDTH)
     const botCard = document.createElement('div');
-    botCard.className = 'roleplay-bot-turn';
+    botCard.className = 'roleplay-bot-turn bg-surface';
     botCard.style.cssText = `
-        margin: 1rem 0;
+        width: calc(100% + 3rem);
+        margin-left: -1.5rem;
+        margin-right: -1.5rem;
+        margin-top: 0;
+        margin-bottom: 1rem;
         background: var(--color-surface);
-        padding: 1rem;
-        border-radius: 0.75rem;
-        border: 2px solid var(--color-border);
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--color-border);
         box-shadow: var(--shadow-sm);
     `;
     
@@ -874,7 +925,7 @@ function handleRoleplayStart(data) {
             <span class="text-secondary" style="font-size: 0.875rem; font-weight: 700;">Profesor (presiona 🔊 para escuchar)</span>
         </div>
         <div style="display: flex; align-items: center; gap: 1rem;">
-            <p class="text-primary" style="font-size: 1.05rem; font-weight: 600; margin: 0; flex: 1;">
+            <p class="text-primary" style="font-size: 1.1rem; font-weight: 600; margin: 0; flex: 1;">
                 ${roleplayState.lastBotSpeech}
             </p>
             <div id="roleplay-audio-btn"></div>
@@ -911,15 +962,19 @@ function handleRoleplayContinue(data) {
     roleplayState.turnNumber = data.turn_number || roleplayState.turnNumber + 1;
     roleplayState.lastBotSpeech = data.bot_speech || '';
     
-    // Mensaje del bot con botón de audio
+    // Mensaje del bot con botón de audio (FULL WIDTH)
     const botCard = document.createElement('div');
-    botCard.className = 'roleplay-bot-turn';
+    botCard.className = 'roleplay-bot-turn bg-surface';
     botCard.style.cssText = `
-        margin: 1rem 0;
+        width: calc(100% + 3rem);
+        margin-left: -1.5rem;
+        margin-right: -1.5rem;
+        margin-top: 1rem;
+        margin-bottom: 1rem;
         background: var(--color-surface);
-        padding: 1rem;
-        border-radius: 0.75rem;
-        border: 2px solid var(--color-border);
+        padding: 1.5rem;
+        border-top: 1px solid var(--color-border);
+        border-bottom: 1px solid var(--color-border);
         box-shadow: var(--shadow-sm);
     `;
     
@@ -931,7 +986,7 @@ function handleRoleplayContinue(data) {
             <span class="text-secondary" style="font-size: 0.875rem; font-weight: 700;">Profesor (Turno ${roleplayState.turnNumber}/${roleplayState.totalTurns})</span>
         </div>
         <div style="display: flex; align-items: center; gap: 1rem;">
-            <p class="text-primary" style="font-size: 1.05rem; font-weight: 600; margin: 0; flex: 1;">
+            <p class="text-primary" style="font-size: 1.1rem; font-weight: 600; margin: 0; flex: 1;">
                 ${roleplayState.lastBotSpeech}
             </p>
             <div id="roleplay-audio-btn-${Date.now()}"></div>
@@ -982,17 +1037,22 @@ function handleRoleplayFeedback(data) {
     // Usar clases semánticas en lugar de estilos inline hardcoded
     feedbackCard.className = isCorrect ? 'bg-success border-success' : 'bg-error border-error';
     feedbackCard.style.cssText = `
-        margin: 1rem 0;
-        padding: 1rem;
-        border-radius: 0.75rem;
-        border: 2px solid;
+        width: calc(100% + 3rem);
+        margin-left: -1.5rem;
+        margin-right: -1.5rem;
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+        padding: 1.5rem;
+        border-top: 1px solid;
+        border-bottom: 1px solid;
+        border-radius: 0;
         box-shadow: var(--shadow-sm);
     `;
     
     let feedbackHTML = `
         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
             <div style="font-size: 1.5rem;">${isCorrect ? '✅' : '❌'}</div>
-            <span class="${isCorrect ? 'text-success' : 'text-error'}" style="font-size: 0.875rem; font-weight: 700;">
+            <span class="${isCorrect ? 'text-success' : 'text-error'}" style="font-size: 1rem; font-weight: 700;">
                 ${isCorrect ? '¡Muy bien!' : 'Necesitas mejorar esto'}
             </span>
         </div>
@@ -1000,7 +1060,7 @@ function handleRoleplayFeedback(data) {
     
     if (data.user_said) {
         feedbackHTML += `
-            <p class="${isCorrect ? 'text-success' : 'text-error'}" style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.5rem;">
+            <p class="${isCorrect ? 'text-success' : 'text-error'}" style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 0.5rem;">
                 <strong>Dijiste:</strong> "${data.user_said}"
             </p>
         `;
@@ -1008,7 +1068,7 @@ function handleRoleplayFeedback(data) {
     
     if (data.feedback_es) {
         feedbackHTML += `
-            <p class="${isCorrect ? 'text-success' : 'text-error'}" style="font-size: 0.95rem; margin-bottom: 0.75rem;">
+            <p class="${isCorrect ? 'text-success' : 'text-error'}" style="font-size: 1rem; margin-bottom: 0.75rem;">
                 ${data.feedback_es}
             </p>
         `;
@@ -1016,10 +1076,10 @@ function handleRoleplayFeedback(data) {
     
     if (data.correct_example) {
         feedbackHTML += `
-            <div class="bg-surface" style="padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.75rem;">
+            <div class="bg-surface" style="padding: 1rem; border-radius: 0.5rem; margin-bottom: 0.75rem;">
                 <p class="text-secondary" style="font-size: 0.75rem; margin: 0 0 0.25rem 0; text-transform: uppercase; font-weight: 700;">Ejemplo correcto:</p>
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <p class="text-success" style="font-size: 1rem; font-weight: 600; margin: 0; flex: 1;">
+                    <p class="text-success" style="font-size: 1.1rem; font-weight: 600; margin: 0; flex: 1;">
                         ${data.correct_example}
                     </p>
                     <div id="feedback-audio-${Date.now()}"></div>
@@ -1030,7 +1090,7 @@ function handleRoleplayFeedback(data) {
     
     if (data.suggestion_es) {
         feedbackHTML += `
-            <p class="${isCorrect ? 'text-success' : 'text-error'}" style="font-size: 0.85rem; margin: 0; font-style: italic; opacity: 0.9;">
+            <p class="${isCorrect ? 'text-success' : 'text-error'}" style="font-size: 0.9rem; margin: 0; font-style: italic; opacity: 0.9;">
                 💡 ${data.suggestion_es}
             </p>
         `;
@@ -1039,15 +1099,16 @@ function handleRoleplayFeedback(data) {
     if (data.allow_retry) {
         feedbackHTML += `
             <button id="roleplay-retry-btn" style="
-                margin-top: 0.75rem;
-                padding: 0.5rem 1rem;
+                margin-top: 1rem;
+                padding: 0.75rem 1.5rem;
                 background: #7B68EE;
                 color: white;
                 border: none;
                 border-radius: 0.5rem;
                 font-weight: 700;
-                font-size: 0.875rem;
+                font-size: 1rem;
                 cursor: pointer;
+                width: 100%;
             ">🔄 Reintentar</button>
         `;
     }
