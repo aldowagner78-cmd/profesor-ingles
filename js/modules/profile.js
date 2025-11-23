@@ -5,7 +5,7 @@ import { setSpeechRate } from '../services/voice.js';
 import { SYLLABUS } from '../config.js';
 import { callGemini } from '../services/gemini.js';
 import { speakText } from '../services/voice.js';
-import { showToast, createAudioButton, showLoading } from '../utils/ui.js';
+import { showToast, createAudioButton, showLoading, showConfirmModal } from '../utils/ui.js';
 
 let currentVocabFilter = 'all';
 let deferredPrompt = null;
@@ -180,20 +180,24 @@ export function initProfile() {
     
     // Botón Reset
     document.getElementById('reset-btn')?.addEventListener('click', () => {
-        if (confirm('¿Estás seguro de borrar todo tu progreso? Esta acción no se puede deshacer.')) {
-            // Guardar API key antes de limpiar usando la clave correcta de CONFIG
-            const apiKey = localStorage.getItem(CONFIG.API_KEYS_KEY);
-            
-            resetState();
-            localStorage.clear();
-            
-            // Restaurar API key
-            if (apiKey) {
-                localStorage.setItem(CONFIG.API_KEYS_KEY, apiKey);
+        showConfirmModal(
+            '¿Reiniciar Progreso?',
+            'Se borrarán todos tus puntos, nivel y vocabulario. Tu API Key se mantendrá guardada.',
+            () => {
+                // Guardar API key antes de limpiar usando la clave correcta de CONFIG
+                const apiKey = localStorage.getItem(CONFIG.API_KEYS_KEY);
+                
+                resetState();
+                localStorage.clear();
+                
+                // Restaurar API key
+                if (apiKey) {
+                    localStorage.setItem(CONFIG.API_KEYS_KEY, apiKey);
+                }
+                
+                location.reload();
             }
-            
-            location.reload();
-        }
+        );
     });
     
     // Filtros de Vocabulario
