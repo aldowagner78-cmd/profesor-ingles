@@ -591,6 +591,13 @@ async function handleAction(action, param = null) {
             const loadingEl = document.getElementById(loadingId);
             if (loadingEl) loadingEl.remove();
         }
+
+        // Restaurar estado del botón inmediatamente después de recibir respuesta
+        if (activeBtn) {
+            activeBtn.innerHTML = originalBtnContent;
+            activeBtn.disabled = false;
+            activeBtn.style.opacity = '1';
+        }
         
         if (data.type === 'lesson') {
             handleLessonResponse(data);
