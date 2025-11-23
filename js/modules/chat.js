@@ -441,15 +441,16 @@ async function handleAction(action, param = null) {
                 
                 CRITICAL INSTRUCTIONS:
                 1. Do NOT include examples in the content_markdown. Only include theory, grammar rules, and explanations there.
-                2. Use Markdown for content_markdown (# Title, ## Subtitle, bullet points).
-                3. Provide 3-5 clear examples in the "examples" array.
-                4. Determine if this specific topic allows for a Roleplay exercise (conversation practice).
+                2. The content_markdown MUST be in SPANISH.
+                3. Use Markdown for content_markdown (# Title, ## Subtitle, bullet points).
+                4. Provide 3-5 clear examples in the "examples" array.
+                5. Determine if this specific topic allows for a Roleplay exercise (conversation practice).
                 
                 Respond STRICTLY in JSON format:
                 {
                     "type": "lesson",
                     "title": "Lesson Title",
-                    "content_markdown": "# Title\\n\\n## Subtitle\\n\\nTheory explanation...",
+                    "content_markdown": "# Título en Español\\n\\n## Subtítulo\\n\\nExplicación teórica en español...",
                     "examples": [
                         {"en": "English sentence", "es": "Frase en español"},
                         {"en": "Another sentence", "es": "Otra frase"}
