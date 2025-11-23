@@ -202,13 +202,17 @@ export function createAudioButton(text, lang = 'en-US') {
     });
     
     btn.onmouseover = () => {
-        btn.style.background = '#4A90E2';
-        btn.style.color = 'white';
+        if (!btn.classList.contains('playing')) {
+            btn.style.background = '#4A90E2';
+            btn.style.color = 'white';
+        }
     };
     
     btn.onmouseout = () => {
-        btn.style.background = '#E8F4FD';
-        btn.style.color = '#4A90E2';
+        if (!btn.classList.contains('playing')) {
+            btn.style.background = '#E8F4FD';
+            btn.style.color = '#4A90E2';
+        }
     };
     
     btn.onclick = (e) => {
@@ -219,13 +223,7 @@ export function createAudioButton(text, lang = 'en-US') {
         document.querySelectorAll('.audio-btn.playing').forEach(b => {
             if (b !== btn) {
                 b.classList.remove('playing');
-                b.innerHTML = '<i data-lucide="volume-2"></i>';
-                if (window.lucide && window.lucide.icons['volume-2']) {
-                    window.lucide.createIcons({ 
-                        root: b,
-                        icons: { 'volume-2': window.lucide.icons['volume-2'] } 
-                    });
-                }
+                // No cambiar icono, solo estilo
             }
         });
 
@@ -236,24 +234,13 @@ export function createAudioButton(text, lang = 'en-US') {
             if (result) {
                 // Comenzó a reproducir
                 btn.classList.add('playing');
-                btn.innerHTML = '<i data-lucide="square"></i>'; // Icono de Stop
-                
-                if (window.lucide && window.lucide.icons['square']) {
-                    window.lucide.createIcons({ 
-                        root: btn,
-                        icons: { 'square': window.lucide.icons['square'] } 
-                    });
-                }
+                // NO cambiar icono a cuadrado vacío
+                // Solo cambiar color para indicar activo
+                btn.style.color = '#EF4444'; // Rojo para indicar "Stop"
                 
                 const resetBtn = () => {
                     btn.classList.remove('playing');
-                    btn.innerHTML = '<i data-lucide="volume-2"></i>';
-                    if (window.lucide && window.lucide.icons['volume-2']) {
-                        window.lucide.createIcons({ 
-                            root: btn,
-                            icons: { 'volume-2': window.lucide.icons['volume-2'] } 
-                        });
-                    }
+                    btn.style.color = '#4A90E2'; // Volver a azul
                 };
                 
                 result.addEventListener('end', resetBtn);
@@ -261,13 +248,7 @@ export function createAudioButton(text, lang = 'en-US') {
             } else {
                 // Se detuvo (toggle off)
                 btn.classList.remove('playing');
-                btn.innerHTML = '<i data-lucide="volume-2"></i>';
-                if (window.lucide && window.lucide.icons['volume-2']) {
-                    window.lucide.createIcons({ 
-                        root: btn,
-                        icons: { 'volume-2': window.lucide.icons['volume-2'] } 
-                    });
-                }
+                btn.style.color = '#4A90E2'; // Volver a azul
             }
         }).catch(err => {
             console.error('Error importing voice service:', err);
