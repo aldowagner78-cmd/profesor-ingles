@@ -12,25 +12,22 @@ export function getSpeechRate() {
 
 // Text-to-Speech
 let currentText = null;
+let currentUtterance = null; // Variable global para evitar Garbage Collection
 
 export function speakText(text, lang = 'en-US') {
     if (!text) return null;
     
     // Cancelar cualquier speech en curso
     if (window.speechSynthesis.speaking) {
-        // Si es el mismo texto, es una acción de "Stop"
-        if (currentText === text) {
-            window.speechSynthesis.cancel();
-            currentText = null;
-            return null;
-        }
-        // Si es otro texto, cancelamos el anterior para empezar el nuevo
         window.speechSynthesis.cancel();
     }
     
     currentText = text;
     
+    // Crear utterance y asignarlo a la variable global
     const utterance = new SpeechSynthesisUtterance(text);
+    currentUtterance = utterance; // MANTENER REFERENCIA VIVA
+    
     utterance.lang = lang;
     utterance.rate = speechRate;
     utterance.pitch = 1.0;
@@ -38,10 +35,13 @@ export function speakText(text, lang = 'en-US') {
     
     utterance.onend = () => {
         currentText = null;
+        currentUtterance = null; // Limpiar referencia al terminar
     };
     
-    utterance.onerror = () => {
+    utterance.onerror = (e) => {
+        console.error("TTS Error:", e);
         currentText = null;
+        currentUtterance = null;
     };
     
     // Seleccionar una voz apropiada si está disponible
@@ -51,7 +51,16 @@ export function speakText(text, lang = 'en-US') {
         utterance.voice = preferredVoice;
     }
     
-    window.speechSynthesis.speak(utterance);
+    // Pequeño timeout para asegurar que la cancelación anterior se procesó
+    setTimeout(() => {
+        window.speechSynthesis.speak(utterance);
+        
+        // Fix para Chrome: a veces se pausa indefinidamente si el texto es largo
+        if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+        }
+    }, 10);
+    
     return utterance;
 }
 

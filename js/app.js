@@ -15,7 +15,7 @@ let studyTimerInterval = null;
 
 // Inicialización de la App
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Profesor IA v4 - Iniciando...");
+    console.log("Profesor IA v5.0 (Fixed) - Iniciando...");
     
     // Verificar API Key
     checkApiKey();
@@ -24,15 +24,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.lucide) {
         window.lucide.createIcons();
     }
+});
 
-    // Splash Screen Logic
-    setTimeout(() => {
-        const splash = document.getElementById('splash-screen');
-        if (splash) {
+// Splash Screen Logic - Usar window.load para asegurar carga completa
+window.addEventListener('load', () => {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        // Mantener visible al menos 2 segundos para branding
+        setTimeout(() => {
             splash.classList.add('fade-out');
             setTimeout(() => splash.remove(), 500);
-        }
-    }, 2500);
+        }, 2000);
+    }
 });
 
 function checkApiKey() {
