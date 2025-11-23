@@ -64,6 +64,24 @@
         </div>
     </div>
 
+    <!-- MODAL DE SELECCIÓN DE AVATAR -->
+    <div id="avatar-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="icon-circle">
+                    <i data-lucide="smile"></i>
+                </div>
+                <h2>Elige tu Avatar</h2>
+            </div>
+            <div class="modal-body">
+                <div id="avatar-grid" class="avatar-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                    <!-- Generado dinámicamente -->
+                </div>
+                <button id="close-avatar-modal" class="btn btn-secondary" style="width: 100%;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ENCABEZADO -->
     <header class="app-header">
         <div class="header-left">
@@ -233,8 +251,11 @@
             <div class="profile-container">
                 <!-- Header Perfil -->
                 <div class="profile-header">
-                    <div class="profile-avatar">
-                        <i data-lucide="user"></i>
+                    <div class="profile-avatar" id="profile-avatar-btn" style="cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; overflow: visible;">
+                        <span id="current-avatar-icon" style="font-size: 2.5rem; line-height: 1;">👨‍🎓</span>
+                        <div style="position: absolute; bottom: -5px; right: -5px; background: var(--color-primary); color: white; border-radius: 50%; width: 1.5rem; height: 1.5rem; display: flex; align-items: center; justify-content: center; border: 2px solid var(--color-surface); box-shadow: var(--shadow-sm);">
+                            <i data-lucide="edit-2" style="width: 0.8rem; height: 0.8rem;"></i>
+                        </div>
                     </div>
                     <h2>Estudiante</h2>
                     <p id="profile-level" class="profile-level">Nivel Inicial</p>

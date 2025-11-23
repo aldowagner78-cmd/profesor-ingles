@@ -10,9 +10,73 @@ import { showToast, createAudioButton, showLoading } from '../utils/ui.js';
 let currentVocabFilter = 'all';
 let deferredPrompt = null;
 
+const AVATARS = [
+    '👨‍🎓', '👩‍🎓', '🧑‍🏫', '🤖', '👽', '🦊', 
+    '🦁', '🐯', '🐨', '🐼', '🐸', '🦄',
+    '🦸', '🦹', '🧙', '🧚', '🧛', '🧟'
+];
+
 export function initProfile() {
     console.log("Inicializando Perfil...");
     
+    // Inicializar Avatar
+    const savedAvatar = localStorage.getItem('userAvatar') || '👨‍🎓';
+    updateAvatarUI(savedAvatar);
+
+    // Evento abrir modal avatar
+    document.getElementById('profile-avatar-btn')?.addEventListener('click', () => {
+        const modal = document.getElementById('avatar-modal');
+        const grid = document.getElementById('avatar-grid');
+        
+        if (grid && grid.children.length === 0) {
+            // Generar grid si está vacío
+            AVATARS.forEach(avatar => {
+                const btn = document.createElement('button');
+                btn.className = 'avatar-option';
+                btn.textContent = avatar;
+                btn.style.cssText = `
+                    font-size: 2rem;
+                    background: var(--color-surface);
+                    border: 2px solid var(--color-border);
+                    border-radius: 0.75rem;
+                    padding: 0.5rem;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    aspect-ratio: 1;
+                `;
+                
+                btn.addEventListener('click', () => {
+                    localStorage.setItem('userAvatar', avatar);
+                    updateAvatarUI(avatar);
+                    modal.classList.add('hidden');
+                    showToast('Avatar actualizado', 'success');
+                });
+                
+                btn.addEventListener('mouseenter', () => {
+                    btn.style.transform = 'scale(1.1)';
+                    btn.style.borderColor = 'var(--color-primary)';
+                });
+                
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.transform = 'scale(1)';
+                    btn.style.borderColor = 'var(--color-border)';
+                });
+                
+                grid.appendChild(btn);
+            });
+        }
+        
+        modal.classList.remove('hidden');
+    });
+
+    // Cerrar modal avatar
+    document.getElementById('close-avatar-modal')?.addEventListener('click', () => {
+        document.getElementById('avatar-modal').classList.add('hidden');
+    });
+
     // Detectar evento beforeinstallprompt
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
@@ -284,6 +348,13 @@ function updateFilterButtons() {
             }
         }
     });
+}
+
+function updateAvatarUI(avatar) {
+    const iconEl = document.getElementById('current-avatar-icon');
+    if (iconEl) {
+        iconEl.textContent = avatar;
+    }
 }
 
 export function renderProfile() {
