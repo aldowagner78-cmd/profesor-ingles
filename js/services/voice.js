@@ -16,11 +16,11 @@ let currentUtterance = null; // Variable global para evitar Garbage Collection
 let audioQueue = [];
 let isSpeaking = false;
 
-export function speakText(text, lang = 'en-US') {
+export function speakText(text, lang = 'en-US', onStart = null, onEnd = null) {
     if (!text) return null;
     
     // Añadir a la cola en lugar de cancelar inmediatamente
-    audioQueue.push({ text, lang });
+    audioQueue.push({ text, lang, onStart, onEnd });
     processQueue();
     
     return null; // Ya no devolvemos el utterance directamente
@@ -30,7 +30,7 @@ function processQueue() {
     if (isSpeaking || audioQueue.length === 0) return;
     
     isSpeaking = true;
-    const { text, lang } = audioQueue.shift();
+    const { text, lang, onStart, onEnd } = audioQueue.shift();
     currentText = text;
     
     // Crear utterance y asignarlo a la variable global
@@ -46,6 +46,7 @@ function processQueue() {
         currentText = null;
         currentUtterance = null; // Limpiar referencia al terminar
         isSpeaking = false;
+        if (onEnd) onEnd(); // Callback de fin
         processQueue(); // Procesar siguiente en la cola
     };
     
@@ -54,6 +55,7 @@ function processQueue() {
         currentText = null;
         currentUtterance = null;
         isSpeaking = false;
+        if (onEnd) onEnd(); // Callback de fin (error)
         processQueue(); // Intentar siguiente incluso si hubo error
     };
     
@@ -66,6 +68,7 @@ function processQueue() {
     
     // Pequeño timeout para asegurar estabilidad
     setTimeout(() => {
+        if (onStart) onStart(); // Callback de inicio
         window.speechSynthesis.speak(utterance);
         
         // Fix para Chrome: a veces se pausa indefinidamente si el texto es largo

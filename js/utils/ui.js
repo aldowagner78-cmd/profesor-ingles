@@ -223,41 +223,28 @@ export function createAudioButton(text, lang = 'en-US') {
         document.querySelectorAll('.audio-btn.playing').forEach(b => {
             if (b !== btn) {
                 b.classList.remove('playing');
-                // No cambiar icono, solo estilo
+                b.style.color = '#4A90E2';
             }
         });
 
         // Importar dinámicamente desde la ruta correcta
         import('../services/voice.js').then(({ speakText }) => {
-            const result = speakText(text, lang);
-            
-            if (result) {
-                // Comenzó a reproducir
-                btn.classList.add('playing');
-                // NO cambiar icono a cuadrado vacío
-                // Solo cambiar color para indicar activo
-                btn.style.color = '#EF4444'; // Rojo para indicar "Stop"
-                
-                const resetBtn = () => {
+            speakText(
+                text, 
+                lang,
+                () => {
+                    // onStart
+                    btn.classList.add('playing');
+                    btn.style.color = '#EF4444'; // Rojo para indicar activo
+                },
+                () => {
+                    // onEnd
                     btn.classList.remove('playing');
                     btn.style.color = '#4A90E2'; // Volver a azul
-                };
-                
-                result.addEventListener('end', resetBtn);
-                result.addEventListener('error', resetBtn);
-            } else {
-                // Se detuvo (toggle off)
-                btn.classList.remove('playing');
-                btn.style.color = '#4A90E2'; // Volver a azul
-            }
+                }
+            );
         }).catch(err => {
             console.error('Error importing voice service:', err);
-            // Fallback: intentar con el objeto global si existe
-            if (window.speechSynthesis) {
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = lang;
-                window.speechSynthesis.speak(utterance);
-            }
         });
     };
     
