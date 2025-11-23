@@ -86,9 +86,34 @@ export function initChat() {
     document.getElementById('clear-chat-btn')?.addEventListener('click', clearChat);
     document.getElementById('restart-lesson-btn')?.addEventListener('click', restartLesson);
     document.getElementById('prev-lesson-btn')?.addEventListener('click', prevLesson);
+    document.getElementById('toggle-controls-btn')?.addEventListener('click', toggleControls);
     
     // Restaurar historial
     renderHistory();
+}
+
+function toggleControls() {
+    const actionButtons = document.querySelector('.action-buttons');
+    const chatControls = document.querySelector('.chat-control-buttons');
+    const toggleBtn = document.getElementById('toggle-controls-btn');
+    
+    if (!actionButtons || !chatControls || !toggleBtn) return;
+    
+    const isHidden = actionButtons.style.display === 'none';
+    
+    if (isHidden) {
+        // Mostrar
+        actionButtons.style.display = 'flex';
+        chatControls.style.display = 'flex';
+        toggleBtn.innerHTML = '<i data-lucide="chevron-down"></i>';
+    } else {
+        // Ocultar
+        actionButtons.style.display = 'none';
+        chatControls.style.display = 'none';
+        toggleBtn.innerHTML = '<i data-lucide="chevron-up"></i>';
+    }
+    
+    if (window.lucide) window.lucide.createIcons();
 }
 
 function renderHistory() {
@@ -558,8 +583,14 @@ function handleLessonResponse(data) {
     // Ocultar botones de acción y control para dar espacio
     const actionButtons = document.querySelector('.action-buttons');
     const chatControls = document.querySelector('.chat-control-buttons');
+    const toggleBtn = document.getElementById('toggle-controls-btn');
+    
     if (actionButtons) actionButtons.style.display = 'none';
     if (chatControls) chatControls.style.display = 'none';
+    if (toggleBtn) {
+        toggleBtn.style.display = 'flex';
+        toggleBtn.innerHTML = '<i data-lucide="chevron-up"></i>';
+    }
 
     // 1. Renderizar teoría con Marked.js
     const content = window.marked ? window.marked.parse(data.content_markdown || '') : data.content_markdown;
