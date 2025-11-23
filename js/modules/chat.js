@@ -444,7 +444,7 @@ async function handleAction(action, param = null) {
                 2. The content_markdown MUST be in SPANISH.
                 3. Use Markdown for content_markdown (# Title, ## Subtitle, bullet points).
                 4. Provide 3-5 clear examples in the "examples" array.
-                5. Determine if this specific topic allows for a Roleplay exercise (conversation practice).
+                5. Do NOT include any text outside the JSON object.
                 
                 Respond STRICTLY in JSON format:
                 {
@@ -455,7 +455,6 @@ async function handleAction(action, param = null) {
                         {"en": "English sentence", "es": "Frase en español"},
                         {"en": "Another sentence", "es": "Otra frase"}
                     ],
-                    "has_roleplay": true,
                     "part": ${lessonState.currentPart},
                     "total_parts": ${lessonState.totalParts}
                 }
@@ -551,6 +550,17 @@ async function handleAction(action, param = null) {
 }
 
 function handleLessonResponse(data) {
+    // Actualizar estado de lección
+    if (data.total_parts) {
+        lessonState.totalParts = data.total_parts;
+    }
+
+    // Ocultar botones de acción y control para dar espacio
+    const actionButtons = document.querySelector('.action-buttons');
+    const chatControls = document.querySelector('.chat-control-buttons');
+    if (actionButtons) actionButtons.style.display = 'none';
+    if (chatControls) chatControls.style.display = 'none';
+
     // 1. Renderizar teoría con Marked.js
     const content = window.marked ? window.marked.parse(data.content_markdown || '') : data.content_markdown;
     
@@ -656,7 +666,7 @@ function handleLessonResponse(data) {
             nextBtn.addEventListener('click', () => handleAction('lesson', (data.part || 1) + 1));
         }
 
-        // Botones de Acción (Quiz y Roleplay Condicional)
+        // Botones de Acción (Solo Quiz, Roleplay eliminado de aquí)
         const footer = lessonCard.querySelector('.card-footer');
         if (footer) {
             const actionsContainer = document.createElement('div');
@@ -669,16 +679,6 @@ function handleLessonResponse(data) {
             goToQuizBtn.innerHTML = '<i data-lucide="clipboard-list"></i> Ir a Evaluación (Quiz)';
             goToQuizBtn.addEventListener('click', () => handleAction('quiz'));
             actionsContainer.appendChild(goToQuizBtn);
-
-            // Botón Roleplay (CONDICIONAL)
-            if (data.has_roleplay === true) {
-                const goToRoleplayBtn = document.createElement('button');
-                goToRoleplayBtn.className = 'btn btn-secondary';
-                goToRoleplayBtn.style.cssText = 'width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem; background-color: var(--color-bg-success); color: var(--color-text-success); border-color: var(--color-border-success);';
-                goToRoleplayBtn.innerHTML = '<i data-lucide="mic"></i> Ir a Roleplay (Práctica)';
-                goToRoleplayBtn.addEventListener('click', () => handleAction('roleplay'));
-                actionsContainer.appendChild(goToRoleplayBtn);
-            }
 
             footer.parentNode.insertBefore(actionsContainer, footer.nextSibling);
         }
