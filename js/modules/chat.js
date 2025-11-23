@@ -512,16 +512,20 @@ async function handleAction(action, param = null) {
         } else if (action === 'quiz') {
             // Lógica de navegación interna para quizzes
             if (param === 'next') {
-                quizState.currentQuestion++;
-                // Feedback visual en botón next quiz
-                const btn = document.querySelector('.next-quiz-btn');
-                if (btn) {
-                    activeBtn = btn;
-                    originalBtnContent = btn.innerHTML;
-                    btn.innerHTML = '<span class="spinner-small"></span> Cargando...';
-                    btn.disabled = true;
+                if (quizState.currentQuestion < quizState.totalQuestions) {
+                    quizState.currentQuestion++;
+                    // Feedback visual en botón next quiz
+                    const btn = document.querySelector('.next-quiz-btn');
+                    if (btn) {
+                        activeBtn = btn;
+                        originalBtnContent = btn.innerHTML;
+                        btn.innerHTML = '<span class="spinner-small"></span> Cargando...';
+                        btn.disabled = true;
+                    } else {
+                        loadingId = addMessageToUI('Generando pregunta...', 'bot');
+                    }
                 } else {
-                    loadingId = addMessageToUI('Generando pregunta...', 'bot');
+                    return; // Evitar avanzar más allá del total
                 }
             } else if (param === 'prev') {
                 if (quizState.currentQuestion > 1) quizState.currentQuestion--;
@@ -529,6 +533,7 @@ async function handleAction(action, param = null) {
             } else {
                 // Nuevo quiz
                 quizState.currentQuestion = 1;
+                quizState.totalQuestions = 5; // Asegurar reinicio a 5 preguntas
                 loadingId = addMessageToUI('Preparando quiz...', 'bot');
             }
 
@@ -801,6 +806,8 @@ function handleQuizResponse(data) {
         box-shadow: var(--shadow-sm);
     `;
 
+    const isLast = (data.question_number || 1) >= (data.total_questions || 5);
+
     quizCard.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
             <div style="width: 2.5rem; height: 2.5rem; background: var(--color-accent); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
@@ -852,8 +859,8 @@ function handleQuizResponse(data) {
             <span class="text-secondary" style="font-weight: 700; font-size: 0.9rem;">
                 ${data.question_number || 1} / ${data.total_questions || 5}
             </span>
-            <button class="btn-nav-internal next-quiz-btn" style="
-                background: none; border: none; color: var(--color-primary); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;
+            <button class="btn-nav-internal next-quiz-btn" ${isLast ? 'disabled' : ''} style="
+                background: none; border: none; color: var(--color-primary); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; ${isLast ? 'opacity: 0; pointer-events: none;' : ''}
             ">
                 Siguiente <i data-lucide="chevron-right"></i>
             </button>
