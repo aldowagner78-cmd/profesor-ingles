@@ -496,7 +496,7 @@ function showAnalysisResult(data) {
         content.querySelector('#correct-btn')?.addEventListener('click', () => {
             addToVocabulary({
                 object: data.object,
-                translation: data.translation,
+                translation: data.object_es || data.translation,
                 ipa: data.ipa
             });
             const state = getState();
