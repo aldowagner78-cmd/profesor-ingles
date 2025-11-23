@@ -442,16 +442,20 @@ async function handleAction(action, param = null) {
                 - Part 2: Grammar rules and usage.
                 - Part 3: Common phrases and practice examples.
                 
-                - Explanation in Spanish
-                - Examples in BILINGUAL format: "English (Español)"
-                - Use Markdown formatting
-                - ALWAYS include Spanish translation in parentheses after English text
+                - Explanation in Spanish (Markdown). Do NOT include the examples in the markdown text, put them in the "examples" array.
+                - Provide 3-5 clear examples in English with Spanish translation.
+                - Determine if this specific topic allows for a Roleplay exercise (conversation practice).
                 
                 Respond STRICTLY in JSON format:
                 {
                     "type": "lesson",
                     "title": "Lesson Title (Part ${lessonState.currentPart}/${lessonState.totalParts})",
-                    "content_markdown": "# Title\\n\\nContent...",
+                    "content_markdown": "# Title\\n\\nExplanation in Spanish...",
+                    "examples": [
+                        {"en": "English sentence", "es": "Frase en español"},
+                        {"en": "Another sentence", "es": "Otra frase"}
+                    ],
+                    "has_roleplay": true,
                     "part": ${lessonState.currentPart},
                     "total_parts": ${lessonState.totalParts}
                 }
@@ -566,6 +570,34 @@ function handleLessonResponse(data) {
         border-bottom: 1px solid var(--color-border);
     `;
     
+    // Generar HTML de ejemplos si existen
+    let examplesHtml = '';
+    if (data.examples && Array.isArray(data.examples) && data.examples.length > 0) {
+        examplesHtml = `
+            <div class="lesson-examples" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--color-border);">
+                <h4 style="color: var(--color-primary); margin-bottom: 1rem; font-size: 1.1rem;">📝 Ejemplos Prácticos</h4>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    ${data.examples.map((ex, idx) => `
+                        <div class="example-row" style="
+                            display: flex; 
+                            flex-direction: column; 
+                            background: var(--color-bg-subtle, #f8fafc); 
+                            padding: 0.75rem; 
+                            border-radius: 0.5rem; 
+                            border-left: 3px solid var(--color-primary);
+                        ">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                                <span style="font-weight: 600; color: var(--color-text-primary); font-size: 1rem;">${ex.en}</span>
+                                <div id="example-audio-${idx}-${Date.now()}" class="example-audio-container"></div>
+                            </div>
+                            <span style="font-size: 0.9rem; color: var(--color-text-secondary); font-style: italic;">${ex.es}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
     lessonCard.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.75rem;">
             <div style="width: 2.5rem; height: 2.5rem; background: var(--color-primary); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
@@ -576,6 +608,8 @@ function handleLessonResponse(data) {
         <div class="lesson-content text-primary" style="font-size: 1rem; line-height: 1.8;">
             ${content}
         </div>
+        
+        ${examplesHtml}
         
         <!-- Navegación Interna -->
         <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
@@ -605,54 +639,18 @@ function handleLessonResponse(data) {
     const msgId = `lesson-${Date.now()}`;
     lessonCard.id = msgId;
     
-    // Agregar botones de audio SOLO a texto en inglés puro
+    // Agregar botones de audio a los ejemplos estructurados
     setTimeout(() => {
-        const lessonContent = lessonCard.querySelector('.lesson-content');
-        if (lessonContent) {
-            // Buscar elementos que potencialmente contengan inglés
-            const elements = lessonContent.querySelectorAll('li, code, strong, p, em, blockquote');
-            
-            elements.forEach(element => {
-                // Saltar si ya tiene botón
-                if (element.querySelector('.audio-btn')) return;
-                
-                const text = element.textContent.trim();
-                
-                // Intentar extraer solo la parte en inglés (maneja textos mixtos)
-                const englishText = extractEnglishOnly(text);
-                
-                if (englishText) {
-                    // Si el texto original es 100% inglés, agregar botón al final
-                    if (isEnglishText(text)) {
-                        const audioBtn = createAudioButton(englishText, 'en-US');
-                        audioBtn.className = 'audio-btn';
-                        audioBtn.style.display = 'inline-flex';
-                        audioBtn.style.verticalAlign = 'middle';
-                        audioBtn.style.marginLeft = '0.5rem';
-                        element.appendChild(audioBtn);
-                    } else {
-                        // Si es texto mixto (ej: "Hello (Hola)"), crear un wrapper solo para la parte en inglés
-                        const textContent = element.innerHTML;
-                        const englishEscaped = englishText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                        
-                        // Buscar la parte en inglés y agregarle el botón
-                        const pattern = new RegExp(`(${englishEscaped})(?=\\s*[\\(—–:-])`, 'i');
-                        if (pattern.test(textContent)) {
-                            const newContent = textContent.replace(pattern, (match) => {
-                                const audioBtn = createAudioButton(englishText, 'en-US');
-                                audioBtn.className = 'audio-btn';
-                                audioBtn.style.display = 'inline-flex';
-                                audioBtn.style.verticalAlign = 'middle';
-                                audioBtn.style.marginLeft = '0.5rem';
-                                
-                                const wrapper = document.createElement('span');
-                                wrapper.innerHTML = match;
-                                wrapper.appendChild(audioBtn);
-                                return wrapper.outerHTML;
-                            });
-                            element.innerHTML = newContent;
-                        }
-                    }
+        if (data.examples && Array.isArray(data.examples)) {
+            data.examples.forEach((ex, idx) => {
+                // Buscar el contenedor por ID parcial (usando querySelector con atributo id que empieza por...)
+                // O mejor, buscar todos los contenedores y asignar por índice
+                const containers = lessonCard.querySelectorAll('.example-audio-container');
+                if (containers[idx]) {
+                    const audioBtn = createAudioButton(ex.en, 'en-US');
+                    audioBtn.style.width = '1.75rem';
+                    audioBtn.style.height = '1.75rem';
+                    containers[idx].appendChild(audioBtn);
                 }
             });
         }
@@ -669,24 +667,29 @@ function handleLessonResponse(data) {
         }
 
         // Botones de navegación cruzada (Quiz / Roleplay)
-        const goToQuizBtn = document.createElement('button');
-        goToQuizBtn.className = 'btn btn-secondary';
-        goToQuizBtn.style.cssText = 'width: 100%; margin-top: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;';
-        goToQuizBtn.innerHTML = '<i data-lucide="clipboard-list"></i> Ir a Evaluación (Quiz)';
-        goToQuizBtn.addEventListener('click', () => handleAction('quiz'));
-
-        const goToRoleplayBtn = document.createElement('button');
-        goToRoleplayBtn.className = 'btn btn-secondary';
-        goToRoleplayBtn.style.cssText = 'width: 100%; margin-top: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;';
-        goToRoleplayBtn.innerHTML = '<i data-lucide="mic"></i> Ir a Roleplay (Práctica)';
-        goToRoleplayBtn.addEventListener('click', () => handleAction('roleplay'));
-
         const footer = lessonCard.querySelector('.card-footer');
         if (footer) {
             const actionsContainer = document.createElement('div');
             actionsContainer.style.cssText = 'margin-top: 1rem; border-top: 1px solid var(--color-border); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;';
+            
+            // Botón Quiz (Siempre visible)
+            const goToQuizBtn = document.createElement('button');
+            goToQuizBtn.className = 'btn btn-secondary';
+            goToQuizBtn.style.cssText = 'width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;';
+            goToQuizBtn.innerHTML = '<i data-lucide="clipboard-list"></i> Ir a Evaluación (Quiz)';
+            goToQuizBtn.addEventListener('click', () => handleAction('quiz'));
             actionsContainer.appendChild(goToQuizBtn);
-            actionsContainer.appendChild(goToRoleplayBtn);
+
+            // Botón Roleplay (CONDICIONAL)
+            if (data.has_roleplay) {
+                const goToRoleplayBtn = document.createElement('button');
+                goToRoleplayBtn.className = 'btn btn-secondary';
+                goToRoleplayBtn.style.cssText = 'width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;';
+                goToRoleplayBtn.innerHTML = '<i data-lucide="mic"></i> Ir a Roleplay (Práctica)';
+                goToRoleplayBtn.addEventListener('click', () => handleAction('roleplay'));
+                actionsContainer.appendChild(goToRoleplayBtn);
+            }
+
             footer.parentNode.insertBefore(actionsContainer, footer.nextSibling);
         }
 
