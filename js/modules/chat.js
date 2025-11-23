@@ -119,7 +119,8 @@ function toggleMicrophone() {
         startListening(
             (text) => {
                 // onResult
-                if (roleplayState.active) {
+                const state = getState();
+                if (state.roleplayState && state.roleplayState.active) {
                     // Modo roleplay: evaluar respuesta
                     evaluateRoleplayResponse(text);
                 } else {
@@ -147,6 +148,7 @@ async function evaluateRoleplayResponse(userSpeech) {
     
     try {
         const state = getState();
+        const roleplayState = state.roleplayState || {};
         const currentLevel = SYLLABUS[state.levelIdx];
         const currentTopic = currentLevel.topics[state.topicIdx];
         
@@ -978,22 +980,18 @@ function addMessageToUI(html, role, animate = true) {
 // SISTEMA DE ROLEPLAY INTERACTIVO
 // ============================================
 
-let roleplayState = {
-    active: false,
-    turnNumber: 0,
-    totalTurns: 0,
-    sceneDescription: '',
-    lastBotSpeech: ''
-};
+// roleplayState ahora se gestiona en state.js para persistencia
 
 function handleRoleplayStart(data) {
-    roleplayState = {
+    const newRoleplayState = {
         active: true,
         turnNumber: data.turn_number || 1,
         totalTurns: data.total_turns || 5,
         sceneDescription: data.scene_description || '',
         lastBotSpeech: data.bot_speech || ''
     };
+    
+    updateState({ roleplayState: newRoleplayState });
     
     // Tarjeta de descripción de escena (solo texto en español)
     const sceneCard = document.createElement('div');
@@ -1118,8 +1116,18 @@ function handleRoleplayStart(data) {
 }
 
 function handleRoleplayContinue(data) {
-    roleplayState.turnNumber = data.turn_number || roleplayState.turnNumber + 1;
-    roleplayState.lastBotSpeech = data.bot_speech || '';
+    const state = getState();
+    const roleplayState = state.roleplayState || {};
+    
+    const newTurnNumber = data.turn_number || roleplayState.turnNumber + 1;
+    const newBotSpeech = data.bot_speech || '';
+    
+    const updatedRoleplayState = {
+        ...roleplayState,
+        turnNumber: newTurnNumber,
+        lastBotSpeech: newBotSpeech
+    };
+    updateState({ roleplayState: updatedRoleplayState });
     
     // Mensaje del bot con botón de audio (FULL WIDTH)
     const botCard = document.createElement('div');
@@ -1142,11 +1150,11 @@ function handleRoleplayContinue(data) {
             <div style="width: 2rem; height: 2rem; background: var(--color-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="15"></line></svg>
             </div>
-            <span class="text-secondary" style="font-size: 0.875rem; font-weight: 700;">Profesor (Turno ${roleplayState.turnNumber}/${roleplayState.totalTurns})</span>
+            <span class="text-secondary" style="font-size: 0.875rem; font-weight: 700;">Profesor (Turno ${updatedRoleplayState.turnNumber}/${updatedRoleplayState.totalTurns})</span>
         </div>
         <div style="display: flex; align-items: center; gap: 1rem;">
             <p class="text-primary" style="font-size: 1.1rem; font-weight: 600; margin: 0; flex: 1;">
-                ${roleplayState.lastBotSpeech}
+                ${updatedRoleplayState.lastBotSpeech}
             </p>
             <div id="roleplay-audio-btn-${Date.now()}"></div>
         </div>
@@ -1159,7 +1167,7 @@ function handleRoleplayContinue(data) {
                 <i data-lucide="chevron-left"></i> Anterior
             </button>
             <span class="text-secondary" style="font-weight: 700; font-size: 0.9rem;">
-                Turno ${roleplayState.turnNumber} / ${roleplayState.totalTurns}
+                Turno ${updatedRoleplayState.turnNumber} / ${updatedRoleplayState.totalTurns}
             </span>
             <button class="btn-nav-internal next-roleplay-btn" disabled style="
                 background: none; border: none; color: var(--color-primary); font-weight: 600; cursor: not-allowed; display: flex; align-items: center; gap: 0.5rem; opacity: 0.5;
@@ -1193,7 +1201,7 @@ function handleRoleplayContinue(data) {
     setTimeout(() => {
         const audioContainer = botCard.querySelector(`#${audioId}`);
         if (audioContainer) {
-            const audioBtn = createAudioButton(roleplayState.lastBotSpeech, 'en-US');
+            const audioBtn = createAudioButton(updatedRoleplayState.lastBotSpeech, 'en-US');
             audioBtn.style.transform = 'scale(1.3)';
             audioContainer.appendChild(audioBtn);
             if (window.lucide) window.lucide.createIcons();
@@ -1209,10 +1217,10 @@ function handleRoleplayContinue(data) {
     }
     
     // Si es el último turno, mostrar mensaje de finalización
-    if (roleplayState.turnNumber >= roleplayState.totalTurns) {
+    if (updatedRoleplayState.turnNumber >= updatedRoleplayState.totalTurns) {
         setTimeout(() => {
             showToast('🎉 ¡Roleplay completado!', 'success');
-            roleplayState.active = false;
+            updateState({ roleplayState: { ...updatedRoleplayState, active: false } });
         }, 1000);
     }
 }

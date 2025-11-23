@@ -13,15 +13,24 @@ export function getSpeechRate() {
 // Text-to-Speech
 let currentText = null;
 let currentUtterance = null; // Variable global para evitar Garbage Collection
+let audioQueue = [];
+let isSpeaking = false;
 
 export function speakText(text, lang = 'en-US') {
     if (!text) return null;
     
-    // Cancelar cualquier speech en curso
-    if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-    }
+    // Añadir a la cola en lugar de cancelar inmediatamente
+    audioQueue.push({ text, lang });
+    processQueue();
     
+    return null; // Ya no devolvemos el utterance directamente
+}
+
+function processQueue() {
+    if (isSpeaking || audioQueue.length === 0) return;
+    
+    isSpeaking = true;
+    const { text, lang } = audioQueue.shift();
     currentText = text;
     
     // Crear utterance y asignarlo a la variable global
@@ -36,12 +45,16 @@ export function speakText(text, lang = 'en-US') {
     utterance.onend = () => {
         currentText = null;
         currentUtterance = null; // Limpiar referencia al terminar
+        isSpeaking = false;
+        processQueue(); // Procesar siguiente en la cola
     };
     
     utterance.onerror = (e) => {
         console.error("TTS Error:", e);
         currentText = null;
         currentUtterance = null;
+        isSpeaking = false;
+        processQueue(); // Intentar siguiente incluso si hubo error
     };
     
     // Seleccionar una voz apropiada si está disponible
@@ -51,7 +64,7 @@ export function speakText(text, lang = 'en-US') {
         utterance.voice = preferredVoice;
     }
     
-    // Pequeño timeout para asegurar que la cancelación anterior se procesó
+    // Pequeño timeout para asegurar estabilidad
     setTimeout(() => {
         window.speechSynthesis.speak(utterance);
         
@@ -60,8 +73,14 @@ export function speakText(text, lang = 'en-US') {
             window.speechSynthesis.resume();
         }
     }, 10);
-    
-    return utterance;
+}
+
+export function cancelAudio() {
+    audioQueue = [];
+    isSpeaking = false;
+    if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+    }
 }
 
 // Speech-to-Text

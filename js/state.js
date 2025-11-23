@@ -11,7 +11,8 @@ const defaultState = {
     completedTopics: [],
     dailyStreak: 0,
     lastStudyDate: null,
-    studyTimeToday: 0
+    studyTimeToday: 0,
+    roleplayState: null // Estado persistente del roleplay
 };
 
 export function getState() {
