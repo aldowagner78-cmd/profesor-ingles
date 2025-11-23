@@ -494,6 +494,8 @@ function renderVocabulary() {
         const message = currentVocabFilter === 'all' 
             ? 'Aún no has aprendido palabras. ¡Usa la cámara para empezar!'
             : `No hay palabras del nivel ${currentVocabFilter.toUpperCase()}`;
+        
+        list.style.display = 'block';
         list.innerHTML = `<p style="text-align: center; color: #94A3B8; font-size: 0.875rem; padding: 2rem;">${message}</p>`;
         return;
     }
