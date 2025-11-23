@@ -438,24 +438,18 @@ async function handleAction(action, param = null) {
                 Part: ${lessonState.currentPart} of ${lessonState.totalParts}
                 
                 Task: Generate content for part ${lessonState.currentPart} of a ${lessonState.totalParts}-part lesson series about this topic.
-                - Part 1: Introduction and basic vocabulary.
-                - Part 2: Grammar rules and usage.
-                - Part 3: Common phrases and practice examples.
                 
-                - Explanation in Spanish (Markdown). 
-                - Use # for Main Title (e.g. # Topic)
-                - Use ## for Subtitles (e.g. ## Introduction)
-                - Use paragraphs with clear line breaks.
-                - Use bullet points for lists.
-                - Do NOT include the examples in the markdown text, put them in the "examples" array.
-                - Provide 3-5 clear examples in English with Spanish translation.
-                - Determine if this specific topic allows for a Roleplay exercise (conversation practice).
+                CRITICAL INSTRUCTIONS:
+                1. Do NOT include examples in the content_markdown. Only include theory, grammar rules, and explanations there.
+                2. Use Markdown for content_markdown (# Title, ## Subtitle, bullet points).
+                3. Provide 3-5 clear examples in the "examples" array.
+                4. Determine if this specific topic allows for a Roleplay exercise (conversation practice).
                 
                 Respond STRICTLY in JSON format:
                 {
                     "type": "lesson",
-                    "title": "Lesson Title (Part ${lessonState.currentPart}/${lessonState.totalParts})",
-                    "content_markdown": "# Title\\n\\n## Introduction\\n\\nExplanation in Spanish...\\n\\n## Grammar Rule\\n\\nMore explanation...",
+                    "title": "Lesson Title",
+                    "content_markdown": "# Title\\n\\n## Subtitle\\n\\nTheory explanation...",
                     "examples": [
                         {"en": "English sentence", "es": "Frase en español"},
                         {"en": "Another sentence", "es": "Otra frase"}
@@ -556,9 +550,10 @@ async function handleAction(action, param = null) {
 }
 
 function handleLessonResponse(data) {
+    // 1. Renderizar teoría con Marked.js
     const content = window.marked ? window.marked.parse(data.content_markdown || '') : data.content_markdown;
     
-    // Crear tarjeta de lección que ocupa todo el ancho
+    // Crear tarjeta de lección
     const lessonCard = document.createElement('div');
     lessonCard.className = 'lesson-card-full';
     lessonCard.style.cssText = `
@@ -568,49 +563,36 @@ function handleLessonResponse(data) {
         margin-top: 1rem;
         margin-bottom: 1rem;
         background: var(--color-surface);
-        border-radius: 0;
         padding: 1.5rem;
         box-shadow: var(--shadow-sm);
         border-top: 1px solid var(--color-border);
         border-bottom: 1px solid var(--color-border);
     `;
     
-    // Generar HTML de ejemplos si existen
+    // 2. Construir HTML de ejemplos (Tarjetas separadas)
     let examplesHtml = '';
     if (data.examples && Array.isArray(data.examples) && data.examples.length > 0) {
         examplesHtml = `
-            <div class="lesson-examples" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--color-border);">
-                <h4 style="color: var(--color-primary); margin-bottom: 1rem; font-size: 1.1rem;">📝 Ejemplos Prácticos</h4>
-                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                    ${data.examples.map((ex, idx) => `
-                        <div class="example-row" style="
-                            display: flex; 
-                            flex-direction: column; 
-                            background: var(--color-bg-subtle, #f8fafc); 
-                            padding: 0.75rem; 
-                            border-radius: 0.5rem; 
-                            border-left: 3px solid var(--color-primary);
-                        ">
-                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-                                <span style="font-weight: 600; color: var(--color-text-primary); font-size: 1rem;">${ex.en}</span>
-                                <div id="example-audio-${idx}-${Date.now()}" class="example-audio-container"></div>
-                            </div>
-                            <span style="font-size: 0.9rem; color: var(--color-text-secondary); font-style: italic;">${ex.es}</span>
+            <div class="lesson-examples-container">
+                <h3 style="color: var(--color-primary); margin-bottom: 1rem; font-size: 1.1rem; font-weight: 800;">
+                    📝 Ejemplos Prácticos
+                </h3>
+                ${data.examples.map((ex, idx) => `
+                    <div class="example-card">
+                        <div class="example-text">
+                            <span class="example-en">${ex.en}</span>
+                            <span class="example-es">${ex.es}</span>
                         </div>
-                    `).join('')}
-                </div>
+                        <div id="example-audio-${idx}-${Date.now()}" class="example-audio-container"></div>
+                    </div>
+                `).join('')}
             </div>
         `;
     }
 
+    // 3. Ensamblar contenido
     lessonCard.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.75rem;">
-            <div style="width: 2.5rem; height: 2.5rem; background: var(--color-primary); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-            </div>
-            <h3 class="text-primary" style="font-weight: 900; font-size: 1.25rem; margin: 0;">${data.title || 'Lección'}</h3>
-        </div>
-        <div class="lesson-content text-primary" style="font-size: 1rem; line-height: 1.8;">
+        <div class="lesson-content">
             ${content}
         </div>
         
@@ -634,33 +616,35 @@ function handleLessonResponse(data) {
         </div>
     `;
     
-    // Agregar directamente al chat area (no como mensaje)
+    // Agregar al DOM
     const chatArea = document.getElementById('chat-area');
     if (chatArea) {
         chatArea.appendChild(lessonCard);
         chatArea.scrollTop = chatArea.scrollHeight;
     }
     
-    const msgId = `lesson-${Date.now()}`;
-    lessonCard.id = msgId;
-    
-    // Agregar botones de audio a los ejemplos estructurados
+    // 4. Inicializar Audio y Eventos
     setTimeout(() => {
+        // Botones de Audio para Ejemplos
         if (data.examples && Array.isArray(data.examples)) {
             data.examples.forEach((ex, idx) => {
-                // Buscar el contenedor por ID parcial (usando querySelector con atributo id que empieza por...)
-                // O mejor, buscar todos los contenedores y asignar por índice
+                // Buscar contenedor único
                 const containers = lessonCard.querySelectorAll('.example-audio-container');
                 if (containers[idx]) {
+                    // Crear botón que lee SOLO inglés
                     const audioBtn = createAudioButton(ex.en, 'en-US');
-                    audioBtn.style.width = '1.75rem';
-                    audioBtn.style.height = '1.75rem';
+                    audioBtn.style.width = '2.5rem';
+                    audioBtn.style.height = '2.5rem';
+                    audioBtn.style.background = 'var(--color-primary-light)';
+                    audioBtn.style.color = 'var(--color-primary)';
+                    audioBtn.style.borderRadius = '50%';
+                    
                     containers[idx].appendChild(audioBtn);
                 }
             });
         }
         
-        // Listeners para navegación
+        // Navegación de partes
         const prevBtn = lessonCard.querySelector('.prev-part-btn');
         const nextBtn = lessonCard.querySelector('.next-part-btn');
         
@@ -671,7 +655,7 @@ function handleLessonResponse(data) {
             nextBtn.addEventListener('click', () => handleAction('lesson', (data.part || 1) + 1));
         }
 
-        // Botones de navegación cruzada (Quiz / Roleplay)
+        // Botones de Acción (Quiz y Roleplay Condicional)
         const footer = lessonCard.querySelector('.card-footer');
         if (footer) {
             const actionsContainer = document.createElement('div');
@@ -680,16 +664,16 @@ function handleLessonResponse(data) {
             // Botón Quiz (Siempre visible)
             const goToQuizBtn = document.createElement('button');
             goToQuizBtn.className = 'btn btn-secondary';
-            goToQuizBtn.style.cssText = 'width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;';
+            goToQuizBtn.style.cssText = 'width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem;';
             goToQuizBtn.innerHTML = '<i data-lucide="clipboard-list"></i> Ir a Evaluación (Quiz)';
             goToQuizBtn.addEventListener('click', () => handleAction('quiz'));
             actionsContainer.appendChild(goToQuizBtn);
 
             // Botón Roleplay (CONDICIONAL)
-            if (data.has_roleplay) {
+            if (data.has_roleplay === true) {
                 const goToRoleplayBtn = document.createElement('button');
                 goToRoleplayBtn.className = 'btn btn-secondary';
-                goToRoleplayBtn.style.cssText = 'width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;';
+                goToRoleplayBtn.style.cssText = 'width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem; background-color: var(--color-bg-success); color: var(--color-text-success); border-color: var(--color-border-success);';
                 goToRoleplayBtn.innerHTML = '<i data-lucide="mic"></i> Ir a Roleplay (Práctica)';
                 goToRoleplayBtn.addEventListener('click', () => handleAction('roleplay'));
                 actionsContainer.appendChild(goToRoleplayBtn);
