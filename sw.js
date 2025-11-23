@@ -1,5 +1,5 @@
 // Service Worker para PWA - Profesor IA v4.0
-const CACHE_NAME = 'profesor-ia-v4.3-critical-fix';
+const CACHE_NAME = 'profesor-ia-v4.4-png-icons';
 const BASE_PATH = '/profesor-ingles';
 const urlsToCache = [
   `${BASE_PATH}/`,
@@ -16,7 +16,8 @@ const urlsToCache = [
   `${BASE_PATH}/js/utils/ui.js`,
   `${BASE_PATH}/manifest.json`,
   'https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.js',
-  'https://cdn.jsdelivr.net/npm/marked@latest/marked.min.js'
+  'https://cdn.jsdelivr.net/npm/marked@latest/marked.min.js',
+  'https://cdn-icons-png.flaticon.com/512/1903/1903172.png'
 ];
 
 // Instalación: cachear archivos
