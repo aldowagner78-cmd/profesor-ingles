@@ -10,6 +10,16 @@ export function getSpeechRate() {
     return speechRate;
 }
 
+export function initVoice() {
+    // iOS Audio Unlock Hack
+    // Reproduce un silencio breve para desbloquear el contexto de audio
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+        const utterance = new SpeechSynthesisUtterance('');
+        utterance.volume = 0;
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
 // Text-to-Speech
 let currentText = null;
 let currentUtterance = null; // Variable global para evitar Garbage Collection

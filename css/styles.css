@@ -1366,3 +1366,28 @@ input, textarea {
     color: var(--color-text-secondary);
     font-style: italic;
 }
+
+/* Spinner */
+.spinner, .spinner-small {
+    display: inline-block;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-left-color: currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.spinner {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.spinner-small {
+    width: 1rem;
+    height: 1rem;
+    margin-right: 0.5rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

@@ -438,8 +438,12 @@ async function handleAction(action, param = null) {
     const currentLevel = SYLLABUS[state.levelIdx];
     const currentTopic = currentLevel.topics[state.topicIdx];
     
-    const loadingId = addMessageToUI('Generando...', 'bot');
+    let loadingId = null;
     
+    // Gestión de estado de carga en botones de navegación interna
+    let activeBtn = null;
+    let originalBtnContent = '';
+
     try {
         let prompt = '';
         
@@ -447,11 +451,32 @@ async function handleAction(action, param = null) {
             // Lógica de navegación interna para lecciones
             if (typeof param === 'number') {
                 lessonState.currentPart = param;
+                
+                // Identificar botón presionado para feedback visual
+                const isNext = param > (lessonState.currentPart - 1); // Aproximación
+                // Intentar encontrar el botón en el DOM
+                const buttons = document.querySelectorAll('.btn-nav-internal');
+                buttons.forEach(btn => {
+                    if (btn.textContent.includes(isNext ? 'Siguiente' : 'Anterior') && !btn.disabled) {
+                        activeBtn = btn;
+                    }
+                });
+
+                if (activeBtn) {
+                    originalBtnContent = activeBtn.innerHTML;
+                    activeBtn.innerHTML = `<span class="spinner-small"></span> ${isNext ? 'Cargando...' : 'Cargando...'}`;
+                    activeBtn.disabled = true;
+                    activeBtn.style.opacity = '0.8';
+                } else {
+                    loadingId = addMessageToUI('Generando lección...', 'bot');
+                }
+
             } else {
                 // Nueva lección
                 lessonState.currentPart = 1;
                 lessonState.totalParts = 3; // Default
                 lessonState.currentTopicRequest = param || '';
+                loadingId = addMessageToUI('Preparando lección...', 'bot');
             }
 
             const topicStr = lessonState.currentTopicRequest ? `${currentTopic} (${lessonState.currentTopicRequest})` : currentTopic;
@@ -488,11 +513,23 @@ async function handleAction(action, param = null) {
             // Lógica de navegación interna para quizzes
             if (param === 'next') {
                 quizState.currentQuestion++;
+                // Feedback visual en botón next quiz
+                const btn = document.querySelector('.next-quiz-btn');
+                if (btn) {
+                    activeBtn = btn;
+                    originalBtnContent = btn.innerHTML;
+                    btn.innerHTML = '<span class="spinner-small"></span> Cargando...';
+                    btn.disabled = true;
+                } else {
+                    loadingId = addMessageToUI('Generando pregunta...', 'bot');
+                }
             } else if (param === 'prev') {
                 if (quizState.currentQuestion > 1) quizState.currentQuestion--;
+                loadingId = addMessageToUI('Cargando anterior...', 'bot');
             } else {
                 // Nuevo quiz
                 quizState.currentQuestion = 1;
+                loadingId = addMessageToUI('Preparando quiz...', 'bot');
             }
 
             prompt = `
@@ -521,6 +558,7 @@ async function handleAction(action, param = null) {
                 }
             `;
         } else if (action === 'roleplay') {
+            loadingId = addMessageToUI('Preparando escenario...', 'bot');
             // Iniciar nueva escena de roleplay
             prompt = `
                 You are an English Teacher API.
@@ -539,16 +577,20 @@ async function handleAction(action, param = null) {
                 }
             `;
         } else if (action === 'next') {
-            const loadingEl = document.getElementById(loadingId);
-            if (loadingEl) loadingEl.remove();
+            if (loadingId) {
+                const loadingEl = document.getElementById(loadingId);
+                if (loadingEl) loadingEl.remove();
+            }
             nextTopic();
             return;
         }
         
         const data = await callGemini(prompt);
         
-        const loadingEl = document.getElementById(loadingId);
-        if (loadingEl) loadingEl.remove();
+        if (loadingId) {
+            const loadingEl = document.getElementById(loadingId);
+            if (loadingEl) loadingEl.remove();
+        }
         
         if (data.type === 'lesson') {
             handleLessonResponse(data);
@@ -565,11 +607,22 @@ async function handleAction(action, param = null) {
         }
         
     } catch (e) {
-        const loadingEl = document.getElementById(loadingId);
-        if (loadingEl) {
-            loadingEl.querySelector('.message-bubble').innerHTML = `
-                <span class="text-error" style="font-weight: 700;">Error: ${e.message}</span>
-            `;
+        if (loadingId) {
+            const loadingEl = document.getElementById(loadingId);
+            if (loadingEl) {
+                loadingEl.querySelector('.message-bubble').innerHTML = `
+                    <span class="text-error" style="font-weight: 700;">Error: ${e.message}</span>
+                `;
+            }
+        } else {
+            addMessageToUI(`<span class="text-error">Error: ${e.message}</span>`, 'bot');
+        }
+        
+        // Restaurar botón si hubo error
+        if (activeBtn) {
+            activeBtn.innerHTML = originalBtnContent;
+            activeBtn.disabled = false;
+            activeBtn.style.opacity = '1';
         }
     }
 }
@@ -634,7 +687,7 @@ function handleLessonResponse(data) {
 
     // 3. Ensamblar contenido
     lessonCard.innerHTML = `
-        <div class="lesson-content">
+        <div class="lesson-content" style="opacity: 1;">
             ${content}
         </div>
         
@@ -663,6 +716,12 @@ function handleLessonResponse(data) {
     if (chatArea) {
         chatArea.appendChild(lessonCard);
         chatArea.scrollTop = chatArea.scrollHeight;
+        
+        // Animar contenido
+        const contentEl = lessonCard.querySelector('.lesson-content');
+        if (contentEl) {
+            animateContentReveal(contentEl);
+        }
     }
     
     // 4. Inicializar Audio y Eventos
@@ -966,6 +1025,23 @@ function nextTopic() {
     } else {
         showToast('¡Has completado todos los niveles! 🎓', 'success');
     }
+}
+
+function animateContentReveal(element) {
+    const children = Array.from(element.children);
+    children.forEach((child, index) => {
+        child.style.opacity = '0';
+        child.style.transform = 'translateY(10px)';
+        child.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        
+        // Force reflow
+        void child.offsetWidth;
+        
+        setTimeout(() => {
+            child.style.opacity = '1';
+            child.style.transform = 'translateY(0)';
+        }, index * 100 + 50);
+    });
 }
 
 function addMessageToUI(html, role, animate = true) {

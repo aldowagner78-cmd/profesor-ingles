@@ -5,6 +5,7 @@ import { initCamera, cleanupCamera } from './modules/camera.js';
 import { initChat } from './modules/chat.js';
 import { initProfile, renderProfile } from './modules/profile.js';
 import { showToast } from './utils/ui.js';
+import { initVoice } from './services/voice.js';
 
 // Estado de la vista actual
 let currentView = 'class';
@@ -102,6 +103,15 @@ function initApp() {
     initCamera();
     initChat();
     initProfile();
+    
+    // Desbloquear audio en iOS/Mobile con la primera interacción
+    const unlockAudio = () => {
+        initVoice();
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('touchstart', unlockAudio);
+    };
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
     
     // Configurar navegación
     setupNavigation();
