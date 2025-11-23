@@ -10,7 +10,7 @@ export function setApiKey(key) {
     localStorage.setItem(CONFIG.API_KEYS_KEY, key.trim());
 }
 
-export async function callGemini(prompt, imageBase64 = null) {
+export async function callGemini(prompt, imageBase64 = null, isRetry = false) {
     const apiKey = getApiKey();
     if (!apiKey) throw new Error("No API Key configured");
 
@@ -85,14 +85,29 @@ export async function callGemini(prompt, imageBase64 = null) {
             return JSON.parse(jsonStr);
         } catch (parseError) {
             console.error("JSON Parse Error. Raw text:", text);
-            console.error("Extracted JSON:", jsonStr);
             
-            // Intentar limpiar caracteres de control
+            // Intentar limpiar caracteres de control (Intento 1)
             try {
                 const cleaned = jsonStr.replace(/[\x00-\x1F\x7F-\x9F]/g, "");
                 return JSON.parse(cleaned);
             } catch (e2) {
-                throw new Error("Error de sintaxis en la respuesta de la IA.");
+                // Intento 2: Autoreparación con IA (Solo si no es ya un reintento)
+                if (!isRetry) {
+                    console.warn("JSON inválido, intentando autoreparación con la IA...");
+                    const repairPrompt = `
+                        FIX JSON SYNTAX ERROR.
+                        The following JSON has a syntax error (likely unescaped newlines in strings or bad quotes).
+                        
+                        BROKEN JSON:
+                        ${jsonStr}
+                        
+                        TASK: Return ONLY the corrected, valid JSON object. No markdown.
+                    `;
+                    // Llamada recursiva marcada como reintento
+                    return await callGemini(repairPrompt, null, true);
+                }
+                
+                throw new Error("Error de sintaxis en la respuesta de la IA (incluso tras reintento).");
             }
         }
 
