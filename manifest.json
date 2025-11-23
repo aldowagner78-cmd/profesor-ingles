@@ -1,6 +1,7 @@
 {
   "name": "Profesor IA - Aprende Inglés",
   "short_name": "Profesor IA",
+  "id": "/profesor-ingles/",
   "description": "Aprende inglés con inteligencia artificial: cámara, chat y juegos interactivos",
   "start_url": "/profesor-ingles/",
   "display": "standalone",

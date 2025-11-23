@@ -1,5 +1,5 @@
 // Service Worker para PWA - Profesor IA v4.0
-const CACHE_NAME = 'profesor-ia-v4.1-cache';
+const CACHE_NAME = 'profesor-ia-v4.2-splash-cache';
 const BASE_PATH = '/profesor-ingles';
 const urlsToCache = [
   `${BASE_PATH}/`,
