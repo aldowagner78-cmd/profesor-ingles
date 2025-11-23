@@ -273,8 +273,9 @@
                         <span>Modo Oscuro</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 1rem;">
-                        <button id="theme-toggle" class="btn btn-icon btn-secondary" style="width: 3rem; height: 3rem;">
-                            <i data-lucide="moon" id="theme-icon"></i>
+                        <button id="theme-toggle" class="btn btn-icon btn-secondary" style="width: 3rem; height: 3rem; position: relative;">
+                            <i data-lucide="moon" id="theme-icon-moon" style="position: absolute; transition: opacity 0.3s ease;"></i>
+                            <i data-lucide="sun" id="theme-icon-sun" style="position: absolute; transition: opacity 0.3s ease; opacity: 0;"></i>
                         </button>
                         <span id="theme-label" style="font-size: 0.875rem; color: #64748B;">Activar modo oscuro</span>
                     </div>

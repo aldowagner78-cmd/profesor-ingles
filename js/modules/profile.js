@@ -142,13 +142,22 @@ export function initProfile() {
 }
 
 function updateThemeUI(isDark) {
-    const icon = document.getElementById('theme-icon');
+    const iconMoon = document.getElementById('theme-icon-moon');
+    const iconSun = document.getElementById('theme-icon-sun');
     const label = document.getElementById('theme-label');
     
-    if (icon && label) {
-        icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+    if (iconMoon && iconSun) {
+        if (isDark) {
+            iconMoon.style.opacity = '0';
+            iconSun.style.opacity = '1';
+        } else {
+            iconMoon.style.opacity = '1';
+            iconSun.style.opacity = '0';
+        }
+    }
+    
+    if (label) {
         label.textContent = isDark ? 'Desactivar modo oscuro' : 'Activar modo oscuro';
-        if (window.lucide) window.lucide.createIcons();
     }
 }
 
