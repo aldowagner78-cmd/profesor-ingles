@@ -43,6 +43,27 @@
         </div>
     </div>
 
+    <!-- MODAL DE CONFIRMACIÓN -->
+    <div id="confirm-modal" class="modal-overlay hidden" style="z-index: 10000;">
+        <div class="modal-content" style="max-width: 24rem;">
+            <div class="modal-header" style="margin-bottom: 1rem;">
+                <div class="icon-circle" style="width: 3rem; height: 3rem; margin-bottom: 0.5rem; background: #FEE2E2; color: #EF4444;">
+                    <i data-lucide="alert-triangle"></i>
+                </div>
+                <h2 id="confirm-title" style="font-size: 1.25rem;">¿Estás seguro?</h2>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-message" style="text-align: center; color: var(--color-text-secondary); margin-bottom: 1rem;">
+                    Esta acción no se puede deshacer.
+                </p>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="confirm-cancel-btn" class="btn btn-secondary" style="flex: 1;">Cancelar</button>
+                    <button id="confirm-ok-btn" class="btn btn-danger" style="flex: 1;">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ENCABEZADO -->
     <header class="app-header">
         <div class="header-left">

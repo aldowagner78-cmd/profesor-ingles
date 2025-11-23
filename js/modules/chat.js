@@ -1,7 +1,7 @@
 // Módulo de Chat
 import { callGemini } from '../services/gemini.js';
 import { speakText, startListening, stopListening } from '../services/voice.js';
-import { showToast, triggerConfetti, createAudioButton } from '../utils/ui.js';
+import { showToast, triggerConfetti, createAudioButton, showConfirmModal } from '../utils/ui.js';
 import { isEnglishText, extractEnglishOnly } from '../utils/helpers.js';
 import { getState, updateState, markTopicCompleted } from '../state.js';
 import { SYLLABUS, CONFIG } from '../config.js';
@@ -1093,23 +1093,39 @@ function handleRoleplayFeedback(data) {
 
 // Limpiar chat (borrar todos los mensajes)
 function clearChat() {
-    if (confirm('¿Borrar toda la conversación? (Clear the conversation?)')) {
-        const chatMessages = document.getElementById('chat-messages');
-        if (chatMessages) {
-            chatMessages.innerHTML = '';
+    showConfirmModal(
+        '¿Borrar conversación?',
+        'Se eliminarán todos los mensajes actuales. ¿Estás seguro?',
+        () => {
+            const chatMessages = document.getElementById('chat-area'); // Corregido ID
+            if (chatMessages) {
+                // Mantener solo el mensaje de bienvenida si se desea, o borrar todo
+                // Aquí borramos todo y ponemos el mensaje inicial de nuevo
+                chatMessages.innerHTML = `
+                    <div class="message-wrapper bot-wrapper" style="animation: fadeInUp 0.3s ease-out;">
+                        <div class="message-avatar">
+                            <i data-lucide="bot"></i>
+                        </div>
+                        <div class="message-bubble bot-bubble">
+                            Chat reiniciado. ¿En qué puedo ayudarte ahora?
+                        </div>
+                    </div>
+                `;
+                if (window.lucide) window.lucide.createIcons();
+            }
+            
+            // Limpiar historial del estado
+            updateState({ chatHistory: [] });
+            
+            // Reiniciar contexto conversacional
+            conversationContext.lastAction = null;
+            conversationContext.lastTopic = null;
+            conversationContext.quizCount = 0;
+            conversationContext.canContinue = false;
+            
+            showToast('Chat limpiado', 'success');
         }
-        
-        // Limpiar historial del estado
-        updateState({ chatHistory: [] });
-        
-        // Reiniciar contexto conversacional
-        conversationContext.lastAction = null;
-        conversationContext.lastTopic = null;
-        conversationContext.quizCount = 0;
-        conversationContext.canContinue = false;
-        
-        showToast('Chat limpiado (Chat cleared)', 'success');
-    }
+    );
 }
 
 // Reiniciar lección actual
@@ -1118,37 +1134,57 @@ function restartLesson() {
     const currentLevel = SYLLABUS[state.levelIdx];
     const currentTopic = currentLevel.topics[state.topicIdx];
     
-    if (confirm(`¿Reiniciar la lección de "${currentTopic}"? (Restart the lesson?)`)) {
-        clearChat();
-        
-        // Generar lección nuevamente
-        setTimeout(() => {
-            handleAction('lesson');
-        }, 300);
-    }
+    showConfirmModal(
+        '¿Reiniciar Lección?',
+        `¿Quieres volver a empezar la lección sobre "${currentTopic}"?`,
+        () => {
+            // Limpiar chat visualmente
+            const chatMessages = document.getElementById('chat-area');
+            if (chatMessages) chatMessages.innerHTML = '';
+            
+            // Generar lección nuevamente
+            setTimeout(() => {
+                handleAction('lesson');
+            }, 300);
+        }
+    );
 }
 
 // Ir a lección anterior
 function prevLesson() {
     const state = getState();
     
-    if (state.topicIdx > 0) {
-        // Retroceder en el mismo nivel
-        updateState({ topicIdx: state.topicIdx - 1 });
-        const currentLevel = SYLLABUS[state.levelIdx];
-        showToast(`Tema anterior: ${currentLevel.topics[state.topicIdx - 1]} (Previous topic)`, 'success');
-        clearChat();
-    } else if (state.levelIdx > 0) {
-        // Retroceder al nivel anterior (último tema)
-        const prevLevel = SYLLABUS[state.levelIdx - 1];
-        updateState({ 
-            levelIdx: state.levelIdx - 1,
-            topicIdx: prevLevel.topics.length - 1
-        });
-        showToast(`Nivel anterior: ${prevLevel.name} (Previous level)`, 'success');
-        clearChat();
+    if (state.topicIdx > 0 || state.levelIdx > 0) {
+        showConfirmModal(
+            '¿Ir al tema anterior?',
+            'Cambiarás al tema anterior y se reiniciará el chat actual.',
+            () => {
+                if (state.topicIdx > 0) {
+                    // Retroceder en el mismo nivel
+                    updateState({ topicIdx: state.topicIdx - 1 });
+                    const currentLevel = SYLLABUS[state.levelIdx];
+                    showToast(`Tema anterior: ${currentLevel.topics[state.topicIdx - 1]}`, 'success');
+                } else if (state.levelIdx > 0) {
+                    // Retroceder al nivel anterior (último tema)
+                    const prevLevel = SYLLABUS[state.levelIdx - 1];
+                    updateState({ 
+                        levelIdx: state.levelIdx - 1,
+                        topicIdx: prevLevel.topics.length - 1
+                    });
+                    showToast(`Nivel anterior: ${prevLevel.name}`, 'success');
+                }
+                
+                // Limpiar chat y regenerar lección
+                const chatMessages = document.getElementById('chat-area');
+                if (chatMessages) chatMessages.innerHTML = '';
+                
+                setTimeout(() => {
+                    handleAction('lesson');
+                }, 300);
+            }
+        );
     } else {
-        showToast('Ya estás en el primer tema (Already at first topic)', 'info');
+        showToast('Ya estás en el primer tema', 'info');
     }
 }
 

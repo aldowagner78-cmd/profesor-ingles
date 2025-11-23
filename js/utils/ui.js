@@ -1,5 +1,42 @@
 // Utilidades de UI
 
+export function showConfirmModal(title, message, onConfirm) {
+    const modal = document.getElementById('confirm-modal');
+    const titleEl = document.getElementById('confirm-title');
+    const msgEl = document.getElementById('confirm-message');
+    const okBtn = document.getElementById('confirm-ok-btn');
+    const cancelBtn = document.getElementById('confirm-cancel-btn');
+    
+    if (!modal || !titleEl || !msgEl || !okBtn || !cancelBtn) {
+        // Fallback si no existe el modal en el DOM
+        if (confirm(`${title}\n\n${message}`)) {
+            onConfirm();
+        }
+        return;
+    }
+    
+    titleEl.textContent = title;
+    msgEl.textContent = message;
+    
+    const close = () => {
+        modal.classList.add('hidden');
+        okBtn.onclick = null;
+        cancelBtn.onclick = null;
+    };
+    
+    okBtn.onclick = () => {
+        onConfirm();
+        close();
+    };
+    
+    cancelBtn.onclick = close;
+    
+    modal.classList.remove('hidden');
+    
+    // Asegurar que los iconos se rendericen si es necesario
+    if (window.lucide) window.lucide.createIcons();
+}
+
 export function showToast(message, type = 'info') {
     // Crear toast element
     const toast = document.createElement('div');
