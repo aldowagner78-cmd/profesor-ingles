@@ -1,12 +1,14 @@
 // Configuración Global
 export const CONFIG = {
     APP_NAME: 'Profesor IA',
-    VERSION: '4.0.0',
+    VERSION: '4.1.0', // Actualizamos versión
     DEFAULT_LANG: 'es',
     GEMINI_MODEL: 'gemini-2.0-flash',
     API_KEYS_KEY: 'profesor_ia_user_apikey',
     STATE_KEY: 'profesor_ia_state',
-    VOCAB_KEY: 'profesor_ia_vocabulary'
+    VOCAB_KEY: 'profesor_ia_vocabulary',
+    PASSING_SCORE: 75, // NUEVO: Nota mínima para aprobar
+    MIN_LESSONS: 1     // NUEVO: Mínimo de lecciones a leer antes de desbloquear
 };
 
 export const SYLLABUS = [

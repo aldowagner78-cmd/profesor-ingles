@@ -9,6 +9,9 @@ const defaultState = {
     lastVisit: Date.now(),
     darkMode: false,
     completedTopics: [],
+    // NUEVO: Estructura detallada de progreso por tema
+    // Formato clave "nivel-tema": { lessonsRead: 0, highestQuizScore: 0, isRoleplayUnlocked: false }
+    topicProgress: {}, 
     dailyStreak: 0,
     lastStudyDate: null,
     studyTimeToday: 0,
@@ -19,7 +22,10 @@ export function getState() {
     try {
         const stored = localStorage.getItem(CONFIG.STATE_KEY);
         if (!stored) return { ...defaultState };
-        return { ...defaultState, ...JSON.parse(stored) };
+        
+        // Merge con defaultState para asegurar que existen los nuevos campos (topicProgress)
+        const parsed = JSON.parse(stored);
+        return { ...defaultState, ...parsed };
     } catch (e) {
         console.error('Error loading state:', e);
         return { ...defaultState };
@@ -43,7 +49,38 @@ export function resetState() {
     window.dispatchEvent(new CustomEvent('stateChanged', { detail: defaultState }));
 }
 
-// Vocabulario
+// --- NUEVAS FUNCIONES DE PROGRESO DETALLADO ---
+
+// Obtener progreso de un tema específico
+export function getTopicProgress(levelIdx, topicIdx) {
+    const state = getState();
+    const key = `${levelIdx}-${topicIdx}`;
+    return state.topicProgress[key] || { lessonsRead: 0, highestQuizScore: 0, isRoleplayUnlocked: false };
+}
+
+// Actualizar progreso (ej: completó lección o hizo quiz)
+export function updateTopicProgress(levelIdx, topicIdx, data) {
+    const state = getState();
+    const key = `${levelIdx}-${topicIdx}`;
+    const current = state.topicProgress[key] || { lessonsRead: 0, highestQuizScore: 0, isRoleplayUnlocked: false };
+    
+    // Mezclar datos nuevos con los existentes
+    const updated = { ...current, ...data };
+    
+    // Verificar si desbloquea Roleplay
+    // Condición: Mínimo de lecciones leídas Y nota mínima en Quiz
+    if (updated.lessonsRead >= CONFIG.MIN_LESSONS && updated.highestQuizScore >= CONFIG.PASSING_SCORE) {
+        updated.isRoleplayUnlocked = true;
+    }
+
+    const newTopicProgress = { ...state.topicProgress, [key]: updated };
+    updateState({ topicProgress: newTopicProgress });
+    
+    return updated;
+}
+
+// --- GESTIÓN DE VOCABULARIO ---
+
 export function getVocabulary() {
     try {
         const stored = localStorage.getItem(CONFIG.VOCAB_KEY);
@@ -87,6 +124,7 @@ export function exportVocabulary() {
     return csv.join('');
 }
 
+// Mantener compatibilidad con código viejo, pero conectarlo a la nueva lógica si es necesario
 export function markTopicCompleted(levelIdx, topicIdx) {
     const state = getState();
     const key = `${levelIdx}-${topicIdx}`;
