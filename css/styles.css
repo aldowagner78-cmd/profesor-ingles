@@ -831,10 +831,17 @@ input, textarea {
     border-color: var(--color-primary);
 }
 
+/* ... (código anterior) ... */
 .action-buttons {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    /* CAMBIO: De 4 a 5 columnas para incluir el botón anterior */
+    grid-template-columns: repeat(5, 1fr);
     gap: var(--spacing-sm);
+}
+.prev-btn {
+    background: #F1F5F9;
+    color: #475569;
+    border-color: #CBD5E1;
 }
 
 .action-btn {
