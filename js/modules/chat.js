@@ -136,7 +136,11 @@ async function sendTextMsg() {
         }
 
     } catch (e) {
-        document.getElementById(loadingId)?.innerHTML = `<span class="text-error">Error: ${e.message}</span>`;
+        // CORRECCIÓN AQUÍ: Usar variable intermedia o if simple
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) {
+            loadingEl.innerHTML = `<span class="text-error">Error: ${e.message}</span>`;
+        }
     }
 }
 
@@ -209,7 +213,11 @@ async function handleAction(action) {
         else if (data.type === 'roleplay_start') handleRoleplay(data);
 
     } catch (e) {
-        document.getElementById(loadingId)?.innerHTML = `<span class="text-error">Error: ${e.message}</span>`;
+        // CORRECCIÓN AQUÍ TAMBIÉN
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) {
+            loadingEl.innerHTML = `<span class="text-error">Error: ${e.message}</span>`;
+        }
     }
 }
 
@@ -513,4 +521,34 @@ function handleNextTopic() {
     // Actualizar UI
     document.dispatchEvent(new CustomEvent('stateChanged'));
     checkRoleplayLock(); // Verificar estado del nuevo tema
+}
+
+// Módulo de Roleplay Simplificado
+function handleRoleplay(data) {
+    const html = `
+        <div class="bg-neutral p-4 rounded-lg border border-gray-200">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-2xl">🎭</span>
+                <h3 class="font-bold text-primary">Roleplay</h3>
+            </div>
+            <p class="text-sm mb-3">${data.scene}</p>
+            <div class="bg-white p-3 rounded-lg border border-gray-100 flex items-center justify-between">
+                <span class="font-bold text-primary">${data.start_line.split('(')[0]}</span>
+                <div id="rp-audio-${Date.now()}"></div>
+            </div>
+            <p class="text-xs text-gray-500 mt-2 italic">${data.start_line.split('(')[1]?.replace(')', '') || ''}</p>
+        </div>
+        <p class="text-center text-xs text-gray-400 mt-2">Presiona el micrófono para responder</p>
+    `;
+    
+    const msgId = addMessageToUI(html, 'bot');
+    
+    // Agregar audio
+    setTimeout(() => {
+        const container = document.getElementById(`rp-audio-${msgId.split('-')[1]}`); // Aproximado, mejor usar selector directo
+        const btnContainer = document.querySelector(`#${msgId} div[id^="rp-audio-"]`);
+        if(btnContainer) {
+            btnContainer.appendChild(createAudioButton(data.start_line.split('(')[0], 'en-US'));
+        }
+    }, 100);
 }
