@@ -5,7 +5,7 @@ import { showToast, triggerConfetti, createAudioButton, showConfirmModal } from 
 import { getState, updateState, getTopicProgress, updateTopicProgress, addToVocabulary } from '../state.js';
 import { SYLLABUS, CONFIG } from '../config.js';
 
-const MAX_HISTORY = 10;
+const MAX_HISTORY = 30;
 
 // Estado interno para navegación
 let currentQuizData = null;
@@ -20,7 +20,8 @@ let quizState = {
     selectedPair: null,     // Para Matching
     constructedSentence: [], // Para Ordenar
     correctMatches: 0,       // Para Matching
-    usedQuestions: []        // Historial anti-repetición
+    usedQuestions: [],      // Historial anti-repetición
+    correctAnswers: 0       // Contador de respuestas correctas
 };
 
 export function initChat() {
@@ -46,6 +47,16 @@ export function initChat() {
         });
     });
 
+    // Botones de control
+    const clearBtn = document.getElementById('clear-chat-btn');
+    if(clearBtn) clearBtn.addEventListener('click', clearChat);
+    
+    const restartBtn = document.getElementById('restart-lesson-btn');
+    if(restartBtn) restartBtn.addEventListener('click', restartLesson);
+    
+    const prevBtn = document.getElementById('prev-lesson-btn');
+    if(prevBtn) prevBtn.addEventListener('click', handlePrevTopic);
+
     const state = getState();
     if (state.chatHistory && state.chatHistory.length > 0) {
         state.chatHistory.forEach(msg => addMessageToUI(msg.content, msg.role, false));
@@ -70,6 +81,18 @@ function checkRoleplayLock() {
             roleplayBtn.innerHTML = '<span>🔒</span> Roleplay';
         }
     }
+}
+
+function sanitizeMarkdown(text) {
+    if (!text) return '';
+    // Remover tags HTML peligrosos
+    const dangerous = ['<script', '<iframe', '<object', '<embed', '<link', '<style', 'javascript:', 'onerror=', 'onclick='];
+    let clean = text;
+    dangerous.forEach(tag => {
+        const regex = new RegExp(tag, 'gi');
+        clean = clean.replace(regex, '');
+    });
+    return clean;
 }
 
 function toggleMicrophone() {
@@ -99,6 +122,12 @@ async function sendTextMsg() {
     const input = document.getElementById('chat-input');
     const text = input.value.trim();
     if (!text) return;
+    
+    // Validación de longitud
+    if (text.length > 500) {
+        showToast('El mensaje es demasiado largo (máximo 500 caracteres)', 'warning');
+        return;
+    }
     
     addMessageToUI(text, 'user');
     input.value = '';
@@ -172,6 +201,7 @@ async function handleAction(action, param = null) {
         } else {
             quizState.currentQuestion = 1;
             quizState.usedQuestions = []; // CORRECCIÓN: Resetear historial al empezar
+            quizState.correctAnswers = 0; // Resetear contador de respuestas correctas
             loadingMsg = 'Preparando quiz...';
         }
     }
@@ -252,9 +282,13 @@ async function handleAction(action, param = null) {
 function handleLesson(data) {
     if (data.total_parts) lessonState.totalParts = data.total_parts;
 
+    // Sanitización básica del markdown
+    const sanitizedMarkdown = sanitizeMarkdown(data.content_markdown);
+    const parsedContent = window.marked ? marked.parse(sanitizedMarkdown) : sanitizedMarkdown;
+
     const html = `
         <h3 class="text-xl font-bold text-primary mb-2">${data.title}</h3>
-        <div class="text-sm text-secondary mb-4">${window.marked ? marked.parse(data.content_markdown) : data.content_markdown}</div>
+        <div class="text-sm text-secondary mb-4">${parsedContent}</div>
         <div class="bg-neutral p-3 rounded-lg mb-4">
             <p class="font-bold text-xs uppercase text-muted mb-2">Ejemplos:</p>
             ${data.examples.map(ex => `
@@ -307,18 +341,16 @@ function handleQuiz(data) {
     const questionId = data.question || data.statement || data.sentence_start;
     if (questionId) quizState.usedQuestions.push(questionId);
     
-    let html = `<div class="quiz-container bg-white p-2 rounded-lg border border-gray-100">`;
+    let html = `<div class="quiz-container">`;
     
     html += `<div class="flex items-center gap-2 mb-3"><span class="bg-accent text-white px-2 py-1 rounded text-xs font-bold uppercase">Quiz</span></div>`;
-
-    const btnStyle = "display: block; width: 100%; text-align: left; padding: 12px 16px; margin-bottom: 8px; background: white; border: 1px solid #E2E8F0; border-radius: 12px; color: #1E293B; font-weight: 600; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: all 0.2s; cursor: pointer;";
 
     if (data.quiz_type === 'true_false') {
         html += `
             <p class="font-bold text-lg mb-2 text-center text-primary">"${data.statement}"</p>
             <div class="grid grid-cols-2 gap-3">
-                <button onclick="window.submitQuiz('true')" style="${btnStyle} text-align: center; background: #DCFCE7; color: #166534; border-color: #86EFAC;">VERDADERO</button>
-                <button onclick="window.submitQuiz('false')" style="${btnStyle} text-align: center; background: #FEE2E2; color: #991B1B; border-color: #FCA5A5;">FALSO</button>
+                <button onclick="window.submitQuiz('true')" class="quiz-option-btn text-center" style="background: #DCFCE7; color: #166534; border-color: #86EFAC;">VERDADERO</button>
+                <button onclick="window.submitQuiz('false')" class="quiz-option-btn text-center" style="background: #FEE2E2; color: #991B1B; border-color: #FCA5A5;">FALSO</button>
             </div>`;
     } else if (data.quiz_type === 'fill_blank') {
         html += `
@@ -329,7 +361,7 @@ function handleQuiz(data) {
             </p>
             <p class="text-center text-sm text-gray-400 italic mb-4">${data.translation_hint || ''}</p>
             <div class="flex flex-wrap gap-2 justify-center">
-                ${data.options.map(opt => `<button onclick="window.submitQuiz('${opt}')" class="px-4 py-2 bg-gray-100 hover:bg-blue-100 text-primary font-bold rounded-full border border-gray-200 transition-colors">${opt}</button>`).join('')}
+                ${data.options.map(opt => `<button onclick="window.submitQuiz('${opt}')" class="quiz-word-chip">${opt}</button>`).join('')}
             </div>`;
     } else if (data.quiz_type === 'order_sentence') {
         quizState.constructedSentence = [];
@@ -337,9 +369,9 @@ function handleQuiz(data) {
         html += `
             <p class="text-xs text-gray-400 text-center mb-2 uppercase font-bold">Ordena la frase:</p>
             <p class="text-center text-sm italic text-gray-500 mb-4">"${data.translation}"</p>
-            <div id="sentence-builder" class="min-h-[3rem] bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 mb-4 flex flex-wrap gap-2 p-3 justify-center items-center transition-colors"></div>
-            <div id="word-bank" class="flex flex-wrap gap-2 justify-center">
-                ${shuffled.map((word, idx) => `<button id="word-${idx}" onclick="window.addToSentence('${word}', 'word-${idx}')" class="px-3 py-2 bg-white border border-gray-200 rounded-lg shadow-sm font-bold text-primary active:scale-95 transition-transform">${word}</button>`).join('')}
+            <div id="sentence-builder" class="sentence-builder"></div>
+            <div id="word-bank" class="flex flex-wrap gap-2 justify-center mt-3">
+                ${shuffled.map((word, idx) => `<button id="word-${idx}" onclick="window.addToSentence('${word}', 'word-${idx}')" class="quiz-word-chip">${word}</button>`).join('')}
             </div>
             <div class="flex gap-2 mt-4">
                 <button onclick="window.resetSentence()" class="flex-1 py-2 text-gray-400 text-xs font-bold hover:text-gray-600">Reiniciar</button>
@@ -350,10 +382,10 @@ function handleQuiz(data) {
         const left = data.pairs.map((p,i)=>({v:p.en,id:i})).sort(()=>Math.random()-0.5);
         const right = data.pairs.map((p,i)=>({v:p.es,id:i})).sort(()=>Math.random()-0.5);
         html += `<p class="text-xs text-center text-gray-400 mb-3 uppercase font-bold">Empareja las palabras</p>
-        <div class="grid grid-cols-2 gap-2">${left.map(l=>`<button onclick="window.selectMatch('${l.v}',${l.id},this)" class="match-btn w-full p-3 bg-white border border-gray-200 rounded-xl font-bold text-primary text-sm shadow-sm" data-side="left">${l.v}</button>`).join('')} ${right.map(r=>`<button onclick="window.selectMatch('${r.v}',${r.id},this)" class="match-btn w-full p-3 bg-white border border-gray-200 rounded-xl text-gray-600 text-sm shadow-sm" data-side="right">${r.v}</button>`).join('')}</div>`;
+        <div class="grid grid-cols-2 gap-2">${left.map(l=>`<button onclick="window.selectMatch('${l.v}',${l.id},this)" class="match-btn text-primary text-sm" data-side="left">${l.v}</button>`).join('')} ${right.map(r=>`<button onclick="window.selectMatch('${r.v}',${r.id},this)" class="match-btn text-gray-600 text-sm" data-side="right">${r.v}</button>`).join('')}</div>`;
     } else {
         html += `<p class="font-bold mb-4 text-lg text-primary leading-snug">${data.question || "Question?"}</p>
-        <div class="flex flex-col gap-2">${(data.options||[]).map((opt, idx) => `<button onclick="window.submitQuiz(${idx})" style="${btnStyle}">${opt}</button>`).join('')}</div>`;
+        <div class="flex flex-col gap-2">${(data.options||[]).map((opt, idx) => `<button onclick="window.submitQuiz(${idx})" class="quiz-option-btn">${opt}</button>`).join('')}</div>`;
     }
     
     html += `
@@ -393,21 +425,25 @@ window.submitQuiz = (answer) => {
 window.addToSentence = (word, btnId) => {
     quizState.constructedSentence.push(word);
     const btn = document.getElementById(btnId);
-    btn.style.display = 'none';
+    if (btn) btn.style.display = 'none';
     
     const builder = document.getElementById('sentence-builder');
-    const wordSpan = document.createElement('span');
-    wordSpan.className = "px-2 py-1 bg-blue-100 text-blue-800 rounded-lg font-bold text-sm animate-pop border border-blue-200";
-    wordSpan.innerText = word;
-    builder.appendChild(wordSpan);
-    builder.classList.add('border-blue-300', 'bg-blue-50');
+    if (builder) {
+        const wordSpan = document.createElement('span');
+        wordSpan.className = "px-2 py-1 bg-blue-100 text-blue-800 rounded-lg font-bold text-sm animate-pop border border-blue-200";
+        wordSpan.innerText = word;
+        builder.appendChild(wordSpan);
+        builder.classList.add('active');
+    }
 };
 
 window.resetSentence = () => {
     quizState.constructedSentence = [];
     const builder = document.getElementById('sentence-builder');
-    builder.innerHTML = '';
-    builder.classList.remove('border-blue-300', 'bg-blue-50');
+    if (builder) {
+        builder.innerHTML = '';
+        builder.classList.remove('active');
+    }
     document.querySelectorAll('#word-bank button').forEach(b => b.style.display = 'inline-block');
 };
 
@@ -422,36 +458,28 @@ window.selectMatch = (text, id, btn) => {
     if (btn.disabled) return;
     if (!quizState.selectedPair) {
         quizState.selectedPair = { id, btn };
-        btn.style.borderColor = '#3B82F6';
-        btn.style.backgroundColor = '#EFF6FF';
-        btn.style.transform = 'scale(0.98)';
+        btn.classList.add('selected');
     } else {
         const first = quizState.selectedPair;
         if (first.btn === btn) {
-            btn.style.borderColor = '#E2E8F0';
-            btn.style.backgroundColor = 'white';
-            btn.style.transform = 'scale(1)';
+            btn.classList.remove('selected');
             quizState.selectedPair = null;
             return;
         }
-        if (first.id === id) { // Match
-            const successStyle = "background: #DCFCE7; color: #166534; border-color: #86EFAC; opacity: 0.6;";
-            first.btn.style.cssText = successStyle;
-            btn.style.cssText = successStyle;
+        if (first.id === id) {
+            first.btn.classList.add('correct');
+            btn.classList.add('correct');
             first.btn.disabled = true;
             btn.disabled = true;
             quizState.correctMatches++;
             quizState.selectedPair = null;
             if(quizState.correctMatches >= 2) showResult(true);
-        } else { // Error
-            first.btn.classList.add('bg-red-100', 'border-red-200');
-            btn.classList.add('bg-red-100', 'border-red-200');
+        } else {
+            first.btn.classList.add('incorrect');
+            btn.classList.add('incorrect');
             setTimeout(() => {
-                first.btn.classList.remove('bg-red-100', 'border-red-200');
-                btn.classList.remove('bg-red-100', 'border-red-200');
-                first.btn.style.borderColor = '#E2E8F0';
-                first.btn.style.backgroundColor = 'white';
-                first.btn.style.transform = 'scale(1)';
+                first.btn.classList.remove('incorrect', 'selected');
+                btn.classList.remove('incorrect');
             }, 500);
             quizState.selectedPair = null;
         }
@@ -461,10 +489,17 @@ window.selectMatch = (text, id, btn) => {
 function showResult(isCorrect) {
     const state = getState();
     if (isCorrect) {
+        quizState.correctAnswers = (quizState.correctAnswers || 0) + 1;
         updateState({ score: state.score + 15 });
         triggerConfetti();
         addMessageToUI(`<div class="text-green-600 font-black text-center text-xl p-2">¡Correcto! 🎉 <br><span class="text-sm font-medium text-gray-400">+15 Puntos</span></div>`, 'bot');
-        updateTopicProgress(state.levelIdx, state.topicIdx, { highestQuizScore: 100 });
+        
+        // Calcular porcentaje real basado en respuestas correctas
+        const percentage = Math.round((quizState.correctAnswers / quizState.totalQuestions) * 100);
+        const progress = getTopicProgress(state.levelIdx, state.topicIdx);
+        const newScore = Math.max(progress.highestQuizScore || 0, percentage);
+        
+        updateTopicProgress(state.levelIdx, state.topicIdx, { quizScore: newScore });
         checkRoleplayLock();
     } else {
         addMessageToUI(`<div class="text-red-500 font-bold text-center p-2">Incorrecto 😅</div>`, 'bot');
@@ -511,4 +546,67 @@ function handleRoleplay(data) {
             </div>
         </div>`;
     addMessageToUI(html, 'bot');
+}
+
+function clearChat() {
+    showConfirmModal(
+        '¿Limpiar Chat?',
+        'Se borrarán todos los mensajes de la conversación actual.',
+        () => {
+            const chatArea = document.getElementById('chat-area');
+            if (chatArea) {
+                chatArea.innerHTML = '';
+                addMessageToUI('<div class="text-center text-gray-400 text-sm">Chat limpio. ¿En qué puedo ayudarte?</div>', 'bot');
+            }
+            updateState({ chatHistory: [] });
+            showToast('Chat limpiado', 'success');
+        }
+    );
+}
+
+function restartLesson() {
+    showConfirmModal(
+        '¿Reiniciar Lección?',
+        'Volverás a la primera parte de la lección actual.',
+        () => {
+            lessonState.currentPart = 1;
+            handleAction('lesson', 1);
+            showToast('Lección reiniciada', 'info');
+        }
+    );
+}
+
+function handlePrevTopic() {
+    const state = getState();
+    const currentLevel = SYLLABUS[state.levelIdx];
+    
+    if (state.topicIdx > 0) {
+        showConfirmModal(
+            '¿Ir al Tema Anterior?',
+            `Cambiarás a: ${currentLevel.topics[state.topicIdx - 1]}`,
+            () => {
+                updateState({ topicIdx: state.topicIdx - 1 });
+                showToast(`Tema: ${currentLevel.topics[state.topicIdx - 1]}`, 'success');
+                window.dispatchEvent(new CustomEvent('stateChanged'));
+                checkRoleplayLock();
+            }
+        );
+    } else if (state.levelIdx > 0) {
+        const prevLevel = SYLLABUS[state.levelIdx - 1];
+        showConfirmModal(
+            '¿Ir al Nivel Anterior?',
+            `Cambiarás a: ${prevLevel.name} (último tema)`,
+            () => {
+                updateState({ 
+                    levelIdx: state.levelIdx - 1,
+                    topicIdx: prevLevel.topics.length - 1
+                });
+                showToast(`Nivel: ${prevLevel.name}`, 'success');
+                window.dispatchEvent(new CustomEvent('stateChanged'));
+                checkRoleplayLock();
+            }
+        );
+    } else {
+        showToast('Ya estás en el primer tema', 'info');
+    }
 }
