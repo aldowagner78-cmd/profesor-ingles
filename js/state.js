@@ -180,3 +180,37 @@ export function updateDailyStreak() {
     
     return newStreak;
 }
+
+export function updateTopicProgress(levelIdx, topicIdx, data) {
+    const state = getState();
+    const key = `${levelIdx}-${topicIdx}`;
+    const progress = state.topicProgress || {};
+    
+    if (!progress[key]) {
+        progress[key] = { lessonsRead: 0, highestQuizScore: 0, isRoleplayUnlocked: false };
+    }
+    
+    if (data.lessonRead) {
+        progress[key].lessonsRead = (progress[key].lessonsRead || 0) + 1;
+    }
+    
+    if (data.quizScore !== undefined) {
+        progress[key].highestQuizScore = Math.max(progress[key].highestQuizScore || 0, data.quizScore);
+    }
+    
+    // Desbloquear roleplay si cumple requisitos
+    const MIN_LESSONS = 1;
+    const PASSING_SCORE = 75;
+    if (progress[key].lessonsRead >= MIN_LESSONS && progress[key].highestQuizScore >= PASSING_SCORE) {
+        progress[key].isRoleplayUnlocked = true;
+    }
+    
+    updateState({ topicProgress: progress });
+    return progress[key];
+}
+
+export function getTopicProgress(levelIdx, topicIdx) {
+    const state = getState();
+    const key = `${levelIdx}-${topicIdx}`;
+    return state.topicProgress?.[key] || { lessonsRead: 0, highestQuizScore: 0, isRoleplayUnlocked: false };
+}
