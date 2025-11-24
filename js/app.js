@@ -16,14 +16,19 @@ let studyTimerInterval = null;
 
 // Inicialización de la App
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Profesor IA v5.0 (Fixed) - Iniciando...");
+    console.log("Profesor IA v4.1.0 - Iniciando...");
     
-    // Verificar API Key
-    checkApiKey();
-    
-    // Inicializar Lucide Icons
-    if (window.lucide) {
-        window.lucide.createIcons();
+    try {
+        // Verificar API Key
+        checkApiKey();
+        
+        // Inicializar Lucide Icons
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    } catch (error) {
+        console.error("Error en inicialización:", error);
+        showErrorOnSplash(error.message);
     }
 });
 
@@ -31,13 +36,43 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('load', () => {
     const splash = document.getElementById('splash-screen');
     if (splash) {
-        // Mantener visible al menos 2 segundos para branding
+        // Mantener visible al menos 1.5 segundos para branding
         setTimeout(() => {
             splash.classList.add('fade-out');
             setTimeout(() => splash.remove(), 500);
-        }, 2000);
+        }, 1500);
     }
 });
+
+// Fallback: Forzar eliminación del splash después de 5 segundos
+setTimeout(() => {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        console.warn("Splash screen forzado a desaparecer");
+        splash.remove();
+    }
+}, 5000);
+
+function showErrorOnSplash(message) {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        const errorBox = document.createElement('div');
+        errorBox.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: #EF4444;
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            z-index: 10001;
+        `;
+        errorBox.textContent = `Error: ${message}`;
+        document.body.appendChild(errorBox);
+    }
+}
 
 function checkApiKey() {
     const apiKey = getApiKey();

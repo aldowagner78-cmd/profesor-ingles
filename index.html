@@ -492,6 +492,34 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script type="module" src="js/app.js"></script>
     
+    <!-- Manejador Global de Errores -->
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            console.error('Error Global:', msg, 'en', url, 'línea', line);
+            const splash = document.getElementById('splash-screen');
+            if (splash) {
+                const errorBox = document.createElement('div');
+                errorBox.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    left: 20px;
+                    right: 20px;
+                    background: #EF4444;
+                    color: white;
+                    padding: 1rem;
+                    border-radius: 0.5rem;
+                    font-size: 0.875rem;
+                    z-index: 10001;
+                    max-height: 200px;
+                    overflow-y: auto;
+                `;
+                errorBox.innerHTML = `<strong>Error de carga:</strong><br>${msg}<br>Línea: ${line}`;
+                document.body.appendChild(errorBox);
+            }
+            return false;
+        };
+    </script>
+    
     <!-- Registrar Service Worker -->
     <script>
         if ('serviceWorker' in navigator) {
