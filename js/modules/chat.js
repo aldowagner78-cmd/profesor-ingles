@@ -111,12 +111,13 @@ async function sendTextMsg() {
         const currentLevel = SYLLABUS[state.levelIdx];
         const currentTopic = currentLevel.topics[state.topicIdx];
         
+        // Prompt corregido para chat libre
         const prompt = `
-            Act as an English Teacher for a Spanish speaker. 
-            Level: ${currentLevel.name}. Topic: ${currentTopic}.
-            User said: "${text}".
-            Respond in JSON format: 
-            { "type": "chat", "reply": "English response (Traducción al español)", "feedback": "Correction/Tip in Spanish" }
+            Eres un Profesor de Inglés para hispanohablantes. 
+            Nivel: ${currentLevel.name}. Tema: ${currentTopic}.
+            Usuario dice: "${text}".
+            Responde en JSON: 
+            { "type": "chat", "reply": "Respuesta en INGLÉS (Traducción entre paréntesis)", "feedback": "Corrección o consejo en ESPAÑOL" }
         `;
         
         const data = await callGemini(prompt);
@@ -181,40 +182,49 @@ async function handleAction(action, param = null) {
         
         if (action === 'lesson') {
             prompt = `
-                Generate part ${lessonState.currentPart} of ${lessonState.totalParts} of a SHORT English lesson about "${currentTopic}" (${currentLevel.name}).
-                Target audience: Spanish speaker.
+                Genera la parte ${lessonState.currentPart} de ${lessonState.totalParts} de una lección CORTA de inglés sobre "${currentTopic}" (${currentLevel.name}).
+                Para hablantes de español.
                 JSON Format:
                 {
                     "type": "lesson",
                     "title": "Título en Español (Parte ${lessonState.currentPart})",
-                    "content_markdown": "Explicación en Español. Use Markdown.",
+                    "content_markdown": "Explicación en Español. Usa Markdown.",
                     "examples": [
-                        {"en": "English Example 1", "es": "Traducción 1"},
-                        {"en": "English Example 2", "es": "Traducción 2"}
+                        {"en": "English Sentence 1", "es": "Traducción 1"},
+                        {"en": "English Sentence 2", "es": "Traducción 2"}
                     ],
                     "part": ${lessonState.currentPart},
                     "total_parts": ${lessonState.totalParts}
                 }
             `;
         } else if (action === 'quiz') {
+            // --- PROMPT CORREGIDO (DIRECCIÓN ESPAÑOL -> INGLÉS) ---
             prompt = `
-                Generate Question ${quizState.currentQuestion} of ${quizState.totalQuestions} for an English quiz about "${currentTopic}" (${currentLevel.name}).
-                Randomly choose ONE type: 'multiple_choice', 'true_false', 'fill_blank', 'order_sentence', 'matching'.
+                Eres un profesor de Inglés. Genera una pregunta de quiz sobre "${currentTopic}" (${currentLevel.name}).
+                Pregunta ${quizState.currentQuestion} de ${quizState.totalQuestions}.
                 
-                JSON:
-                {
-                    "type": "quiz",
-                    "question_number": ${quizState.currentQuestion},
-                    "total_questions": ${quizState.totalQuestions},
-                    "quiz_type": "multiple_choice", 
-                    "question": "How do you say 'Casa' in English?", 
-                    "options": ["House", "Mouse", "Car"], 
-                    "answer_index": 0 
-                }
-                (Adjust fields based on quiz type as defined previously)
+                OBJETIVO: Evaluar si el usuario sabe la palabra en INGLÉS.
+                REGLA 1: La pregunta debe estar en ESPAÑOL (ej: "¿Cómo se dice 'Perro'?").
+                REGLA 2: Las opciones deben estar en INGLÉS (ej: "Dog", "Cat").
+                REGLA 3: Elige aleatoriamente UNO de estos tipos y responde SOLO JSON:
+                
+                1. multiple_choice:
+                { "type": "quiz", "question_number": ${quizState.currentQuestion}, "total_questions": ${quizState.totalQuestions}, "quiz_type": "multiple_choice", "question": "¿Cómo se dice '[Palabra en Español]' en inglés?", "options": ["Palabra Correcta (EN)", "Distractor 1 (EN)", "Distractor 2 (EN)"], "answer_index": 0 }
+                
+                2. true_false:
+                { "type": "quiz", "question_number": ${quizState.currentQuestion}, "total_questions": ${quizState.totalQuestions}, "quiz_type": "true_false", "statement": "La palabra '[Palabra en Inglés]' significa '[Palabra en Español]'.", "is_true": true, "explanation": "Explicación breve." }
+                
+                3. fill_blank:
+                { "type": "quiz", "question_number": ${quizState.currentQuestion}, "total_questions": ${quizState.totalQuestions}, "quiz_type": "fill_blank", "sentence_start": "[Frase EN incompleta]", "hidden_word": "[Palabra EN]", "sentence_end": "[Resto frase EN]", "translation_hint": "(Traducción completa al Español)", "options": ["[Palabra oculta]", "[Distractor 1]", "[Distractor 2]"] }
+                
+                4. order_sentence:
+                { "type": "quiz", "question_number": ${quizState.currentQuestion}, "total_questions": ${quizState.totalQuestions}, "quiz_type": "order_sentence", "sentence": "[Frase correcta en Inglés]", "words": ["Palabra1", "Palabra2", "Palabra3"], "translation": "[Traducción al Español]" }
+                
+                5. matching:
+                { "type": "quiz", "question_number": ${quizState.currentQuestion}, "total_questions": ${quizState.totalQuestions}, "quiz_type": "matching", "pairs": [{"en": "Word 1 (EN)", "es": "Palabra 1 (ES)"}, {"en": "Word 2 (EN)", "es": "Palabra 2 (ES)"}] }
             `;
         } else if (action === 'roleplay') {
-            prompt = `Start roleplay about ${currentTopic}. JSON: { "type": "roleplay_start", "scene": "Descripción ES", "start_line": "Line (Traducción)" }`;
+            prompt = `Inicia un Roleplay sobre ${currentTopic}. JSON: { "type": "roleplay_start", "scene": "Descripción de escena en Español", "start_line": "Frase inicial en Inglés (Traducción)" }`;
         } else if (action === 'next') {
             handleNextTopic();
             document.getElementById(loadingId)?.remove();
@@ -291,42 +301,66 @@ function handleQuiz(data) {
     currentQuizData = data;
     // Actualizar estado total
     if (data.total_questions) quizState.totalQuestions = data.total_questions;
+    if (data.question_number) quizState.currentQuestion = data.question_number;
     
     let html = `<div class="quiz-container bg-white p-2 rounded-lg border border-gray-100">`;
     
     html += `<div class="flex items-center gap-2 mb-3"><span class="bg-accent text-white px-2 py-1 rounded text-xs font-bold uppercase">Quiz</span></div>`;
 
-    const btnStyle = "display: block; width: 100%; text-align: left; padding: 12px 16px; margin-bottom: 8px; background: white; border: 1px solid #E2E8F0; border-radius: 12px; color: #1E293B; font-weight: 600; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: all 0.2s;";
+    // Estilo de botón consistente
+    const btnStyle = "display: block; width: 100%; text-align: left; padding: 12px 16px; margin-bottom: 8px; background: white; border: 1px solid #E2E8F0; border-radius: 12px; color: #1E293B; font-weight: 600; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: all 0.2s; cursor: pointer;";
 
-    // Renderizado según tipo (simplificado para brevedad, usa la lógica visual del paso anterior)
+    // Renderizado según tipo
     if (data.quiz_type === 'true_false') {
         html += `
             <p class="font-bold text-lg mb-2 text-center text-primary">"${data.statement}"</p>
             <div class="grid grid-cols-2 gap-3">
-                <button onclick="window.submitQuiz('true')" style="${btnStyle} text-align: center; background: #DCFCE7; color: #166534;">VERDADERO</button>
-                <button onclick="window.submitQuiz('false')" style="${btnStyle} text-align: center; background: #FEE2E2; color: #991B1B;">FALSO</button>
+                <button onclick="window.submitQuiz('true')" style="${btnStyle} text-align: center; background: #DCFCE7; color: #166534; border-color: #86EFAC;">VERDADERO</button>
+                <button onclick="window.submitQuiz('false')" style="${btnStyle} text-align: center; background: #FEE2E2; color: #991B1B; border-color: #FCA5A5;">FALSO</button>
             </div>`;
     } else if (data.quiz_type === 'fill_blank') {
         html += `
-            <p class="text-center mb-4 text-lg text-primary">${data.sentence_start} <span id="blank-space" class="border-b-2 border-primary font-bold">____</span> ${data.sentence_end}</p>
-            <div class="flex flex-wrap gap-2 justify-center">${data.options.map(opt => `<button onclick="window.submitQuiz('${opt}')" class="px-3 py-2 bg-gray-100 rounded-full text-sm font-bold">${opt}</button>`).join('')}</div>`;
+            <p class="text-center mb-2 text-lg text-primary">
+                ${data.sentence_start} 
+                <span id="blank-space" class="inline-block px-2 border-b-2 border-primary font-bold text-blue-600 min-w-[50px]">____</span> 
+                ${data.sentence_end}
+            </p>
+            <p class="text-center text-sm text-gray-400 italic mb-4">${data.translation_hint || ''}</p>
+            <div class="flex flex-wrap gap-2 justify-center">
+                ${data.options.map(opt => `<button onclick="window.submitQuiz('${opt}')" class="px-4 py-2 bg-gray-100 hover:bg-blue-100 text-primary font-bold rounded-full border border-gray-200 transition-colors">${opt}</button>`).join('')}
+            </div>`;
+    } else if (data.quiz_type === 'order_sentence') {
+        quizState.constructedSentence = [];
+        const shuffled = [...data.words].sort(() => Math.random() - 0.5);
+        html += `
+            <p class="text-xs text-gray-400 text-center mb-2 uppercase font-bold">Ordena la frase:</p>
+            <p class="text-center text-sm italic text-gray-500 mb-4">"${data.translation}"</p>
+            <div id="sentence-builder" class="min-h-[3rem] bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 mb-4 flex flex-wrap gap-2 p-3 justify-center items-center transition-colors"></div>
+            <div id="word-bank" class="flex flex-wrap gap-2 justify-center">
+                ${shuffled.map((word, idx) => `<button id="word-${idx}" onclick="window.addToSentence('${word}', 'word-${idx}')" class="px-3 py-2 bg-white border border-gray-200 rounded-lg shadow-sm font-bold text-primary active:scale-95 transition-transform">${word}</button>`).join('')}
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="window.resetSentence()" class="flex-1 py-2 text-gray-400 text-xs font-bold hover:text-gray-600">Reiniciar</button>
+                <button onclick="window.checkOrder()" class="flex-1 py-3 bg-primary text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform">Comprobar</button>
+            </div>`;
     } else if (data.quiz_type === 'matching') {
         quizState.selectedPair = null; quizState.correctMatches = 0;
         const left = data.pairs.map((p,i)=>({v:p.en,id:i})).sort(()=>Math.random()-0.5);
         const right = data.pairs.map((p,i)=>({v:p.es,id:i})).sort(()=>Math.random()-0.5);
-        html += `<div class="grid grid-cols-2 gap-2">${left.map(l=>`<button onclick="window.selectMatch('${l.v}',${l.id},this)" class="p-2 border rounded text-sm font-bold">${l.v}</button>`).join('')} ${right.map(r=>`<button onclick="window.selectMatch('${r.v}',${r.id},this)" class="p-2 border rounded text-sm text-gray-600">${r.v}</button>`).join('')}</div>`;
+        html += `<p class="text-xs text-center text-gray-400 mb-3 uppercase font-bold">Empareja las palabras</p>
+        <div class="grid grid-cols-2 gap-2">${left.map(l=>`<button onclick="window.selectMatch('${l.v}',${l.id},this)" class="match-btn w-full p-3 bg-white border border-gray-200 rounded-xl font-bold text-primary text-sm shadow-sm" data-side="left">${l.v}</button>`).join('')} ${right.map(r=>`<button onclick="window.selectMatch('${r.v}',${r.id},this)" class="match-btn w-full p-3 bg-white border border-gray-200 rounded-xl text-gray-600 text-sm shadow-sm" data-side="right">${r.v}</button>`).join('')}</div>`;
     } else {
         // Multiple choice fallback
-        html += `<p class="font-bold mb-4 text-lg text-primary">${data.question || "Question?"}</p>
+        html += `<p class="font-bold mb-4 text-lg text-primary leading-snug">${data.question || "Question?"}</p>
         <div class="flex flex-col gap-2">${(data.options||[]).map((opt, idx) => `<button onclick="window.submitQuiz(${idx})" style="${btnStyle}">${opt}</button>`).join('')}</div>`;
     }
     
     // NAVEGACIÓN QUIZ
     html += `
         <div class="flex items-center justify-between pt-3 mt-3 border-t border-gray-200">
-            <button onclick="window.navQuiz('prev')" class="text-primary font-bold text-sm ${data.question_number <= 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${data.question_number <= 1 ? 'disabled' : ''}>⬅️ Anterior</button>
-            <span class="text-xs font-bold text-gray-400">Pregunta ${data.question_number} / ${quizState.totalQuestions}</span>
-            <button onclick="window.navQuiz('next')" class="text-primary font-bold text-sm ${data.question_number >= quizState.totalQuestions ? 'opacity-50 cursor-not-allowed' : ''}" ${data.question_number >= quizState.totalQuestions ? 'disabled' : ''}>Siguiente ➡️</button>
+            <button onclick="window.navQuiz('prev')" class="text-primary font-bold text-sm ${quizState.currentQuestion <= 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${quizState.currentQuestion <= 1 ? 'disabled' : ''}>⬅️ Anterior</button>
+            <span class="text-xs font-bold text-gray-400">Pregunta ${quizState.currentQuestion} / ${quizState.totalQuestions}</span>
+            <button onclick="window.navQuiz('next')" class="text-primary font-bold text-sm ${quizState.currentQuestion >= quizState.totalQuestions ? 'opacity-50 cursor-not-allowed' : ''}" ${quizState.currentQuestion >= quizState.totalQuestions ? 'disabled' : ''}>Siguiente ➡️</button>
         </div>
     </div>`;
     
@@ -357,6 +391,34 @@ window.submitQuiz = (answer) => {
     showResult(isCorrect);
 };
 
+window.addToSentence = (word, btnId) => {
+    quizState.constructedSentence.push(word);
+    const btn = document.getElementById(btnId);
+    btn.style.display = 'none';
+    
+    const builder = document.getElementById('sentence-builder');
+    const wordSpan = document.createElement('span');
+    wordSpan.className = "px-2 py-1 bg-blue-100 text-blue-800 rounded-lg font-bold text-sm animate-pop border border-blue-200";
+    wordSpan.innerText = word;
+    builder.appendChild(wordSpan);
+    builder.classList.add('border-blue-300', 'bg-blue-50');
+};
+
+window.resetSentence = () => {
+    quizState.constructedSentence = [];
+    const builder = document.getElementById('sentence-builder');
+    builder.innerHTML = '';
+    builder.classList.remove('border-blue-300', 'bg-blue-50');
+    document.querySelectorAll('#word-bank button').forEach(b => b.style.display = 'inline-block');
+};
+
+window.checkOrder = () => {
+    const userSentence = quizState.constructedSentence.join(' ').trim();
+    const targetSentence = currentQuizData.sentence.trim();
+    const isCorrect = userSentence.replace(/[.,?!]/g, '') === targetSentence.replace(/[.,?!]/g, '');
+    showResult(isCorrect);
+};
+
 window.selectMatch = (text, id, btn) => {
     if (btn.disabled) return;
     if (!quizState.selectedPair) {
@@ -374,7 +436,7 @@ window.selectMatch = (text, id, btn) => {
             btn.style.background = '#DCFCE7'; btn.disabled = true;
             quizState.selectedPair = null;
             quizState.correctMatches++;
-            if(quizState.correctMatches >= 3) showResult(true);
+            if(quizState.correctMatches >= currentQuizData.pairs.length) showResult(true);
         } else { // Error
             first.btn.style.background = '#FEE2E2';
             btn.style.background = '#FEE2E2';
@@ -395,8 +457,6 @@ function showResult(isCorrect) {
         addMessageToUI(`<div class="text-green-600 font-black text-center">¡Correcto! 🎉 +15</div>`, 'bot');
         updateTopicProgress(state.levelIdx, state.topicIdx, { highestQuizScore: 100 });
         checkRoleplayLock();
-        // Auto-avanzar (opcional)
-        // setTimeout(() => window.navQuiz('next'), 1500);
     } else {
         addMessageToUI(`<div class="text-red-500 font-bold text-center">Incorrecto 😅</div>`, 'bot');
     }
