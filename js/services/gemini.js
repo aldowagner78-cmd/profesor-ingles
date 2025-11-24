@@ -69,13 +69,54 @@ export async function callGemini(prompt, imageBase64 = null, isRetry = false) {
 
         const text = data.candidates[0].content.parts[0].text;
         
-        // Extracción robusta de JSON
+        // Extracción robusta de JSON mejorada
         let jsonStr = text;
-        const firstOpen = text.indexOf('{');
-        const lastClose = text.lastIndexOf('}');
         
-        if (firstOpen !== -1 && lastClose !== -1) {
-            jsonStr = text.substring(firstOpen, lastClose + 1);
+        // Buscar todos los bloques JSON válidos (del primero al último)
+        const allOpenBraces = [];
+        const allCloseBraces = [];
+        
+        for (let i = 0; i < text.length; i++) {
+            if (text[i] === '{') allOpenBraces.push(i);
+            if (text[i] === '}') allCloseBraces.push(i);
+        }
+        
+        // Intentar extraer el bloque JSON más grande y válido
+        let bestJson = null;
+        let bestLength = 0;
+        
+        for (const openIdx of allOpenBraces) {
+            for (const closeIdx of allCloseBraces) {
+                if (closeIdx <= openIdx) continue;
+                
+                const candidate = text.substring(openIdx, closeIdx + 1);
+                if (candidate.length > bestLength) {
+                    try {
+                        // Pre-validación: debe contener "type"
+                        if (candidate.includes('"type"')) {
+                            const cleaned = candidate.replace(/```json|```/g, '').trim();
+                            JSON.parse(cleaned); // Test parse
+                            bestJson = cleaned;
+                            bestLength = candidate.length;
+                        }
+                    } catch (e) {
+                        // Ignorar candidatos inválidos
+                    }
+                }
+            }
+        }
+        
+        // Si se encontró un JSON válido, usarlo
+        if (bestJson) {
+            jsonStr = bestJson;
+        } else {
+            // Fallback al método anterior
+            const firstOpen = text.indexOf('{');
+            const lastClose = text.lastIndexOf('}');
+            
+            if (firstOpen !== -1 && lastClose !== -1) {
+                jsonStr = text.substring(firstOpen, lastClose + 1);
+            }
         }
         
         // Limpieza

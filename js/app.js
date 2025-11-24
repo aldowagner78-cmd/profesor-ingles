@@ -1,7 +1,6 @@
 // Controlador Principal de la Aplicación
 import { getApiKey, setApiKey } from './services/gemini.js';
 import { updateDailyStreak, getState, updateState } from './state.js';
-import { initCamera, cleanupCamera } from './modules/camera.js';
 import { initChat } from './modules/chat.js';
 import { initProfile, renderProfile } from './modules/profile.js';
 import { showToast } from './utils/ui.js';
@@ -9,6 +8,9 @@ import { initVoice } from './services/voice.js';
 
 // Estado de la vista actual
 let currentView = 'class';
+
+// Lazy loading de módulos
+let cameraModule = null;
 
 // Temporizador de estudio
 let studyStartTime = Date.now();
@@ -134,8 +136,7 @@ function initApp() {
         }, 1000);
     }
     
-    // Inicializar módulos
-    initCamera();
+    // Inicializar módulos críticos (NO camera todavía - lazy loading)
     initChat();
     initProfile();
     
@@ -177,11 +178,23 @@ function switchView(viewName) {
     if (currentView === viewName) return;
     
     // Limpiar módulos si es necesario
-    if (currentView === 'camera') {
-        cleanupCamera();
+    if (currentView === 'camera' && cameraModule) {
+        cameraModule.cleanupCamera();
     }
     
     currentView = viewName;
+    
+    // Lazy loading de cámara solo cuando se necesita
+    if (viewName === 'camera' && !cameraModule) {
+        import('./modules/camera.js').then(module => {
+            cameraModule = module;
+            cameraModule.initCamera();
+            console.log('📸 Módulo de cámara cargado dinámicamente');
+        }).catch(error => {
+            console.error('Error al cargar módulo de cámara:', error);
+            showToast('Error al cargar la cámara', 'error');
+        });
+    }
     
     // Actualizar navegación
     document.querySelectorAll('.nav-btn').forEach(btn => {

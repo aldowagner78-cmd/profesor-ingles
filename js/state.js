@@ -104,7 +104,14 @@ export function addToVocabulary(word) {
         translation: word.translation,
         ipa: word.ipa,
         timestamp: Date.now(),
-        level: currentLevel
+        level: currentLevel,
+        // Sistema de Repetición Espaciada (SRS)
+        srs: {
+            interval: 1, // días hasta próxima revisión (1, 3, 7, 14, 30)
+            repetitions: 0, // número de veces repasada correctamente
+            easeFactor: 2.5, // factor de facilidad (1.3 - 2.5)
+            nextReviewDate: Date.now() + (24 * 60 * 60 * 1000) // mañana
+        }
     });
     try {
         localStorage.setItem(CONFIG.VOCAB_KEY, JSON.stringify(vocab));
@@ -112,6 +119,58 @@ export function addToVocabulary(word) {
     } catch (e) {
         console.error('Error saving vocabulary:', e);
     }
+}
+
+// Función para actualizar SRS después de una revisión
+export function updateWordSRS(wordObject, quality) {
+    // quality: 0-5 (0=no recordé, 5=perfecto)
+    // Algoritmo SM-2 simplificado
+    const vocab = getVocabulary();
+    const word = vocab.find(w => w.object === wordObject);
+    
+    if (!word || !word.srs) return;
+    
+    const srs = word.srs;
+    
+    if (quality >= 3) {
+        // Respuesta correcta
+        if (srs.repetitions === 0) {
+            srs.interval = 1;
+        } else if (srs.repetitions === 1) {
+            srs.interval = 3;
+        } else {
+            srs.interval = Math.round(srs.interval * srs.easeFactor);
+        }
+        srs.repetitions++;
+    } else {
+        // Respuesta incorrecta: reiniciar
+        srs.repetitions = 0;
+        srs.interval = 1;
+    }
+    
+    // Ajustar factor de facilidad
+    srs.easeFactor = Math.max(1.3, srs.easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
+    
+    // Calcular próxima fecha
+    srs.nextReviewDate = Date.now() + (srs.interval * 24 * 60 * 60 * 1000);
+    
+    try {
+        localStorage.setItem(CONFIG.VOCAB_KEY, JSON.stringify(vocab));
+        window.dispatchEvent(new CustomEvent('vocabularyChanged'));
+    } catch (e) {
+        console.error('Error updating SRS:', e);
+    }
+}
+
+// Obtener palabras que necesitan revisión
+export function getWordsForReview() {
+    const vocab = getVocabulary();
+    const now = Date.now();
+    
+    return vocab.filter(word => {
+        if (!word.srs) return false;
+        return word.srs.nextReviewDate <= now;
+    }).sort((a, b) => a.srs.nextReviewDate - b.srs.nextReviewDate);
 }
 
 export function exportVocabulary() {

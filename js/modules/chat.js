@@ -56,6 +56,12 @@ export function initChat() {
     
     const prevBtn = document.getElementById('prev-lesson-btn');
     if(prevBtn) prevBtn.addEventListener('click', handlePrevTopic);
+    
+    // EVENT DELEGATION: Escuchar clicks en todo el chat-area
+    const chatArea = document.getElementById('chat-area');
+    if(chatArea) {
+        chatArea.addEventListener('click', handleChatClick);
+    }
 
     const state = getState();
     if (state.chatHistory && state.chatHistory.length > 0) {
@@ -63,6 +69,41 @@ export function initChat() {
     }
     
     checkRoleplayLock();
+}
+
+// Manejador centralizado de clicks en el chat (Event Delegation)
+function handleChatClick(e) {
+    const target = e.target;
+    const button = target.closest('button[data-quiz-action]');
+    
+    if (!button) return;
+    
+    const action = button.dataset.quizAction;
+    const value = button.dataset.quizValue;
+    
+    switch(action) {
+        case 'submitQuiz':
+            submitQuizInternal(value);
+            break;
+        case 'navLesson':
+            handleAction('lesson', parseInt(value));
+            break;
+        case 'navQuiz':
+            handleAction('quiz', value);
+            break;
+        case 'addWord':
+            addToSentenceInternal(value, button.id);
+            break;
+        case 'resetSentence':
+            resetSentenceInternal();
+            break;
+        case 'checkOrder':
+            checkOrderInternal();
+            break;
+        case 'selectMatch':
+            selectMatchInternal(value, parseInt(button.dataset.matchId), button);
+            break;
+    }
 }
 
 function checkRoleplayLock() {
@@ -104,9 +145,11 @@ function toggleMicrophone() {
         stopListening();
         micBtn.classList.remove('mic-active');
         micStatus.textContent = 'Toca para hablar';
+        removeVoiceIndicator();
     } else {
         micBtn.classList.add('mic-active');
         micStatus.textContent = 'Escuchando...';
+        showVoiceIndicator();
         startListening((text) => {
             const input = document.getElementById('chat-input');
             if (input) input.value = text;
@@ -114,8 +157,45 @@ function toggleMicrophone() {
         }, () => {
             micBtn.classList.remove('mic-active');
             micStatus.textContent = 'Toca para hablar';
+            removeVoiceIndicator();
         });
     }
+}
+
+function showVoiceIndicator() {
+    // Agregar indicador visual de voz
+    const micBtn = document.getElementById('mic-btn');
+    if (!micBtn) return;
+    
+    const indicator = document.createElement('div');
+    indicator.id = 'voice-wave-indicator';
+    indicator.className = 'voice-indicator';
+    indicator.style.cssText = `
+        position: absolute;
+        top: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(74, 144, 226, 0.1);
+        border-radius: 8px;
+        padding: 4px 8px;
+    `;
+    
+    for (let i = 0; i < 5; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'voice-wave-bar';
+        indicator.appendChild(bar);
+    }
+    
+    const parent = micBtn.parentElement;
+    if (parent) {
+        parent.style.position = 'relative';
+        parent.appendChild(indicator);
+    }
+}
+
+function removeVoiceIndicator() {
+    const indicator = document.getElementById('voice-wave-indicator');
+    if (indicator) indicator.remove();
 }
 
 async function sendTextMsg() {
@@ -142,18 +222,46 @@ async function sendTextMsg() {
         const currentLevel = SYLLABUS[state.levelIdx];
         const currentTopic = currentLevel.topics[state.topicIdx];
         
-        const prompt = `
-            Eres un Profesor de Inglés para hispanohablantes. 
-            Nivel: ${currentLevel.name}. Tema: ${currentTopic}.
-            Usuario dice: "${text}".
-            Responde en JSON: 
-            { "type": "chat", "reply": "Respuesta en INGLÉS (Traducción entre paréntesis)", "feedback": "Corrección o consejo en ESPAÑOL" }
-        `;
+        // Detectar idioma del usuario (simple: contar palabras en español vs inglés)
+        const isSpanish = detectLanguage(text);
+        
+        let prompt = '';
+        if (isSpanish) {
+            // Usuario escribe en español → Lección/Respuesta en inglés
+            prompt = `
+                Eres un Profesor de Inglés para hispanohablantes. 
+                Nivel: ${currentLevel.name}. Tema: ${currentTopic}.
+                Usuario dice (en ESPAÑOL): "${text}".
+                
+                Responde en JSON: 
+                { 
+                    "type": "chat", 
+                    "reply": "Respuesta en INGLÉS relevante al tema (con traducción en español entre paréntesis)", 
+                    "feedback": "Consejo o explicación en ESPAÑOL"
+                }
+            `;
+        } else {
+            // Usuario escribe en inglés → Corrección/Feedback
+            prompt = `
+                Eres un Tutor de Inglés. El usuario está practicando.
+                Nivel: ${currentLevel.name}. Tema: ${currentTopic}.
+                Usuario escribe (en INGLÉS): "${text}".
+                
+                Analiza gramática, ortografía y naturalidad. Responde en JSON:
+                {
+                    "type": "correction",
+                    "is_correct": true/false,
+                    "corrected_sentence": "Versión corregida si hay error, o 'Perfect!' si está bien",
+                    "explanation": "Explicación del error o felicitación en ESPAÑOL",
+                    "example": "Ejemplo adicional en INGLÉS (traducción)"
+                }
+            `;
+        }
         
         const data = await callGemini(prompt);
         document.getElementById(loadingId)?.remove();
         
-        if(data.reply) {
+        if (data.type === 'chat' && data.reply) {
             const updatedHistory = [...getState().chatHistory, { role: 'bot', content: data.reply }];
             updateState({ chatHistory: updatedHistory.slice(-MAX_HISTORY) });
             
@@ -166,12 +274,50 @@ async function sendTextMsg() {
             const audioBtn = createAudioButton(englishText);
             const msgEl = document.getElementById(msgId).querySelector('.message-bubble');
             if(msgEl) msgEl.appendChild(audioBtn);
+            
+        } else if (data.type === 'correction') {
+            let html = '';
+            if (data.is_correct) {
+                html = `<div class="text-green-600 font-bold mb-1">✅ ${data.corrected_sentence}</div>`;
+            } else {
+                html = `<div class="text-yellow-600 font-bold mb-1">💡 Corrección: ${data.corrected_sentence}</div>`;
+            }
+            if (data.explanation) html += `<div class="text-secondary text-sm">${data.explanation}</div>`;
+            if (data.example) html += `<div class="text-primary text-sm italic mt-1">Ejemplo: ${data.example}</div>`;
+            
+            const msgId = addMessageToUI(html, 'bot');
+            
+            if (!data.is_correct && data.corrected_sentence) {
+                const audioBtn = createAudioButton(data.corrected_sentence.split('(')[0].trim());
+                const msgEl = document.getElementById(msgId).querySelector('.message-bubble');
+                if(msgEl) msgEl.appendChild(audioBtn);
+            }
         }
 
     } catch (e) {
         document.getElementById(loadingId)?.remove();
         addMessageToUI(`<span class="text-error">Error: ${e.message}</span>`, 'bot');
     }
+}
+
+// Detector de idioma simple (basado en palabras comunes)
+function detectLanguage(text) {
+    const spanishWords = ['el', 'la', 'los', 'las', 'un', 'una', 'de', 'en', 'que', 'es', 'por', 'para', 'con', 'como', 'está', 'qué', 'cómo', 'dónde', 'cuándo', 'yo', 'tú', 'él', 'ella'];
+    const englishWords = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'on', 'at', 'to', 'of', 'for', 'with', 'this', 'that', 'what', 'how', 'where', 'when', 'I', 'you', 'he', 'she'];
+    
+    const words = text.toLowerCase().split(/\\s+/);
+    let spanishCount = 0;
+    let englishCount = 0;
+    
+    words.forEach(word => {
+        if (spanishWords.includes(word)) spanishCount++;
+        if (englishWords.includes(word)) englishCount++;
+    });
+    
+    // Si hay acentos o ñ, probablemente es español
+    if (/[áéíóúñ¿¡]/i.test(text)) spanishCount += 3;
+    
+    return spanishCount > englishCount;
 }
 
 // --- LÓGICA PRINCIPAL DE ACCIONES ---
@@ -303,11 +449,11 @@ function handleLesson(data) {
         </div>
 
         <div class="flex items-center justify-between pt-3 border-t border-gray-200">
-            <button onclick="window.navLesson(${data.part - 1})" class="text-primary font-bold text-sm ${data.part <= 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${data.part <= 1 ? 'disabled' : ''}>
+            <button data-quiz-action="navLesson" data-quiz-value="${data.part - 1}" class="text-primary font-bold text-sm ${data.part <= 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${data.part <= 1 ? 'disabled' : ''}>
                 ⬅️ Anterior
             </button>
             <span class="text-xs font-bold text-gray-400">Parte ${data.part} / ${lessonState.totalParts}</span>
-            <button onclick="window.navLesson(${data.part + 1})" class="text-primary font-bold text-sm ${data.part >= lessonState.totalParts ? 'opacity-50 cursor-not-allowed' : ''}" ${data.part >= lessonState.totalParts ? 'disabled' : ''}>
+            <button data-quiz-action="navLesson" data-quiz-value="${data.part + 1}" class="text-primary font-bold text-sm ${data.part >= lessonState.totalParts ? 'opacity-50 cursor-not-allowed' : ''}" ${data.part >= lessonState.totalParts ? 'disabled' : ''}>
                 Siguiente ➡️
             </button>
         </div>
@@ -349,8 +495,8 @@ function handleQuiz(data) {
         html += `
             <p class="font-bold text-lg mb-2 text-center text-primary">"${data.statement}"</p>
             <div class="grid grid-cols-2 gap-3">
-                <button onclick="window.submitQuiz('true')" class="quiz-option-btn text-center" style="background: #DCFCE7; color: #166534; border-color: #86EFAC;">VERDADERO</button>
-                <button onclick="window.submitQuiz('false')" class="quiz-option-btn text-center" style="background: #FEE2E2; color: #991B1B; border-color: #FCA5A5;">FALSO</button>
+                <button data-quiz-action="submitQuiz" data-quiz-value="true" class="quiz-option-btn text-center" style="background: #DCFCE7; color: #166534; border-color: #86EFAC;">VERDADERO</button>
+                <button data-quiz-action="submitQuiz" data-quiz-value="false" class="quiz-option-btn text-center" style="background: #FEE2E2; color: #991B1B; border-color: #FCA5A5;">FALSO</button>
             </div>`;
     } else if (data.quiz_type === 'fill_blank') {
         html += `
@@ -361,7 +507,7 @@ function handleQuiz(data) {
             </p>
             <p class="text-center text-sm text-gray-400 italic mb-4">${data.translation_hint || ''}</p>
             <div class="flex flex-wrap gap-2 justify-center">
-                ${data.options.map(opt => `<button onclick="window.submitQuiz('${opt}')" class="quiz-word-chip">${opt}</button>`).join('')}
+                ${data.options.map(opt => `<button data-quiz-action="submitQuiz" data-quiz-value="${opt}" class="quiz-word-chip">${opt}</button>`).join('')}
             </div>`;
     } else if (data.quiz_type === 'order_sentence') {
         quizState.constructedSentence = [];
@@ -371,58 +517,53 @@ function handleQuiz(data) {
             <p class="text-center text-sm italic text-gray-500 mb-4">"${data.translation}"</p>
             <div id="sentence-builder" class="sentence-builder"></div>
             <div id="word-bank" class="flex flex-wrap gap-2 justify-center mt-3">
-                ${shuffled.map((word, idx) => `<button id="word-${idx}" onclick="window.addToSentence('${word}', 'word-${idx}')" class="quiz-word-chip">${word}</button>`).join('')}
+                ${shuffled.map((word, idx) => `<button id="word-${idx}" data-quiz-action="addWord" data-quiz-value="${word}" class="quiz-word-chip">${word}</button>`).join('')}
             </div>
             <div class="flex gap-2 mt-4">
-                <button onclick="window.resetSentence()" class="flex-1 py-2 text-gray-400 text-xs font-bold hover:text-gray-600">Reiniciar</button>
-                <button onclick="window.checkOrder()" class="flex-1 py-3 bg-primary text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform">Comprobar</button>
+                <button data-quiz-action="resetSentence" class="flex-1 py-2 text-gray-400 text-xs font-bold hover:text-gray-600">Reiniciar</button>
+                <button data-quiz-action="checkOrder" class="flex-1 py-3 bg-primary text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform">Comprobar</button>
             </div>`;
     } else if (data.quiz_type === 'matching') {
         quizState.selectedPair = null; quizState.correctMatches = 0;
         const left = data.pairs.map((p,i)=>({v:p.en,id:i})).sort(()=>Math.random()-0.5);
         const right = data.pairs.map((p,i)=>({v:p.es,id:i})).sort(()=>Math.random()-0.5);
         html += `<p class="text-xs text-center text-gray-400 mb-3 uppercase font-bold">Empareja las palabras</p>
-        <div class="grid grid-cols-2 gap-2">${left.map(l=>`<button onclick="window.selectMatch('${l.v}',${l.id},this)" class="match-btn text-primary text-sm" data-side="left">${l.v}</button>`).join('')} ${right.map(r=>`<button onclick="window.selectMatch('${r.v}',${r.id},this)" class="match-btn text-gray-600 text-sm" data-side="right">${r.v}</button>`).join('')}</div>`;
+        <div class="grid grid-cols-2 gap-2">${left.map(l=>`<button data-quiz-action="selectMatch" data-quiz-value="${l.v}" data-match-id="${l.id}" class="match-btn text-primary text-sm" data-side="left">${l.v}</button>`).join('')} ${right.map(r=>`<button data-quiz-action="selectMatch" data-quiz-value="${r.v}" data-match-id="${r.id}" class="match-btn text-gray-600 text-sm" data-side="right">${r.v}</button>`).join('')}</div>`;
     } else {
         html += `<p class="font-bold mb-4 text-lg text-primary leading-snug">${data.question || "Question?"}</p>
-        <div class="flex flex-col gap-2">${(data.options||[]).map((opt, idx) => `<button onclick="window.submitQuiz(${idx})" class="quiz-option-btn">${opt}</button>`).join('')}</div>`;
+        <div class="flex flex-col gap-2">${(data.options||[]).map((opt, idx) => `<button data-quiz-action="submitQuiz" data-quiz-value="${idx}" class="quiz-option-btn">${opt}</button>`).join('')}</div>`;
     }
     
     html += `
         <div class="flex items-center justify-between pt-3 mt-3 border-t border-gray-200">
-            <button onclick="window.navQuiz('prev')" class="text-primary font-bold text-sm ${quizState.currentQuestion <= 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${quizState.currentQuestion <= 1 ? 'disabled' : ''}>⬅️ Anterior</button>
+            <button data-quiz-action="navQuiz" data-quiz-value="prev" class="text-primary font-bold text-sm ${quizState.currentQuestion <= 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${quizState.currentQuestion <= 1 ? 'disabled' : ''}>⬅️ Anterior</button>
             <span class="text-xs font-bold text-gray-400">Pregunta ${quizState.currentQuestion} / ${quizState.totalQuestions}</span>
-            <button onclick="window.navQuiz('next')" class="text-primary font-bold text-sm ${quizState.currentQuestion >= quizState.totalQuestions ? 'opacity-50 cursor-not-allowed' : ''}" ${quizState.currentQuestion >= quizState.totalQuestions ? 'disabled' : ''}>Siguiente ➡️</button>
+            <button data-quiz-action="navQuiz" data-quiz-value="next" class="text-primary font-bold text-sm ${quizState.currentQuestion >= quizState.totalQuestions ? 'opacity-50 cursor-not-allowed' : ''}" ${quizState.currentQuestion >= quizState.totalQuestions ? 'disabled' : ''}>Siguiente ➡️</button>
         </div>
     </div>`;
     
     addMessageToUI(html, 'bot');
 }
 
-// --- FUNCIONES GLOBALES ---
+// --- FUNCIONES INTERNAS (Ya no globales) ---
 
-window.navLesson = (part) => {
-    handleAction('lesson', part);
-};
-
-window.navQuiz = (direction) => {
-    handleAction('quiz', direction);
-};
-
-window.submitQuiz = (answer) => {
+function submitQuizInternal(answer) {
     const data = currentQuizData;
     let isCorrect = false;
     if (data.quiz_type === 'true_false') isCorrect = (answer === 'true') === data.is_true;
     else if (data.quiz_type === 'fill_blank') {
         isCorrect = answer === data.hidden_word;
-        if(isCorrect) document.getElementById('blank-space').innerText = answer;
+        if(isCorrect) {
+            const blankEl = document.getElementById('blank-space');
+            if(blankEl) blankEl.innerText = answer;
+        }
     }
-    else isCorrect = answer === data.answer_index;
+    else isCorrect = parseInt(answer) === data.answer_index;
 
     showResult(isCorrect);
-};
+}
 
-window.addToSentence = (word, btnId) => {
+function addToSentenceInternal(word, btnId) {
     quizState.constructedSentence.push(word);
     const btn = document.getElementById(btnId);
     if (btn) btn.style.display = 'none';
@@ -435,9 +576,9 @@ window.addToSentence = (word, btnId) => {
         builder.appendChild(wordSpan);
         builder.classList.add('active');
     }
-};
+}
 
-window.resetSentence = () => {
+function resetSentenceInternal() {
     quizState.constructedSentence = [];
     const builder = document.getElementById('sentence-builder');
     if (builder) {
@@ -445,16 +586,16 @@ window.resetSentence = () => {
         builder.classList.remove('active');
     }
     document.querySelectorAll('#word-bank button').forEach(b => b.style.display = 'inline-block');
-};
+}
 
-window.checkOrder = () => {
+function checkOrderInternal() {
     const userSentence = quizState.constructedSentence.join(' ').trim();
     const targetSentence = currentQuizData.sentence.trim();
     const isCorrect = userSentence.replace(/[.,?!]/g, '') === targetSentence.replace(/[.,?!]/g, '');
     showResult(isCorrect);
-};
+}
 
-window.selectMatch = (text, id, btn) => {
+function selectMatchInternal(text, id, btn) {
     if (btn.disabled) return;
     if (!quizState.selectedPair) {
         quizState.selectedPair = { id, btn };
@@ -484,7 +625,7 @@ window.selectMatch = (text, id, btn) => {
             quizState.selectedPair = null;
         }
     }
-};
+}
 
 function showResult(isCorrect) {
     const state = getState();
@@ -523,7 +664,10 @@ function addMessageToUI(html, role, animate = true) {
     const area = document.getElementById('chat-area');
     if(area) {
         area.appendChild(div);
-        area.scrollTop = area.scrollHeight;
+        // Auto-scroll suave al final
+        setTimeout(() => {
+            area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' });
+        }, 100);
     }
     return div.id;
 }

@@ -442,6 +442,25 @@
                         <i data-lucide="book-open"></i>
                         Vocabulario Aprendido
                     </h3>
+                    
+                    <!-- Sistema de Repetición Espaciada -->
+                    <div id="srs-review-banner" class="hidden" style="background: linear-gradient(135deg, #FEF3C7, #FDE68A); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 2px solid #F59E0B;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                            <span style="font-size: 1.5rem;">📚</span>
+                            <div style="flex: 1;">
+                                <p style="font-weight: 700; color: #92400E; margin-bottom: 0.25rem;">
+                                    ¡Tienes <span id="srs-words-count">0</span> palabras para repasar!
+                                </p>
+                                <p style="font-size: 0.75rem; color: #78350F;">
+                                    Mantén tu vocabulario fresco con revisiones espaciadas
+                                </p>
+                            </div>
+                        </div>
+                        <button id="start-srs-review-btn" class="btn btn-warning" style="width: 100%; background: #F59E0B; color: white;">
+                            🚀 Comenzar Repaso
+                        </button>
+                    </div>
+                    
                     <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
                         <button id="vocab-filter-all" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.75rem;">Todos</button>
                         <button id="vocab-filter-a1" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.75rem;">A1</button>
@@ -456,6 +475,27 @@
                     </div>
                     <div id="vocabulary-list" class="vocabulary-grid">
                         <!-- Generado dinámicamente -->
+                    </div>
+                </div>
+                
+                <!-- Sistema de Backup Manual -->
+                <div class="section-card" style="margin-bottom: 1rem;">
+                    <h3 class="section-title">
+                        <i data-lucide="database"></i>
+                        Respaldo de Datos
+                    </h3>
+                    <p style="font-size: 0.875rem; color: #64748B; margin-bottom: 1rem;">
+                        Descarga una copia de seguridad de todo tu progreso. Puedes restaurarlo más tarde en cualquier dispositivo.
+                    </p>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="backup-download-btn" class="btn btn-primary" style="flex: 1;">
+                            <i data-lucide="download"></i>
+                            Descargar Backup
+                        </button>
+                        <button id="backup-restore-btn" class="btn btn-secondary" style="flex: 1;">
+                            <i data-lucide="upload"></i>
+                            Restaurar Backup
+                        </button>
                     </div>
                 </div>
 

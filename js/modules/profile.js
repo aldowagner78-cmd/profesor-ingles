@@ -1,5 +1,5 @@
 // Módulo de Perfil
-import { getState, getVocabulary, resetState, updateState, exportVocabulary, isTopicCompleted } from '../state.js';
+import { getState, getVocabulary, resetState, updateState, exportVocabulary, isTopicCompleted, getWordsForReview, updateWordSRS } from '../state.js';
 import { setApiKey } from '../services/gemini.js';
 import { setSpeechRate } from '../services/voice.js';
 import { SYLLABUS } from '../config.js';
@@ -9,6 +9,7 @@ import { showToast, createAudioButton, showLoading, showConfirmModal } from '../
 
 let currentVocabFilter = 'all';
 let deferredPrompt = null;
+let srsReviewSession = null; // Estado de la sesión de repaso
 
 // Capturar evento lo antes posible (fuera de initProfile)
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -228,13 +229,81 @@ export function initProfile() {
         showToast('✅ Vocabulario exportado', 'success');
     });
     
+    // Botón Descargar Backup (JSON completo)
+    document.getElementById('backup-download-btn')?.addEventListener('click', () => {
+        try {
+            // Crear objeto con TODO el localStorage
+            const backup = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                backup[key] = localStorage.getItem(key);
+            }
+            
+            const json = JSON.stringify(backup, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `profesor-ia-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('💾 Backup descargado correctamente', 'success');
+        } catch (e) {
+            showToast(`Error al crear backup: ${e.message}`, 'error');
+        }
+    });
+    
+    // Botón Restaurar Backup
+    document.getElementById('backup-restore-btn')?.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        
+        input.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            try {
+                const text = await file.text();
+                const backup = JSON.parse(text);
+                
+                showConfirmModal(
+                    '¿Restaurar Backup?',
+                    'Esto sobrescribirá todo tu progreso actual con los datos del archivo.',
+                    () => {
+                        // Restaurar cada clave del backup
+                        localStorage.clear();
+                        for (const [key, value] of Object.entries(backup)) {
+                            localStorage.setItem(key, value);
+                        }
+                        
+                        showToast('✅ Backup restaurado. Recargando...', 'success');
+                        setTimeout(() => location.reload(), 1500);
+                    }
+                );
+                
+            } catch (e) {
+                showToast(`Error al leer archivo: ${e.message}`, 'error');
+            }
+        });
+        
+        input.click();
+    });
+    
+    // Sistema de Repetición Espaciada (SRS)
+    document.getElementById('start-srs-review-btn')?.addEventListener('click', startSRSReview);
+    
     // Escuchar cambios de estado
     window.addEventListener('stateChanged', renderProfile);
-    window.addEventListener('vocabularyChanged', renderVocabulary);
+    window.addEventListener('vocabularyChanged', () => {
+        renderVocabulary();
+        updateSRSBanner();
+    });
     
     // Render inicial
     renderProfile();
     renderVocabulary();
+    updateSRSBanner();
 }
 
 function updateThemeUI(isDark) {
@@ -698,4 +767,251 @@ async function showVocabModal(word) {
             </p>
         `;
     }
+}
+
+// Sistema de Repetición Espaciada (SRS)
+function updateSRSBanner() {
+    const wordsToReview = getWordsForReview();
+    const banner = document.getElementById('srs-review-banner');
+    const count = document.getElementById('srs-words-count');
+    
+    if (!banner || !count) return;
+    
+    if (wordsToReview.length > 0) {
+        banner.classList.remove('hidden');
+        count.textContent = wordsToReview.length;
+    } else {
+        banner.classList.add('hidden');
+    }
+}
+
+function startSRSReview() {
+    const wordsToReview = getWordsForReview();
+    
+    if (wordsToReview.length === 0) {
+        showToast('¡No hay palabras para repasar! Sigue aprendiendo.', 'info');
+        return;
+    }
+    
+    srsReviewSession = {
+        words: wordsToReview,
+        currentIndex: 0,
+        correct: 0,
+        incorrect: 0
+    };
+    
+    showSRSModal();
+}
+
+function showSRSModal() {
+    if (!srsReviewSession || srsReviewSession.currentIndex >= srsReviewSession.words.length) {
+        finishSRSReview();
+        return;
+    }
+    
+    const word = srsReviewSession.words[srsReviewSession.currentIndex];
+    const icon = getWordIcon(word.object);
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    modal.id = 'srs-review-modal';
+    
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+    content.style.maxWidth = '500px';
+    
+    content.innerHTML = `
+        <div style="padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <span style="font-size: 0.75rem; color: #64748B; font-weight: 700;">
+                    PREGUNTA ${srsReviewSession.currentIndex + 1} / ${srsReviewSession.words.length}
+                </span>
+                <button id="skip-srs-btn" style="font-size: 0.75rem; color: #EF4444; font-weight: 700; background: none; border: none; cursor: pointer;">
+                    Salir
+                </button>
+            </div>
+            
+            <div style="text-align: center; margin-bottom: 1.5rem;">
+                <div style="font-size: 3rem; margin-bottom: 0.5rem;">${icon}</div>
+                <h2 style="font-size: 1.5rem; font-weight: 900; color: var(--color-primary); margin-bottom: 0.5rem;">
+                    ${word.translation}
+                </h2>
+                <p style="font-size: 0.875rem; color: #64748B;">
+                    ¿Cómo se dice en inglés?
+                </p>
+            </div>
+            
+            <div id="srs-answer-input" style="margin-bottom: 1rem;">
+                <input type="text" id="srs-input" placeholder="Escribe tu respuesta..." 
+                       style="width: 100%; padding: 0.75rem; border: 2px solid #E2E8F0; border-radius: 0.5rem; font-size: 1rem; text-align: center;"
+                       autocomplete="off">
+            </div>
+            
+            <div id="srs-feedback" class="hidden" style="margin-bottom: 1rem;"></div>
+            
+            <div style="display: flex; gap: 0.5rem;">
+                <button id="reveal-answer-btn" class="btn btn-secondary" style="flex: 1;">
+                    👁️ Ver Respuesta
+                </button>
+                <button id="check-answer-btn" class="btn btn-primary" style="flex: 1;">
+                    ✅ Comprobar
+                </button>
+            </div>
+        </div>
+    `;
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    // Focus en input
+    setTimeout(() => {
+        const input = document.getElementById('srs-input');
+        if (input) input.focus();
+    }, 100);
+    
+    // Event listeners
+    document.getElementById('skip-srs-btn')?.addEventListener('click', () => {
+        srsReviewSession = null;
+        modal.remove();
+    });
+    
+    document.getElementById('reveal-answer-btn')?.addEventListener('click', () => {
+        revealSRSAnswer(word, false);
+    });
+    
+    document.getElementById('check-answer-btn')?.addEventListener('click', () => {
+        const input = document.getElementById('srs-input');
+        const userAnswer = input?.value.trim().toLowerCase();
+        const correctAnswer = word.object.toLowerCase();
+        
+        if (userAnswer === correctAnswer) {
+            revealSRSAnswer(word, true);
+        } else {
+            revealSRSAnswer(word, false);
+        }
+    });
+    
+    // Enter para comprobar
+    document.getElementById('srs-input')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('check-answer-btn')?.click();
+        }
+    });
+}
+
+function revealSRSAnswer(word, isCorrect) {
+    const feedback = document.getElementById('srs-feedback');
+    const answerInput = document.getElementById('srs-answer-input');
+    const revealBtn = document.getElementById('reveal-answer-btn');
+    const checkBtn = document.getElementById('check-answer-btn');
+    
+    if (!feedback || !answerInput || !revealBtn || !checkBtn) return;
+    
+    answerInput.classList.add('hidden');
+    revealBtn.classList.add('hidden');
+    checkBtn.classList.add('hidden');
+    feedback.classList.remove('hidden');
+    
+    if (isCorrect) {
+        srsReviewSession.correct++;
+        updateWordSRS(word.object, 5); // Calidad perfecta
+        
+        feedback.innerHTML = `
+            <div style="text-align: center; padding: 1rem; background: #DCFCE7; border-radius: 0.75rem; border: 2px solid #10B981;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎉</div>
+                <p style="font-weight: 700; color: #065F46; margin-bottom: 0.5rem;">¡Correcto!</p>
+                <p style="font-size: 1.25rem; font-weight: 900; color: #10B981; margin-bottom: 0.25rem;">${word.object}</p>
+                <p style="font-size: 0.875rem; color: #047857;">${word.ipa || ''}</p>
+            </div>
+            <button id="next-srs-btn" class="btn btn-success" style="width: 100%; margin-top: 1rem;">
+                Siguiente ➡️
+            </button>
+        `;
+        
+        speakText(word.object, 'en-US');
+        
+    } else {
+        srsReviewSession.incorrect++;
+        updateWordSRS(word.object, 1); // Calidad baja
+        
+        feedback.innerHTML = `
+            <div style="text-align: center; padding: 1rem; background: #FEF3C7; border-radius: 0.75rem; border: 2px solid #F59E0B;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">💡</div>
+                <p style="font-weight: 700; color: #92400E; margin-bottom: 0.5rem;">La respuesta correcta es:</p>
+                <p style="font-size: 1.5rem; font-weight: 900; color: #F59E0B; margin-bottom: 0.25rem;">${word.object}</p>
+                <p style="font-size: 0.875rem; color: #78350F; margin-bottom: 0.25rem;">${word.ipa || ''}</p>
+                <p style="font-size: 0.875rem; color: #92400E;">(${word.translation})</p>
+            </div>
+            <button id="next-srs-btn" class="btn btn-warning" style="width: 100%; margin-top: 1rem; background: #F59E0B; color: white;">
+                Siguiente ➡️
+            </button>
+        `;
+        
+        speakText(word.object, 'en-US');
+    }
+    
+    document.getElementById('next-srs-btn')?.addEventListener('click', () => {
+        document.getElementById('srs-review-modal')?.remove();
+        srsReviewSession.currentIndex++;
+        showSRSModal();
+    });
+}
+
+function finishSRSReview() {
+    if (!srsReviewSession) return;
+    
+    const total = srsReviewSession.words.length;
+    const correct = srsReviewSession.correct;
+    const percentage = Math.round((correct / total) * 100);
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+    content.style.maxWidth = '400px';
+    
+    let emoji = '🎉';
+    let message = '¡Excelente trabajo!';
+    let color = '#10B981';
+    
+    if (percentage < 50) {
+        emoji = '💪';
+        message = '¡Sigue practicando!';
+        color = '#F59E0B';
+    } else if (percentage < 80) {
+        emoji = '👍';
+        message = '¡Buen esfuerzo!';
+        color = '#4A90E2';
+    }
+    
+    content.innerHTML = `
+        <div style="padding: 2rem; text-align: center;">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">${emoji}</div>
+            <h2 style="font-size: 1.5rem; font-weight: 900; color: ${color}; margin-bottom: 0.5rem;">
+                ${message}
+            </h2>
+            <p style="font-size: 3rem; font-weight: 900; color: ${color}; margin-bottom: 0.5rem;">
+                ${percentage}%
+            </p>
+            <p style="font-size: 0.875rem; color: #64748B; margin-bottom: 1.5rem;">
+                ${correct} de ${total} respuestas correctas
+            </p>
+            <button id="finish-srs-btn" class="btn btn-primary" style="width: 100%;">
+                ✅ Finalizar
+            </button>
+        </div>
+    `;
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    document.getElementById('finish-srs-btn')?.addEventListener('click', () => {
+        modal.remove();
+        srsReviewSession = null;
+        updateSRSBanner();
+        showToast(`¡Repaso completado! ${percentage}%`, 'success');
+    });
 }

@@ -64,12 +64,19 @@ async function startMode(mode) {
 async function startCameraStream(videoElement) {
     if (stream) return true;
     
+    // Verificar si el navegador soporta getUserMedia
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showToast('Tu navegador no soporta acceso a la cámara. Usa Chrome, Firefox o Safari actualizado.', 'error');
+        return false;
+    }
+    
     try {
         // Intentar cámara trasera primero
         stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'environment' }
         });
         videoElement.srcObject = stream;
+        showToast('Cámara trasera activada', 'success');
         return true;
     } catch (e) {
         console.error("Error con cámara trasera:", e);
@@ -78,9 +85,22 @@ async function startCameraStream(videoElement) {
         try {
             stream = await navigator.mediaDevices.getUserMedia({ video: true });
             videoElement.srcObject = stream;
+            showToast('Usando cámara frontal', 'info');
             return true;
         } catch (err) {
             console.error("Error con cámara frontal:", err);
+            
+            // Mensajes de error específicos según el tipo de problema
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                showToast('❌ Permiso denegado. Por favor permite el acceso a la cámara en la configuración de tu navegador.', 'error');
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                showToast('❌ No se encontró ninguna cámara en tu dispositivo.', 'error');
+            } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                showToast('❌ La cámara está siendo usada por otra aplicación. Ciérrala e intenta de nuevo.', 'error');
+            } else {
+                showToast(`❌ Error al acceder a la cámara: ${err.message}`, 'error');
+            }
+            
             return false;
         }
     }
