@@ -4,6 +4,209 @@ import { showToast } from '../utils/ui.js';
 
 const AVATARS = ['👤', '👨', '👩', '👦', '👧', '🧑', '👨‍🎓', '👩‍🎓', '🧑‍🎓', '👨‍💼', '👩‍💼', '🧑‍💻'];
 
+// Nueva función de bienvenida a pantalla completa
+export function showWelcomeScreen() {
+    const welcome = document.createElement('div');
+    welcome.id = 'welcome-screen';
+    welcome.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+    `;
+    
+    welcome.innerHTML = `
+        <div class="welcome-content" style="max-width: 500px; width: 100%; animation: welcomeSlideUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);">
+            <!-- Logo y título -->
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <div style="display: inline-block; background: rgba(255,255,255,0.15); padding: 1.5rem; border-radius: 2rem; backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(0,0,0,0.1); margin-bottom: 1.5rem;">
+                    <div style="font-size: 5rem; line-height: 1;">🎓</div>
+                </div>
+                <h1 style="font-size: 2.5rem; font-weight: 900; color: white; margin-bottom: 0.5rem; text-shadow: 0 2px 20px rgba(0,0,0,0.2); font-family: 'Nunito', -apple-system, sans-serif;">
+                    Profesor IA
+                </h1>
+                <p style="font-size: 1.125rem; color: rgba(255,255,255,0.9); font-weight: 600; text-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    Aprende inglés con inteligencia artificial
+                </p>
+            </div>
+            
+            <!-- Formulario de perfil -->
+            <div style="background: white; border-radius: 2rem; padding: 2rem; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+                <h2 style="font-size: 1.5rem; font-weight: 800; color: #1F2937; margin-bottom: 0.5rem; text-align: center;">
+                    ¡Bienvenido! 👋
+                </h2>
+                <p style="font-size: 0.875rem; color: #6B7280; text-align: center; margin-bottom: 2rem;">
+                    Primero, cuéntanos un poco sobre ti
+                </p>
+                
+                <!-- Input Nombre -->
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; font-size: 0.875rem; font-weight: 700; color: #374151; margin-bottom: 0.5rem;">
+                        ¿Cómo te llamas?
+                    </label>
+                    <input 
+                        type="text" 
+                        id="welcome-name-input" 
+                        placeholder="Ej: María, Carlos, Juan..."
+                        maxlength="20"
+                        autocomplete="off"
+                        style="width: 100%; padding: 1rem; border: 2px solid #E5E7EB; border-radius: 1rem; font-size: 1rem; font-weight: 500; transition: all 0.2s; background: linear-gradient(to right, #F9FAFB, #FFFFFF);"
+                        onfocus="this.style.borderColor='#667eea'; this.style.boxShadow='0 0 0 3px rgba(102, 126, 234, 0.1)';"
+                        onblur="this.style.borderColor='#E5E7EB'; this.style.boxShadow='none';"
+                    >
+                </div>
+                
+                <!-- Selector de Avatar -->
+                <div style="margin-bottom: 2rem;">
+                    <label style="display: block; font-size: 0.875rem; font-weight: 700; color: #374151; margin-bottom: 0.75rem;">
+                        Elige tu avatar
+                    </label>
+                    <div id="welcome-avatar-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem;">
+                        ${AVATARS.map((avatar, idx) => `
+                            <button 
+                                class="welcome-avatar-btn ${idx === 0 ? 'selected' : ''}"
+                                data-avatar="${avatar}"
+                                onclick="window.selectWelcomeAvatar('${avatar}')"
+                                style="width: 100%; aspect-ratio: 1; font-size: 2rem; background: linear-gradient(135deg, #F3F4F6, #E5E7EB); border: 2px solid #D1D5DB; border-radius: 1rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;"
+                                onmouseover="if(!this.classList.contains('selected')) { this.style.transform='scale(1.05)'; this.style.borderColor='#667eea'; }"
+                                onmouseout="if(!this.classList.contains('selected')) { this.style.transform='scale(1)'; this.style.borderColor='#D1D5DB'; }"
+                            >
+                                ${avatar}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <!-- Botón Continuar -->
+                <button 
+                    id="welcome-continue-btn"
+                    onclick="window.completeWelcome()"
+                    disabled
+                    style="width: 100%; padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 1rem; font-size: 1.125rem; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4); opacity: 0.5;"
+                    onmouseover="if(!this.disabled) { this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)'; }"
+                    onmouseout="if(!this.disabled) { this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 14px rgba(102, 126, 234, 0.4)'; }"
+                >
+                    Comenzar mi aprendizaje 🚀
+                </button>
+            </div>
+            
+            <!-- Información adicional -->
+            <div style="text-align: center; margin-top: 2rem; color: rgba(255,255,255,0.8); font-size: 0.75rem; font-weight: 600;">
+                <p>✨ Gratis · 🔒 Privado · 🌍 Sin límites</p>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(welcome);
+    
+    // Fade in
+    setTimeout(() => {
+        welcome.style.opacity = '1';
+    }, 10);
+    
+    // Agregar estilos de animación
+    if (!document.getElementById('welcome-screen-styles')) {
+        const style = document.createElement('style');
+        style.id = 'welcome-screen-styles';
+        style.textContent = `
+            @keyframes welcomeSlideUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            .welcome-avatar-btn.selected {
+                background: linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%) !important;
+                border-color: #667eea !important;
+                border-width: 3px !important;
+                transform: scale(1.08) !important;
+                box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            }
+            
+            #welcome-continue-btn:not(:disabled) {
+                opacity: 1 !important;
+                cursor: pointer !important;
+            }
+            
+            #welcome-continue-btn:disabled {
+                cursor: not-allowed !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // Setup input validation
+    const input = document.getElementById('welcome-name-input');
+    const btn = document.getElementById('welcome-continue-btn');
+    
+    if (input && btn) {
+        input.focus();
+        
+        input.addEventListener('input', () => {
+            const isValid = input.value.trim().length >= 2;
+            btn.disabled = !isValid;
+            btn.style.opacity = isValid ? '1' : '0.5';
+            btn.style.cursor = isValid ? 'pointer' : 'not-allowed';
+        });
+        
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !btn.disabled) {
+                window.completeWelcome();
+            }
+        });
+    }
+}
+
+let selectedWelcomeAvatar = AVATARS[0];
+
+window.selectWelcomeAvatar = function(avatar) {
+    selectedWelcomeAvatar = avatar;
+    
+    document.querySelectorAll('.welcome-avatar-btn').forEach(btn => {
+        btn.classList.remove('selected');
+        if (btn.dataset.avatar === avatar) {
+            btn.classList.add('selected');
+        }
+    });
+};
+
+window.completeWelcome = function() {
+    const input = document.getElementById('welcome-name-input');
+    const name = input?.value.trim();
+    
+    if (!name || name.length < 2) {
+        showToast('Por favor, ingresa un nombre válido', 'warning');
+        return;
+    }
+    
+    // Crear perfil
+    const profile = createProfile(name, selectedWelcomeAvatar);
+    setCurrentProfile(profile.id);
+    
+    // Fade out y remover
+    const welcome = document.getElementById('welcome-screen');
+    if (welcome) {
+        welcome.style.opacity = '0';
+        setTimeout(() => {
+            welcome.remove();
+            showToast(`¡Bienvenido, ${name}! 🎉`, 'success');
+            // Recargar app
+            window.location.reload();
+        }, 500);
+    }
+};
+
 export function showProfileSelector() {
     const profiles = getAllProfiles();
     

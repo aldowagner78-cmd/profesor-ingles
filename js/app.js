@@ -4,7 +4,7 @@ import { updateDailyStreak, getState, updateState, getCurrentProfile, getAllProf
 import { initChat } from './modules/chat.js';
 import { initProfile, renderProfile } from './modules/profile.js';
 import { initP2P } from './modules/p2p.js';
-import { showProfileSelector } from './modules/profiles.js';
+import { showWelcomeScreen } from './modules/profiles.js';
 import { showToast } from './utils/ui.js';
 import { initVoice } from './services/voice.js';
 
@@ -84,8 +84,8 @@ function checkApiKey() {
     const allProfiles = getAllProfiles();
     
     if (!currentProfile || allProfiles.length === 0) {
-        // No hay perfil: mostrar selector obligatorio
-        showProfileSelector();
+        // No hay perfil: mostrar pantalla de bienvenida a pantalla completa
+        showWelcomeScreen();
         return;
     }
     
