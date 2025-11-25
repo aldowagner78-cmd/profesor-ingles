@@ -267,40 +267,62 @@ async function sendTextMsg() {
         const currentLevel = SYLLABUS[state.levelIdx];
         const currentTopic = currentLevel.topics[state.topicIdx];
         
-        // Detectar idioma del usuario (simple: contar palabras en español vs inglés)
-        const isSpanish = detectLanguage(text);
+        // Detectar si es una meta-pregunta (sobre la app, cómo usar, etc)
+        const metaKeywords = ['cómo usar', 'como usar', 'cómo funciona', 'como funciona', 'qué hago', 'que hago', 'ayuda', 'help', 'instrucciones', 'explicar app', 'usar app', 'usar esta app', 'dime como', 'explica como'];
+        const isMeta = metaKeywords.some(keyword => text.toLowerCase().includes(keyword));
         
         let prompt = '';
-        if (isSpanish) {
-            // Usuario escribe en español → Lección/Respuesta en inglés
+        
+        if (isMeta) {
+            // Pregunta sobre cómo usar la aplicación
             prompt = `
-                Eres un Profesor de Inglés para hispanohablantes. 
-                Nivel: ${currentLevel.name}. Tema: ${currentTopic}.
-                Usuario dice (en ESPAÑOL): "${text}".
+                El usuario pregunta sobre cómo usar la aplicación de aprendizaje de inglés.
+                Pregunta: "${text}"
                 
-                Responde en JSON: 
-                { 
-                    "type": "chat", 
-                    "reply": "Respuesta en INGLÉS relevante al tema (con traducción en español entre paréntesis)", 
-                    "feedback": "Consejo o explicación en ESPAÑOL"
+                Responde en JSON explicando en ESPAÑOL cómo funcionar la app:
+                {
+                    "type": "chat",
+                    "reply": "Explicación clara en ESPAÑOL sobre cómo usar la app (sin traducción al inglés)",
+                    "feedback": "Consejos adicionales en ESPAÑOL"
                 }
+                
+                La app tiene: Lecciones (botón 📖), Quiz (botón 📝), Roleplay (botón 🎭 que se desbloquea con 75% en quiz), Cámara (para reconocer objetos), y Chat libre para practicar.
             `;
         } else {
-            // Usuario escribe en inglés → Corrección/Feedback
-            prompt = `
-                Eres un Tutor de Inglés. El usuario está practicando.
-                Nivel: ${currentLevel.name}. Tema: ${currentTopic}.
-                Usuario escribe (en INGLÉS): "${text}".
-                
-                Analiza gramática, ortografía y naturalidad. Responde en JSON:
-                {
-                    "type": "correction",
-                    "is_correct": true/false,
-                    "corrected_sentence": "Versión corregida si hay error, o 'Perfect!' si está bien",
-                    "explanation": "Explicación del error o felicitación en ESPAÑOL",
-                    "example": "Ejemplo adicional en INGLÉS (traducción)"
-                }
-            `;
+            // Detectar idioma del usuario (simple: contar palabras en español vs inglés)
+            const isSpanish = detectLanguage(text);
+            
+            if (isSpanish) {
+                // Usuario escribe en español → Lección/Respuesta en inglés
+                prompt = `
+                    Eres un Profesor de Inglés para hispanohablantes. 
+                    Nivel: ${currentLevel.name}. Tema: ${currentTopic}.
+                    Usuario dice (en ESPAÑOL): "${text}".
+                    
+                    Responde en JSON: 
+                    { 
+                        "type": "chat", 
+                        "reply": "Respuesta en INGLÉS relevante al tema (con traducción en español entre paréntesis)", 
+                        "feedback": "Consejo o explicación en ESPAÑOL"
+                    }
+                `;
+            } else {
+                // Usuario escribe en inglés → Corrección/Feedback
+                prompt = `
+                    Eres un Tutor de Inglés. El usuario está practicando.
+                    Nivel: ${currentLevel.name}. Tema: ${currentTopic}.
+                    Usuario escribe (en INGLÉS): "${text}".
+                    
+                    Analiza gramática, ortografía y naturalidad. Responde en JSON:
+                    {
+                        "type": "correction",
+                        "is_correct": true/false,
+                        "corrected_sentence": "Versión corregida si hay error, o 'Perfect!' si está bien",
+                        "explanation": "Explicación del error o felicitación en ESPAÑOL",
+                        "example": "Ejemplo adicional en INGLÉS (traducción)"
+                    }
+                `;
+            }
         }
         
         const data = await callGemini(prompt);
@@ -310,33 +332,42 @@ async function sendTextMsg() {
             const updatedHistory = [...getState().chatHistory, { role: 'bot', content: data.reply }];
             updateState({ chatHistory: updatedHistory.slice(-MAX_HISTORY) });
             
-            // Separar texto en inglés y traducción
-            const parts = data.reply.split('(');
-            const englishText = parts[0].trim();
-            const translation = parts[1] ? '(' + parts[1] : '';
+            // Verificar si es una respuesta en español (meta-pregunta)
+            const isSpanishResponse = !data.reply.includes('(') || isMeta;
             
-            let html = `
-                <div class="flex items-center gap-1 mb-1">
-                    <span class="font-bold text-primary" style="font-size: 0.9375rem;">${englishText}</span>
-                    <span id="audio-chat-${Date.now()}"></span>
-                </div>
-                ${translation ? `<div style="font-size: 0.6875rem; color: #64748B;">${translation}</div>` : ''}
-            `;
-            
-            if(data.feedback) html += `<div class="text-secondary text-sm mt-2">${data.feedback}</div>`;
-            
-            const msgId = addMessageToUI(html, 'bot');
-            
-            // Agregar botón de audio
-            const audioContainer = document.getElementById(`audio-chat-${Date.now()}`);
-            if (!audioContainer) {
-                const msgEl = document.getElementById(msgId);
-                const container = msgEl?.querySelector('[id^="audio-chat-"]');
-                if (container) {
-                    container.appendChild(createAudioButton(englishText));
-                    // Inicializar iconos de Lucide
-                    if (window.lucide) window.lucide.createIcons();
-                }
+            if (isSpanishResponse) {
+                // Respuesta completamente en español (sin audio)
+                let html = `<div class="text-secondary" style="font-size: 0.9375rem;">${data.reply}</div>`;
+                if(data.feedback) html += `<div class="text-secondary text-sm mt-2">${data.feedback}</div>`;
+                addMessageToUI(html, 'bot');
+            } else {
+                // Separar texto en inglés y traducción
+                const parts = data.reply.split('(');
+                const englishText = parts[0].trim();
+                const translation = parts[1] ? '(' + parts[1] : '';
+                
+                let html = `
+                    <div class="flex items-center gap-1 mb-1">
+                        <span class="font-bold text-primary" style="font-size: 0.9375rem;">${englishText}</span>
+                        <span id="audio-chat-${Date.now()}"></span>
+                    </div>
+                    ${translation ? `<div style="font-size: 0.6875rem; color: #64748B;">${translation}</div>` : ''}
+                `;
+                
+                if(data.feedback) html += `<div class="text-secondary text-sm mt-2">${data.feedback}</div>`;
+                
+                const msgId = addMessageToUI(html, 'bot');
+                
+                // Agregar botón de audio
+                setTimeout(() => {
+                    const msgEl = document.getElementById(msgId);
+                    const container = msgEl?.querySelector('[id^="audio-chat-"]');
+                    if (container) {
+                        container.appendChild(createAudioButton(englishText));
+                        // Inicializar iconos de Lucide
+                        if (window.lucide) window.lucide.createIcons();
+                    }
+                }, 100);
             }
             
         } else if (data.type === 'correction') {
