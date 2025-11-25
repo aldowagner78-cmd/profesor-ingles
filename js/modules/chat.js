@@ -388,7 +388,7 @@ async function handleAction(action, param = null) {
                 REGLA 3: Elige aleatoriamente UNO de estos tipos:
                 
                 1. multiple_choice:
-                { "type": "quiz", "question_number": ${quizState.currentQuestion}, "total_questions": ${quizState.totalQuestions}, "quiz_type": "multiple_choice", "question": "¿Cómo se dice '[Palabra Español]' en inglés?", "options": ["Correct (EN)", "Wrong1 (EN)", "Wrong2 (EN)"], "answer_index": 0 }
+                { "type": "quiz", "question_number": ${quizState.currentQuestion}, "total_questions": ${quizState.totalQuestions}, "quiz_type": "multiple_choice", "question": "¿Cómo se dice '[Palabra Español]' en inglés?", "options": ["Correct (EN)", "Wrong1 (EN)", "Wrong2 (EN)", "Wrong3 (EN)"], "answer_index": 0 }
                 
                 2. true_false:
                 { "type": "quiz", "question_number": ${quizState.currentQuestion}, "total_questions": ${quizState.totalQuestions}, "quiz_type": "true_false", "statement": "La palabra 'House' significa 'Casa'.", "is_true": true, "explanation": "Explicación en Español." }
@@ -493,6 +493,14 @@ function handleQuiz(data) {
     const questionId = data.question || data.statement || data.sentence_start;
     if (questionId) quizState.usedQuestions.push(questionId);
     
+    // NUEVO: Aleatorizar opciones para multiple_choice
+    if (data.quiz_type === 'multiple_choice' && data.options && data.answer_index !== undefined) {
+        const correctAnswer = data.options[data.answer_index];
+        const shuffled = [...data.options].sort(() => Math.random() - 0.5);
+        data.options = shuffled;
+        data.answer_index = shuffled.indexOf(correctAnswer);
+    }
+    
     let html = `<div class="quiz-container">`;
     
     html += `<div class="flex items-center gap-2 mb-3"><span class="bg-accent text-white px-2 py-1 rounded text-xs font-bold uppercase">Quiz</span></div>`;
@@ -542,9 +550,13 @@ function handleQuiz(data) {
     
     html += `
         <div class="flex items-center justify-between pt-3 mt-3 border-t border-gray-200">
-            <button data-quiz-action="navQuiz" data-quiz-value="prev" class="text-primary font-bold text-sm ${quizState.currentQuestion <= 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${quizState.currentQuestion <= 1 ? 'disabled' : ''}>⬅️ Anterior</button>
+            ${quizState.currentQuestion > 1 ? `
+                <button data-quiz-action="navQuiz" data-quiz-value="prev" class="text-primary font-bold text-sm">⬅️ Anterior</button>
+            ` : '<div></div>'}
             <span class="text-xs font-bold text-gray-400">Pregunta ${quizState.currentQuestion} / ${quizState.totalQuestions}</span>
-            <button data-quiz-action="navQuiz" data-quiz-value="next" class="text-primary font-bold text-sm ${quizState.currentQuestion >= quizState.totalQuestions ? 'opacity-50 cursor-not-allowed' : ''}" ${quizState.currentQuestion >= quizState.totalQuestions ? 'disabled' : ''}>Siguiente ➡️</button>
+            ${quizState.currentQuestion < quizState.totalQuestions ? `
+                <button data-quiz-action="navQuiz" data-quiz-value="next" class="text-primary font-bold text-sm">Siguiente ➡️</button>
+            ` : '<div></div>'}
         </div>
     </div>`;
     
@@ -647,6 +659,36 @@ function showResult(isCorrect) {
         const newScore = Math.max(progress.highestQuizScore || 0, percentage);
         
         updateTopicProgress(state.levelIdx, state.topicIdx, { quizScore: newScore });
+        
+        // NUEVO: Verificar si completó todas las preguntas
+        if (quizState.currentQuestion >= quizState.totalQuestions) {
+            const PASSING_SCORE = 75;
+            if (percentage >= PASSING_SCORE) {
+                setTimeout(() => {
+                    addMessageToUI(`
+                        <div class="text-center p-4 bg-gradient-to-br from-green-50 to-blue-50 rounded-xl border-2 border-green-200">
+                            <div class="text-3xl mb-2">🎓✨</div>
+                            <h3 class="font-black text-xl text-green-700 mb-2">¡Felicitaciones!</h3>
+                            <p class="text-sm text-gray-600 mb-3">Completaste el quiz con <span class="font-bold text-green-600">${percentage}%</span></p>
+                            <button onclick="document.querySelector('[data-action=\\'roleplay\\']').click()" class="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg font-bold text-sm shadow-lg hover:shadow-xl transition-all">
+                                🎭 ¡Desbloquear Roleplay!
+                            </button>
+                        </div>
+                    `, 'bot');
+                }, 1000);
+            } else {
+                setTimeout(() => {
+                    addMessageToUI(`
+                        <div class="text-center p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                            <div class="text-2xl mb-2">💪</div>
+                            <p class="text-sm text-gray-600">Obtuviste <span class="font-bold">${percentage}%</span>. Necesitas al menos 75% para desbloquear el Roleplay.</p>
+                            <button onclick="document.querySelector('[data-action=\\'quiz\\']').click()" class="mt-3 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold">Intentar de nuevo</button>
+                        </div>
+                    `, 'bot');
+                }, 1000);
+            }
+        }
+        
         checkRoleplayLock();
     } else {
         addMessageToUI(`<div class="text-red-500 font-bold text-center p-2">Incorrecto 😅</div>`, 'bot');
