@@ -330,7 +330,7 @@ async function handleAction(action, param = null) {
     let loadingMsg = 'Iniciando...';
     
     if (action === 'lesson') {
-        if (typeof param === 'number') {
+        if (typeof param === 'number' && param > 0) {
             lessonState.currentPart = param;
             loadingMsg = `Cargando parte ${lessonState.currentPart}...`;
         } else {
@@ -449,13 +449,17 @@ function handleLesson(data) {
         </div>
 
         <div class="flex items-center justify-between pt-3 border-t border-gray-200">
-            <button data-quiz-action="navLesson" data-quiz-value="${data.part - 1}" class="text-primary font-bold text-sm ${data.part <= 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${data.part <= 1 ? 'disabled' : ''}>
-                ⬅️ Anterior
-            </button>
+            ${data.part > 1 ? `
+                <button data-quiz-action="navLesson" data-quiz-value="${data.part - 1}" class="text-primary font-bold text-sm">
+                    ⬅️ Anterior
+                </button>
+            ` : '<div></div>'}
             <span class="text-xs font-bold text-gray-400">Parte ${data.part} / ${lessonState.totalParts}</span>
-            <button data-quiz-action="navLesson" data-quiz-value="${data.part + 1}" class="text-primary font-bold text-sm ${data.part >= lessonState.totalParts ? 'opacity-50 cursor-not-allowed' : ''}" ${data.part >= lessonState.totalParts ? 'disabled' : ''}>
-                Siguiente ➡️
-            </button>
+            ${data.part < lessonState.totalParts ? `
+                <button data-quiz-action="navLesson" data-quiz-value="${data.part + 1}" class="text-primary font-bold text-sm">
+                    Siguiente ➡️
+                </button>
+            ` : '<div></div>'}
         </div>
         
         ${data.part >= lessonState.totalParts ? 
