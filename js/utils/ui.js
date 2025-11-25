@@ -182,22 +182,22 @@ export function showLoading(container, message = 'Cargando...') {
 export function createAudioButton(text, lang = 'en-US') {
     const btn = document.createElement('button');
     btn.className = 'audio-btn';
-    btn.innerHTML = '<i data-lucide="volume-2"></i>';
+    btn.innerHTML = '<i data-lucide="volume-2" style="width: 0.75rem; height: 0.75rem;"></i>';
     btn.title = 'Escuchar';
     
     Object.assign(btn.style, {
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: '2rem',
-        height: '2rem',
-        borderRadius: '0.5rem',
+        width: '1.25rem',
+        height: '1.25rem',
+        borderRadius: '0.25rem',
         background: '#DBEAFE',
         color: '#1E40AF',
         border: '1px solid #93C5FD',
         cursor: 'pointer',
         transition: 'all 0.2s ease',
-        marginLeft: '0.5rem',
+        marginLeft: '0.375rem',
         verticalAlign: 'middle',
         flexShrink: '0'
     });
