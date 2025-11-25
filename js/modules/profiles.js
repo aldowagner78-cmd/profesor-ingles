@@ -9,58 +9,102 @@ export function showProfileSelector() {
     
     const modal = document.createElement('div');
     modal.id = 'profile-selector-modal';
-    modal.className = 'fixed inset-0 bg-gradient-to-br from-blue-900 to-purple-900 flex items-center justify-center z-[9999]';
+    modal.className = 'fixed inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center z-[9999] p-4';
+    modal.style.backdropFilter = 'blur(8px)';
     
     modal.innerHTML = `
-        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-scale-in">
-            <div class="bg-gradient-to-r from-blue-500 to-purple-500 p-6 text-white text-center">
-                <div class="text-5xl mb-3">🎓</div>
-                <h2 class="text-2xl font-black">Profesor IA</h2>
-                <p class="text-sm opacity-90 mt-2">Selecciona tu perfil o crea uno nuevo</p>
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden" style="animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);">
+            <!-- Header con diseño mejorado -->
+            <div class="relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-90"></div>
+                <div class="absolute inset-0" style="background: radial-gradient(circle at top right, rgba(255,255,255,0.3) 0%, transparent 60%);"></div>
+                <div class="relative p-8 text-center text-white">
+                    <div class="inline-block mb-4 p-4 bg-white/20 rounded-full backdrop-blur-sm" style="box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+                        <div class="text-6xl">🎓</div>
+                    </div>
+                    <h1 class="text-3xl font-black mb-2" style="text-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+                        Profesor IA
+                    </h1>
+                    <p class="text-sm opacity-95 font-medium">
+                        Aprende inglés con inteligencia artificial
+                    </p>
+                </div>
             </div>
             
             <div class="p-6">
                 ${profiles.length > 0 ? `
-                    <div class="mb-4">
-                        <label class="block text-sm font-bold text-gray-700 mb-3">Perfiles existentes:</label>
-                        <div class="space-y-2 max-h-60 overflow-y-auto">
+                    <div class="mb-6">
+                        <h3 class="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Selecciona tu perfil:</h3>
+                        <div class="space-y-3 max-h-64 overflow-y-auto pr-2" style="scrollbar-width: thin; scrollbar-color: #CBD5E0 #F7FAFC;">
                             ${profiles.map(profile => `
                                 <button 
                                     onclick="window.selectProfile('${profile.id}')" 
-                                    class="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-blue-50 border-2 border-gray-200 hover:border-blue-400 rounded-xl transition-all group"
+                                    class="profile-card-button w-full flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-blue-50 hover:to-purple-50 border-2 border-gray-200 hover:border-blue-400 rounded-2xl transition-all group shadow-sm hover:shadow-md"
                                 >
-                                    <div class="text-3xl">${profile.avatar}</div>
-                                    <div class="flex-1 text-left">
-                                        <div class="font-bold text-gray-800">${profile.name}</div>
-                                        <div class="text-xs text-gray-500">Perfil creado</div>
+                                    <div class="w-16 h-16 flex items-center justify-center bg-white rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
+                                        <span class="text-4xl">${profile.avatar}</span>
                                     </div>
-                                    <div class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        →
+                                    <div class="flex-1 text-left">
+                                        <div class="font-black text-gray-800 text-lg group-hover:text-blue-600 transition-colors">${profile.name}</div>
+                                        <div class="text-xs text-gray-500 font-medium mt-0.5">Toca para continuar</div>
+                                    </div>
+                                    <div class="w-10 h-10 flex items-center justify-center bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                                     </div>
                                 </button>
                             `).join('')}
                         </div>
                     </div>
                     
-                    <div class="flex items-center gap-2 my-4">
-                        <div class="flex-1 border-t border-gray-300"></div>
-                        <span class="text-xs text-gray-400 font-bold">O</span>
-                        <div class="flex-1 border-t border-gray-300"></div>
+                    <div class="flex items-center gap-3 my-6">
+                        <div class="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                        <span class="text-xs text-gray-400 font-bold px-2 bg-gray-100 rounded-full">O</span>
+                        <div class="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
                     </div>
-                ` : ''}
+                ` : `
+                    <div class="text-center py-6 mb-6">
+                        <div class="text-5xl mb-4">👋</div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">¡Bienvenido!</h3>
+                        <p class="text-sm text-gray-600">Crea tu perfil para comenzar a aprender</p>
+                    </div>
+                `}
                 
                 <button 
                     onclick="window.showCreateProfile()" 
-                    class="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-bold text-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                    class="w-full py-4 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 group relative overflow-hidden"
                 >
-                    <span class="text-2xl">➕</span>
-                    Crear Nuevo Perfil
+                    <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                    <span class="text-2xl relative z-10 group-hover:scale-110 transition-transform">✨</span>
+                    <span class="relative z-10">Crear Nuevo Perfil</span>
                 </button>
             </div>
         </div>
     `;
     
     document.body.appendChild(modal);
+    
+    // Agregar animación CSS
+    if (!document.getElementById('profile-modal-styles')) {
+        const style = document.createElement('style');
+        style.id = 'profile-modal-styles';
+        style.textContent = `
+            @keyframes modalSlideIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(-20px) scale(0.95);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                }
+            }
+            
+            .profile-card-button:active {
+                transform: scale(0.98);
+            }
+        `;
+        document.head.appendChild(style);
+    }
 }
 
 export function showCreateProfile() {
@@ -68,37 +112,58 @@ export function showCreateProfile() {
     if (!modal) return;
     
     modal.innerHTML = `
-        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-scale-in">
-            <div class="bg-gradient-to-r from-green-500 to-emerald-500 p-6 text-white">
-                <button onclick="window.showProfileSelector()" class="text-white hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center mb-3">
-                    ← Atrás
-                </button>
-                <div class="text-5xl mb-3 text-center">✨</div>
-                <h2 class="text-2xl font-black text-center">Crear Perfil</h2>
-                <p class="text-sm opacity-90 mt-2 text-center">Personaliza tu experiencia de aprendizaje</p>
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden" style="animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);">
+            <!-- Header -->
+            <div class="relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 opacity-90"></div>
+                <div class="absolute inset-0" style="background: radial-gradient(circle at top right, rgba(255,255,255,0.3) 0%, transparent 60%);"></div>
+                <div class="relative p-6 text-white">
+                    <button onclick="window.showProfileSelector()" class="absolute top-4 left-4 w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <div class="text-center pt-8">
+                        <div class="inline-block mb-3 p-3 bg-white/20 rounded-full backdrop-blur-sm">
+                            <div class="text-5xl">✨</div>
+                        </div>
+                        <h2 class="text-2xl font-black mb-1">Crear Perfil</h2>
+                        <p class="text-sm opacity-95">Personaliza tu experiencia de aprendizaje</p>
+                    </div>
+                </div>
             </div>
             
-            <div class="p-6 space-y-4">
+            <div class="p-6 space-y-5">
+                <!-- Nombre -->
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">¿Cómo te llamas?</label>
+                    <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                        <span>👤</span>
+                        <span>¿Cómo te llamas?</span>
+                    </label>
                     <input 
                         type="text" 
                         id="profile-name-input" 
-                        placeholder="Tu nombre" 
+                        placeholder="Ej: María, Carlos, etc." 
                         maxlength="20"
-                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:outline-none text-lg"
+                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:outline-none text-lg font-medium transition-colors"
                         autocomplete="off"
+                        style="background: linear-gradient(to right, #F9FAFB, #FFFFFF);"
                     >
-                    <p class="text-xs text-gray-500 mt-1">Este nombre aparecerá en tu perfil</p>
+                    <p class="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        Este nombre aparecerá en tu perfil
+                    </p>
                 </div>
                 
+                <!-- Avatares -->
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">Elige tu avatar:</label>
-                    <div class="grid grid-cols-6 gap-2" id="avatar-grid">
+                    <label class="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                        <span>🎨</span>
+                        <span>Elige tu avatar:</span>
+                    </label>
+                    <div class="grid grid-cols-6 gap-3" id="avatar-grid">
                         ${AVATARS.map((avatar, idx) => `
                             <button 
                                 onclick="window.selectAvatar('${avatar}')" 
-                                class="avatar-option w-12 h-12 text-2xl bg-gray-100 hover:bg-blue-100 border-2 border-gray-300 hover:border-blue-500 rounded-xl transition-all ${idx === 0 ? 'selected' : ''}"
+                                class="avatar-option w-14 h-14 text-3xl bg-gradient-to-br from-gray-100 to-gray-200 hover:from-blue-100 hover:to-purple-100 border-2 border-gray-300 hover:border-blue-500 rounded-2xl transition-all ${idx === 0 ? 'selected' : ''} flex items-center justify-center"
                                 data-avatar="${avatar}"
                             >
                                 ${avatar}
@@ -107,12 +172,15 @@ export function showCreateProfile() {
                     </div>
                 </div>
                 
+                <!-- Botón crear -->
                 <button 
                     onclick="window.confirmCreateProfile()" 
-                    class="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-bold text-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="w-full py-4 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 group relative overflow-hidden mt-6"
                     id="create-profile-btn"
                 >
-                    🎉 Crear Perfil
+                    <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                    <span class="text-2xl relative z-10 group-hover:scale-110 transition-transform">🎉</span>
+                    <span class="relative z-10">Crear Mi Perfil</span>
                 </button>
             </div>
         </div>
@@ -126,6 +194,14 @@ export function showCreateProfile() {
             input.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     window.confirmCreateProfile();
+                }
+            });
+            
+            // Validación en tiempo real
+            input.addEventListener('input', () => {
+                const btn = document.getElementById('create-profile-btn');
+                if (btn) {
+                    btn.disabled = input.value.trim().length < 2;
                 }
             });
         }
@@ -194,36 +270,57 @@ export function showProfileSwitcher() {
     
     const modal = document.createElement('div');
     modal.id = 'profile-switch-modal';
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 fade-in';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 fade-in p-4';
+    modal.style.backdropFilter = 'blur(4px)';
     
     modal.innerHTML = `
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-scale-in">
-            <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-4 text-white flex items-center justify-between">
-                <h2 class="text-xl font-bold">Cambiar Perfil</h2>
-                <button onclick="this.closest('#profile-switch-modal').remove()" class="text-white hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center">✕</button>
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden" style="animation: modalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+            <div class="bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 p-5 text-white relative overflow-hidden">
+                <div class="absolute inset-0 opacity-20" style="background: radial-gradient(circle at top right, white 0%, transparent 60%);"></div>
+                <div class="relative flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-black">Cambiar Perfil</h2>
+                        <p class="text-sm opacity-90 mt-0.5">Selecciona otro usuario</p>
+                    </div>
+                    <button onclick="this.closest('#profile-switch-modal').remove()" class="w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
             </div>
             
-            <div class="p-6">
-                <div class="space-y-2 mb-4">
+            <div class="p-5">
+                <div class="space-y-3 mb-5 max-h-80 overflow-y-auto" style="scrollbar-width: thin; scrollbar-color: #CBD5E0 #F7FAFC;">
                     ${profiles.map(profile => `
                         <button 
                             onclick="window.switchToProfile('${profile.id}')" 
-                            class="w-full flex items-center gap-3 p-3 ${profile.id === currentId ? 'bg-purple-50 border-purple-400' : 'bg-gray-50 hover:bg-blue-50 border-gray-200 hover:border-blue-400'} border-2 rounded-xl transition-all"
+                            class="profile-switch-card w-full flex items-center gap-4 p-4 ${profile.id === currentId ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-400' : 'bg-gray-50 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 border-gray-200 hover:border-blue-400'} border-2 rounded-2xl transition-all group"
                         >
-                            <div class="text-3xl">${profile.avatar}</div>
-                            <div class="flex-1 text-left">
-                                <div class="font-bold text-gray-800">${profile.name}</div>
-                                ${profile.id === currentId ? '<div class="text-xs text-purple-600 font-bold">Perfil actual</div>' : '<div class="text-xs text-gray-500">Cambiar a este perfil</div>'}
+                            <div class="w-14 h-14 flex items-center justify-center bg-white rounded-2xl shadow-sm ${profile.id === currentId ? 'ring-4 ring-purple-200' : 'group-hover:scale-110'} transition-all">
+                                <span class="text-3xl">${profile.avatar}</span>
                             </div>
+                            <div class="flex-1 text-left">
+                                <div class="font-black text-gray-800 text-base ${profile.id === currentId ? 'text-purple-700' : 'group-hover:text-blue-600'} transition-colors">${profile.name}</div>
+                                ${profile.id === currentId ? 
+                                    '<div class="text-xs text-purple-600 font-bold flex items-center gap-1 mt-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Perfil actual</div>' : 
+                                    '<div class="text-xs text-gray-500 font-medium mt-1">Toca para cambiar</div>'
+                                }
+                            </div>
+                            ${profile.id !== currentId ? `
+                                <div class="w-9 h-9 flex items-center justify-center bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                </div>
+                            ` : ''}
                         </button>
                     `).join('')}
                 </div>
                 
                 <button 
-                    onclick="window.showCreateProfile()" 
-                    class="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-bold hover:shadow-lg transition-all"
+                    onclick="this.closest('#profile-switch-modal').remove(); window.showCreateProfile()" 
+                    class="w-full py-3.5 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white rounded-2xl font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2 group relative overflow-hidden"
                 >
-                    ➕ Crear Nuevo Perfil
+                    <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                    <span class="text-xl relative z-10 group-hover:scale-110 transition-transform">➕</span>
+                    <span class="relative z-10">Crear Nuevo Perfil</span>
                 </button>
             </div>
         </div>
@@ -256,9 +353,34 @@ window.switchToProfile = function(profileId) {
 const style = document.createElement('style');
 style.textContent = `
     .avatar-option.selected {
-        background: #DBEAFE !important;
+        background: linear-gradient(135deg, #DBEAFE 0%, #E0E7FF 100%) !important;
         border-color: #3B82F6 !important;
-        transform: scale(1.1);
+        border-width: 3px !important;
+        transform: scale(1.08);
+        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+    }
+    
+    .profile-switch-card:active {
+        transform: scale(0.98);
+    }
+    
+    /* Scrollbar personalizado */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #F7FAFC;
+        border-radius: 10px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: #CBD5E0;
+        border-radius: 10px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: #A0AEC0;
     }
 `;
 document.head.appendChild(style);
