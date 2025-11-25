@@ -27,60 +27,123 @@ export function showP2PModal() {
     
     const modal = document.createElement('div');
     modal.id = 'p2p-modal';
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 fade-in';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 fade-in p-4';
+    modal.style.backdropFilter = 'blur(4px)';
     
     modal.innerHTML = `
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-scale-in">
-            <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-4 text-white">
-                <h2 class="text-xl font-bold flex items-center gap-2">
-                    👥 Chat P2P
-                    <button onclick="this.closest('#p2p-modal').remove()" class="ml-auto text-white hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center">✕</button>
-                </h2>
-                <p class="text-sm opacity-90 mt-1">Practica inglés con un compañero en tiempo real</p>
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden" style="animation: modalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+            <!-- Header -->
+            <div class="relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 opacity-90"></div>
+                <div class="absolute inset-0" style="background: radial-gradient(circle at top right, rgba(255,255,255,0.3) 0%, transparent 60%);"></div>
+                <div class="relative p-5 text-white">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                                <span class="text-2xl">👥</span>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-black">Chat P2P</h2>
+                                <p class="text-xs opacity-90">Práctica en tiempo real</p>
+                            </div>
+                        </div>
+                        <button onclick="this.closest('#p2p-modal').remove()" class="w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                </div>
             </div>
             
-            <div class="p-6 space-y-4">
+            <div class="p-6">
                 ${isP2PActive ? `
-                    <div class="text-center p-4 bg-green-50 rounded-xl border border-green-200">
-                        <div class="text-3xl mb-2">✅</div>
-                        <p class="font-bold text-green-700">Conectado</p>
-                        <p class="text-sm text-gray-600 mt-1">Sala: <span class="font-mono font-bold">${myPeerId}</span></p>
+                    <!-- Estado Conectado -->
+                    <div class="text-center mb-6">
+                        <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full mb-4">
+                            <div class="text-4xl animate-pulse">✅</div>
+                        </div>
+                        <h3 class="text-xl font-black text-gray-800 mb-2">¡Conectado!</h3>
+                        <p class="text-sm text-gray-600 mb-3">Ya puedes chatear con tu compañero</p>
+                        <div class="inline-flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-xl">
+                            <span class="text-xs text-gray-500 font-bold">Código de sala:</span>
+                            <span class="font-mono font-black text-purple-600 text-lg">${myPeerId}</span>
+                        </div>
                     </div>
-                    <button onclick="window.disconnectP2P()" class="w-full py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors">
-                        🚪 Desconectar
+                    
+                    <button 
+                        onclick="window.disconnectP2P()" 
+                        class="w-full py-3.5 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-2xl font-bold hover:shadow-xl transition-all flex items-center justify-center gap-2 group"
+                    >
+                        <span class="text-xl group-hover:scale-110 transition-transform">🚪</span>
+                        <span>Desconectar</span>
                     </button>
                 ` : `
-                    <div class="space-y-3">
-                        <button onclick="window.createP2PRoom()" class="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-bold hover:shadow-lg transition-all">
-                            🎯 Crear Sala
-                        </button>
-                        
-                        <div class="flex items-center gap-2">
-                            <div class="flex-1 border-t border-gray-300"></div>
-                            <span class="text-xs text-gray-400 font-bold">O</span>
-                            <div class="flex-1 border-t border-gray-300"></div>
+                    <!-- Opciones de Conexión -->
+                    <div class="space-y-4">
+                        <!-- Crear Sala -->
+                        <div class="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-2xl p-5">
+                            <div class="flex items-start gap-3 mb-3">
+                                <div class="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    <span class="text-xl">🎯</span>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="font-black text-gray-800 text-base mb-1">Crear Nueva Sala</h3>
+                                    <p class="text-xs text-gray-600">Genera un código para compartir con tu compañero</p>
+                                </div>
+                            </div>
+                            <button 
+                                onclick="window.createP2PRoom()" 
+                                class="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2 group"
+                            >
+                                <span class="text-lg group-hover:scale-110 transition-transform">➕</span>
+                                <span>Crear Sala</span>
+                            </button>
                         </div>
                         
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Código de Sala:</label>
+                        <!-- Divisor -->
+                        <div class="flex items-center gap-3">
+                            <div class="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                            <span class="text-xs text-gray-400 font-bold px-3 bg-gray-100 rounded-full">O</span>
+                            <div class="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                        </div>
+                        
+                        <!-- Unirse a Sala -->
+                        <div class="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-5">
+                            <div class="flex items-start gap-3 mb-3">
+                                <div class="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    <span class="text-xl">🔗</span>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="font-black text-gray-800 text-base mb-1">Unirse a Sala</h3>
+                                    <p class="text-xs text-gray-600">Ingresa el código de tu compañero</p>
+                                </div>
+                            </div>
                             <input 
                                 type="text" 
                                 id="room-code-input" 
-                                placeholder="ABC123" 
-                                maxlength="6"
-                                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none font-mono text-center text-lg uppercase"
+                                placeholder="Ej: ABC123" 
+                                maxlength="8"
+                                class="w-full px-4 py-3 border-2 border-purple-300 rounded-xl focus:border-purple-500 focus:outline-none font-mono text-center text-xl font-bold uppercase mb-3 transition-colors"
+                                style="letter-spacing: 0.1em;"
                             >
+                            <button 
+                                onclick="window.joinP2PRoom()" 
+                                class="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2 group"
+                            >
+                                <span class="text-lg group-hover:scale-110 transition-transform">🚀</span>
+                                <span>Conectar</span>
+                            </button>
                         </div>
                         
-                        <button onclick="window.joinP2PRoom()" class="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold hover:shadow-lg transition-all">
-                            🚀 Unirse a Sala
-                        </button>
-                    </div>
-                    
-                    <div class="bg-blue-50 p-3 rounded-xl border border-blue-200">
-                        <p class="text-xs text-gray-600">
-                            <span class="font-bold">💡 Tip:</span> Comparte el código de sala con tu compañero para conectarse. La conexión es directa y privada.
-                        </p>
+                        <!-- Info -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                            <div class="flex gap-3">
+                                <div class="text-2xl flex-shrink-0">💡</div>
+                                <div class="text-xs text-gray-700 leading-relaxed">
+                                    <p class="font-bold mb-1">¿Cómo funciona?</p>
+                                    <p>La conexión es directa entre navegadores (P2P). Ambos deben estar online al mismo tiempo. Los mensajes no usan la API de Gemini.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 `}
             </div>
@@ -93,6 +156,16 @@ export function showP2PModal() {
     modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.remove();
     });
+    
+    // Focus en input si existe
+    setTimeout(() => {
+        const input = document.getElementById('room-code-input');
+        if (input) {
+            input.addEventListener('input', (e) => {
+                e.target.value = e.target.value.toUpperCase();
+            });
+        }
+    }, 100);
 }
 
 window.createP2PRoom = function() {
@@ -106,33 +179,57 @@ window.createP2PRoom = function() {
     
     showToast('Creando sala...', 'info');
     
+    // Cerrar conexión anterior si existe
+    if (peer) {
+        peer.destroy();
+    }
+    
     peer = new window.Peer(roomCode, {
-        debug: 0 // Sin logs para producción
+        debug: 0,
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:global.stun.twilio.com:3478' }
+            ]
+        }
     });
     
     peer.on('open', (id) => {
         console.log('Sala creada:', id);
         isP2PActive = true;
-        showToast(`Sala creada: ${id}`, 'success');
+        showToast(`✅ Sala creada: ${id}`, 'success');
         showP2PModal(); // Refrescar modal
+        showP2PStatus('connected');
         
         // Copiar código al portapapeles
         if (navigator.clipboard) {
             navigator.clipboard.writeText(id).then(() => {
-                showToast('Código copiado al portapapeles', 'info');
+                showToast('📋 Código copiado al portapapeles', 'info');
+            }).catch(() => {
+                console.log('No se pudo copiar al portapapeles');
             });
         }
     });
     
     peer.on('connection', (conn) => {
+        console.log('Compañero conectándose...');
         handleConnection(conn);
-        showToast('¡Compañero conectado!', 'success');
+        showToast('✅ ¡Compañero conectado!', 'success');
+        document.getElementById('p2p-modal')?.remove();
     });
     
     peer.on('error', (err) => {
         console.error('Error P2P:', err);
-        showToast('Error al crear sala. Intenta de nuevo.', 'error');
+        showToast('❌ Error al crear sala. Intenta de nuevo.', 'error');
         isP2PActive = false;
+        showP2PStatus('disconnected');
+    });
+    
+    peer.on('disconnected', () => {
+        console.log('Peer desconectado, intentando reconectar...');
+        if (peer && !peer.destroyed) {
+            peer.reconnect();
+        }
     });
 };
 
@@ -141,43 +238,77 @@ window.joinP2PRoom = function() {
     const roomCode = input?.value.trim().toUpperCase();
     
     if (!roomCode || roomCode.length < 4) {
-        showToast('Ingresa un código válido', 'warning');
+        showToast('⚠️ Ingresa un código válido (mínimo 4 caracteres)', 'warning');
+        input?.focus();
         return;
     }
     
     if (!window.Peer) {
-        showToast('Error: PeerJS no está cargado', 'error');
+        showToast('❌ Error: PeerJS no está cargado', 'error');
         return;
     }
     
-    showToast('Conectando...', 'info');
+    showToast('🔄 Conectando...', 'info');
+    
+    // Cerrar conexión anterior si existe
+    if (peer) {
+        peer.destroy();
+    }
     
     // Crear peer temporal para conectarse
     peer = new window.Peer({
-        debug: 0
+        debug: 0,
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:global.stun.twilio.com:3478' }
+            ]
+        }
     });
     
     peer.on('open', (id) => {
+        console.log('Mi ID:', id);
         myPeerId = id;
-        const conn = peer.connect(roomCode);
+        
+        // Intentar conectar a la sala
+        const conn = peer.connect(roomCode, {
+            reliable: true
+        });
+        
         handleConnection(conn);
         
         conn.on('open', () => {
+            console.log('Conexión establecida');
             isP2PActive = true;
-            showToast('¡Conectado!', 'success');
+            showToast('✅ ¡Conectado exitosamente!', 'success');
             document.getElementById('p2p-modal')?.remove();
             showP2PStatus('connected');
         });
         
         conn.on('error', (err) => {
             console.error('Error de conexión:', err);
-            showToast('No se pudo conectar. Verifica el código.', 'error');
+            showToast('❌ No se pudo conectar. Verifica el código.', 'error');
+            isP2PActive = false;
+            showP2PStatus('disconnected');
         });
     });
     
     peer.on('error', (err) => {
         console.error('Error P2P:', err);
-        showToast('Error de conexión', 'error');
+        if (err.type === 'peer-unavailable') {
+            showToast('❌ Sala no encontrada. Verifica el código.', 'error');
+        } else {
+            showToast('❌ Error de conexión. Intenta de nuevo.', 'error');
+        }
+        isP2PActive = false;
+        showP2PStatus('disconnected');
+    });
+    
+    peer.on('disconnected', () => {
+        console.log('Peer desconectado, intentando reconectar...');
+        if (peer && !peer.destroyed) {
+            peer.reconnect();
+        }
     });
 };
 
