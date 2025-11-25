@@ -2,7 +2,7 @@
 import { getAllProfiles, createProfile, deleteProfile, setCurrentProfile, getCurrentProfile, updateProfileInfo } from '../state.js';
 import { showToast } from '../utils/ui.js';
 
-const AVATARS = ['👤', '👨', '👩', '👦', '👧', '🧑', '👨‍🎓', '👩‍🎓', '🧑‍🎓', '👨‍💼', '👩‍💼', '🧑‍💻'];
+const AVATARS = ['👤', '👨', '👩', '👦', '👧', '🧑', '👨‍🎓', '👩‍🎓', '🧑‍💼', '🧑‍💻'];
 
 // Nueva función de bienvenida a pantalla completa
 export function showWelcomeScreen() {
@@ -67,7 +67,7 @@ export function showWelcomeScreen() {
                     <label style="display: block; font-size: 0.875rem; font-weight: 700; color: #374151; margin-bottom: 0.75rem;">
                         Elige tu avatar
                     </label>
-                    <div id="welcome-avatar-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem;">
+                    <div id="welcome-avatar-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; max-width: 100%;">
                         ${AVATARS.map((avatar, idx) => `
                             <button 
                                 class="welcome-avatar-btn ${idx === 0 ? 'selected' : ''}"
