@@ -11,21 +11,23 @@ const MAX_HISTORY = 30;
 let currentQuizData = null;
 
 // Control del avatar
-const avatarEmojis = {
-    idle: '🤖',
-    thinking: '🤔',
+const avatarIcons = {
+    idle: '',
+    thinking: '💭',
     watching: '👀',
-    celebrating: '😄',
-    listening: '🎯',
+    celebrating: '⭐',
+    listening: '🎧',
     sleeping: '💤'
 };
 
 function setAvatarState(state, tooltip = '') {
     const avatarEl = document.getElementById('avatar-emoji');
+    const iconEl = document.getElementById('avatar-icon');
     const tooltipEl = document.getElementById('avatar-tooltip');
     
     if (avatarEl) {
-        avatarEl.textContent = avatarEmojis[state] || avatarEmojis.idle;
+        // Robot siempre visible
+        avatarEl.textContent = '🤖';
         avatarEl.className = 'avatar-emoji';
         
         // Agregar clase de animación
@@ -33,6 +35,12 @@ function setAvatarState(state, tooltip = '') {
         else if (state === 'watching') avatarEl.classList.add('avatar-watching');
         else if (state === 'celebrating') avatarEl.classList.add('avatar-celebrating');
         else if (state === 'listening') avatarEl.classList.add('avatar-listening');
+    }
+    
+    // Mostrar ícono auxiliar
+    if (iconEl) {
+        iconEl.textContent = avatarIcons[state] || '';
+        iconEl.style.opacity = avatarIcons[state] ? '1' : '0';
     }
     
     if (tooltipEl && tooltip) {
