@@ -1657,3 +1657,65 @@ input, textarea {
     25% { transform: translateX(-5px); }
     75% { transform: translateX(5px); }
 }
+
+/* ============================================
+   BOTÓN FLOTANTE DE INSTALACIÓN (MÓVIL)
+   ============================================ */
+.floating-install-btn {
+    position: fixed;
+    bottom: 5rem;
+    right: 1rem;
+    z-index: 1000;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius-full);
+    padding: 0.75rem 1.5rem;
+    font-weight: 700;
+    font-size: 0.875rem;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: float-pulse 2s ease-in-out infinite;
+}
+
+.floating-install-btn svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.floating-install-btn:hover {
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.6);
+}
+
+.floating-install-btn:active {
+    transform: translateY(-2px) scale(1.02);
+}
+
+@keyframes float-pulse {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    50% {
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
+    }
+}
+
+/* Ocultar en desktop y en modo standalone (ya instalada) */
+@media (min-width: 768px) {
+    .floating-install-btn {
+        display: none !important;
+    }
+}
+
+@media (display-mode: standalone) {
+    .floating-install-btn {
+        display: none !important;
+    }
+}

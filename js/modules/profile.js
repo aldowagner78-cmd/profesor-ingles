@@ -23,6 +23,31 @@ window.addEventListener('beforeinstallprompt', (e) => {
     if (installBtn) {
         installBtn.style.display = 'flex';
     }
+    
+    // Mostrar botón flotante en móviles
+    const floatingBtn = document.getElementById('floating-install-btn');
+    if (floatingBtn && window.innerWidth < 768) {
+        floatingBtn.style.display = 'flex';
+    }
+});
+
+// Ocultar botón flotante si ya está instalada
+window.addEventListener('DOMContentLoaded', () => {
+    const floatingBtn = document.getElementById('floating-install-btn');
+    if (floatingBtn) {
+        // Mostrar solo si NO está en modo standalone y es móvil
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+        const isMobile = window.innerWidth < 768;
+        
+        if (!isStandalone && isMobile) {
+            floatingBtn.style.display = 'flex';
+        }
+        
+        // Hacer que el botón flotante ejecute la misma función que el del perfil
+        floatingBtn.addEventListener('click', () => {
+            document.getElementById('install-app-btn')?.click();
+        });
+    }
 });
 
 const AVATARS = [
@@ -102,20 +127,37 @@ export function initProfile() {
     
     // Botón Instalar App
     document.getElementById('install-app-btn')?.addEventListener('click', async () => {
-        if (!deferredPrompt) {
-            showToast('La app ya está instalada o no se puede instalar', 'info');
-            return;
+        if (deferredPrompt) {
+            // Método 1: Usar el prompt capturado de Chrome
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                showToast('🎉 ¡App instalada con éxito!', 'success');
+            } else {
+                showToast('Instalación cancelada', 'info');
+            }
+            
+            deferredPrompt = null;
+        } else {
+            // Método 2: Intentar instalación directa (para cuando ya se instaló una vez)
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                showToast('✅ La app ya está instalada', 'success');
+                return;
+            }
+            
+            // Método 3: Mostrar instrucciones para instalación manual
+            const isAndroid = /android/i.test(navigator.userAgent);
+            const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+            
+            if (isAndroid) {
+                showToast('📱 Usa el menú de Chrome (⋮) y selecciona "Instalar app" o "Agregar a pantalla de inicio"', 'info', 6000);
+            } else if (isIOS) {
+                showToast('📱 Usa el botón Compartir (⬆️) y selecciona "Agregar a inicio"', 'info', 6000);
+            } else {
+                showToast('💻 Usa el menú del navegador para instalar la app', 'info', 5000);
+            }
         }
-        
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        
-        if (outcome === 'accepted') {
-            showToast('🎉 ¡App instalada con éxito!', 'success');
-            document.getElementById('install-app-btn').style.display = 'none';
-        }
-        
-        deferredPrompt = null;
     });
     
     // Inicializar tema

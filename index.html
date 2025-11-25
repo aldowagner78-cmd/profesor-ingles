@@ -508,7 +508,7 @@
 
                 <!-- Configuración -->
                 <div class="settings-actions">
-                    <button id="install-app-btn" class="btn btn-primary" style="display: none;">
+                    <button id="install-app-btn" class="btn btn-primary">
                         <i data-lucide="download"></i>
                         Instalar App
                     </button>
@@ -522,6 +522,12 @@
             </div>
         </div>
     </main>
+
+    <!-- Botón flotante de instalación (solo visible en móviles NO instalados) -->
+    <button id="floating-install-btn" class="floating-install-btn" style="display: none;">
+        <i data-lucide="download"></i>
+        <span>Instalar</span>
+    </button>
 
     <!-- Scripts Modulares -->
     <script src="https://unpkg.com/lucide@latest"></script>
