@@ -1,9 +1,10 @@
 // Controlador Principal de la Aplicación
 import { getApiKey, setApiKey } from './services/gemini.js';
-import { updateDailyStreak, getState, updateState } from './state.js';
+import { updateDailyStreak, getState, updateState, getCurrentProfile, getAllProfiles } from './state.js';
 import { initChat } from './modules/chat.js';
 import { initProfile, renderProfile } from './modules/profile.js';
 import { initP2P } from './modules/p2p.js';
+import { showProfileSelector } from './modules/profiles.js';
 import { showToast } from './utils/ui.js';
 import { initVoice } from './services/voice.js';
 
@@ -78,6 +79,16 @@ function showErrorOnSplash(message) {
 }
 
 function checkApiKey() {
+    // Primero verificar si hay un perfil seleccionado
+    const currentProfile = getCurrentProfile();
+    const allProfiles = getAllProfiles();
+    
+    if (!currentProfile || allProfiles.length === 0) {
+        // No hay perfil: mostrar selector obligatorio
+        showProfileSelector();
+        return;
+    }
+    
     const apiKey = getApiKey();
     
     if (!apiKey) {

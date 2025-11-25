@@ -1,11 +1,12 @@
 // Módulo de Perfil
-import { getState, getVocabulary, resetState, updateState, exportVocabulary, isTopicCompleted, getWordsForReview, updateWordSRS } from '../state.js';
+import { getState, getVocabulary, resetState, updateState, exportVocabulary, isTopicCompleted, getWordsForReview, updateWordSRS, getCurrentProfile, getAllProfiles } from '../state.js';
 import { setApiKey } from '../services/gemini.js';
 import { setSpeechRate } from '../services/voice.js';
 import { SYLLABUS } from '../config.js';
 import { callGemini } from '../services/gemini.js';
 import { speakText } from '../services/voice.js';
 import { showToast, createAudioButton, showLoading, showConfirmModal } from '../utils/ui.js';
+import { showProfileSwitcher } from './profiles.js';
 
 let currentVocabFilter = 'all';
 let deferredPrompt = null;
@@ -293,6 +294,11 @@ export function initProfile() {
     // Sistema de Repetición Espaciada (SRS)
     document.getElementById('start-srs-review-btn')?.addEventListener('click', startSRSReview);
     
+    // Botón Cambiar Perfil
+    document.getElementById('switch-profile-btn')?.addEventListener('click', () => {
+        showProfileSwitcher();
+    });
+    
     // Escuchar cambios de estado
     window.addEventListener('stateChanged', renderProfile);
     window.addEventListener('vocabularyChanged', () => {
@@ -442,6 +448,19 @@ function updateAvatarUI(avatar) {
 export function renderProfile() {
     const state = getState();
     const currentLevel = SYLLABUS[state.levelIdx];
+    
+    // Actualizar nombre del perfil
+    const currentProfile = getCurrentProfile();
+    const allProfiles = getAllProfiles();
+    const profile = allProfiles.find(p => p.id === currentProfile);
+    
+    if (profile) {
+        const profileHeader = document.querySelector('.profile-header h2');
+        if (profileHeader) profileHeader.textContent = profile.name;
+        
+        const profileAvatar = document.getElementById('current-avatar-icon');
+        if (profileAvatar) profileAvatar.textContent = profile.avatar;
+    }
     
     // Actualizar Score en Header
     const scoreDisplay = document.getElementById('score-display');

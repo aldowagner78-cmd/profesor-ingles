@@ -1,5 +1,8 @@
-// Gestión de Estado Global
+// Gestión de Estado Global con Sistema de Perfiles Múltiples
 import { CONFIG } from './config.js';
+
+// Perfil activo actual
+let currentProfile = null;
 
 const defaultState = {
     score: 0,
@@ -18,12 +21,89 @@ const defaultState = {
     roleplayState: null // Estado persistente del roleplay
 };
 
+// --- GESTIÓN DE PERFILES ---
+
+export function getCurrentProfile() {
+    if (!currentProfile) {
+        currentProfile = localStorage.getItem('teacher_currentProfile');
+    }
+    return currentProfile;
+}
+
+export function setCurrentProfile(profileId) {
+    currentProfile = profileId;
+    localStorage.setItem('teacher_currentProfile', profileId);
+    window.dispatchEvent(new CustomEvent('profileChanged', { detail: profileId }));
+}
+
+export function getAllProfiles() {
+    try {
+        const stored = localStorage.getItem('teacher_profiles');
+        return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+        console.error('Error loading profiles:', e);
+        return [];
+    }
+}
+
+export function createProfile(name, avatar = '👤') {
+    const profiles = getAllProfiles();
+    const profileId = `profile_${Date.now()}`;
+    
+    const newProfile = {
+        id: profileId,
+        name: name.trim(),
+        avatar: avatar,
+        createdAt: Date.now()
+    };
+    
+    profiles.push(newProfile);
+    localStorage.setItem('teacher_profiles', JSON.stringify(profiles));
+    
+    // Crear estado inicial para este perfil
+    const stateKey = `${CONFIG.STATE_KEY}_${profileId}`;
+    localStorage.setItem(stateKey, JSON.stringify(defaultState));
+    
+    return newProfile;
+}
+
+export function deleteProfile(profileId) {
+    const profiles = getAllProfiles();
+    const filtered = profiles.filter(p => p.id !== profileId);
+    localStorage.setItem('teacher_profiles', JSON.stringify(filtered));
+    
+    // Eliminar datos del perfil
+    const stateKey = `${CONFIG.STATE_KEY}_${profileId}`;
+    localStorage.removeItem(stateKey);
+}
+
+export function updateProfileInfo(profileId, updates) {
+    const profiles = getAllProfiles();
+    const index = profiles.findIndex(p => p.id === profileId);
+    
+    if (index !== -1) {
+        profiles[index] = { ...profiles[index], ...updates };
+        localStorage.setItem('teacher_profiles', JSON.stringify(profiles));
+        
+        if (profileId === getCurrentProfile()) {
+            window.dispatchEvent(new CustomEvent('profileChanged', { detail: profileId }));
+        }
+    }
+}
+
+// --- GESTIÓN DE ESTADO (CON SOPORTE DE PERFILES) ---
+
 export function getState() {
     try {
-        const stored = localStorage.getItem(CONFIG.STATE_KEY);
+        const profile = getCurrentProfile();
+        if (!profile) return { ...defaultState };
+        
+        const stateKey = `${CONFIG.STATE_KEY}_${profile}`;
+        const stored = localStorage.getItem(stateKey);
+        
         if (!stored) return { ...defaultState };
         
-        // Merge con defaultState para asegurar que existen los nuevos campos (topicProgress)
+        // Merge con defaultState para asegurar que existen los nuevos campos
         const parsed = JSON.parse(stored);
         return { ...defaultState, ...parsed };
     } catch (e) {
@@ -33,10 +113,18 @@ export function getState() {
 }
 
 export function updateState(updates) {
+    const profile = getCurrentProfile();
+    if (!profile) {
+        console.warn('No hay perfil activo');
+        return;
+    }
+    
     const current = getState();
     const newState = { ...current, ...updates };
+    
     try {
-        localStorage.setItem(CONFIG.STATE_KEY, JSON.stringify(newState));
+        const stateKey = `${CONFIG.STATE_KEY}_${profile}`;
+        localStorage.setItem(stateKey, JSON.stringify(newState));
         // Disparar evento para que los módulos se actualicen
         window.dispatchEvent(new CustomEvent('stateChanged', { detail: newState }));
     } catch (e) {
@@ -45,7 +133,11 @@ export function updateState(updates) {
 }
 
 export function resetState() {
-    localStorage.removeItem(CONFIG.STATE_KEY);
+    const profile = getCurrentProfile();
+    if (!profile) return;
+    
+    const stateKey = `${CONFIG.STATE_KEY}_${profile}`;
+    localStorage.removeItem(stateKey);
     window.dispatchEvent(new CustomEvent('stateChanged', { detail: defaultState }));
 }
 
