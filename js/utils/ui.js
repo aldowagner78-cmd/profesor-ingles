@@ -189,29 +189,32 @@ export function createAudioButton(text, lang = 'en-US') {
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: '1.5rem',
-        height: '1.5rem',
-        borderRadius: '0.375rem',
-        background: '#E8F4FD',
-        color: '#4A90E2',
-        border: 'none',
+        width: '2rem',
+        height: '2rem',
+        borderRadius: '0.5rem',
+        background: '#DBEAFE',
+        color: '#1E40AF',
+        border: '1px solid #93C5FD',
         cursor: 'pointer',
         transition: 'all 0.2s ease',
         marginLeft: '0.5rem',
-        verticalAlign: 'middle'
+        verticalAlign: 'middle',
+        flexShrink: '0'
     });
     
     btn.onmouseover = () => {
         if (!btn.classList.contains('playing')) {
-            btn.style.background = '#4A90E2';
+            btn.style.background = '#1E40AF';
             btn.style.color = 'white';
+            btn.style.borderColor = '#1E40AF';
         }
     };
     
     btn.onmouseout = () => {
         if (!btn.classList.contains('playing')) {
-            btn.style.background = '#E8F4FD';
-            btn.style.color = '#4A90E2';
+            btn.style.background = '#DBEAFE';
+            btn.style.color = '#1E40AF';
+            btn.style.borderColor = '#93C5FD';
         }
     };
     
@@ -247,11 +250,6 @@ export function createAudioButton(text, lang = 'en-US') {
             console.error('Error importing voice service:', err);
         });
     };
-    
-    // Renderizar icono
-    if (window.lucide) {
-        setTimeout(() => window.lucide.createIcons({ icons: { 'volume-2': window.lucide.icons['volume-2'] } }), 0);
-    }
     
     return btn;
 }

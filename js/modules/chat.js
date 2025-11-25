@@ -438,12 +438,14 @@ function handleLesson(data) {
         <div class="bg-neutral p-3 rounded-lg mb-4">
             <p class="font-bold text-xs uppercase text-muted mb-2">Ejemplos:</p>
             ${data.examples.map(ex => `
-                <div class="flex items-center justify-between mb-2 bg-white p-2 rounded border border-gray-100">
-                    <div>
-                        <span class="font-bold text-primary">${ex.en}</span>
-                        <span class="text-xs text-gray-500 block">${ex.es}</span>
+                <div class="flex items-start justify-between mb-2 bg-white p-3 rounded border border-gray-100">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-primary text-base">${ex.en}</span>
+                            <div id="audio-${ex.en.replace(/[^a-zA-Z]/g,'')}"></div>
+                        </div>
+                        <span class="text-xs text-gray-500 block mt-1">(${ex.es})</span>
                     </div>
-                    <div id="audio-${ex.en.replace(/[^a-zA-Z]/g,'')}" class="ml-2"></div>
                 </div>
             `).join('')}
         </div>
