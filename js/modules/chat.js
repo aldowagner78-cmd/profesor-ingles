@@ -4,6 +4,7 @@ import { speakText, startListening, stopListening } from '../services/voice.js';
 import { showToast, triggerConfetti, createAudioButton, showConfirmModal } from '../utils/ui.js';
 import { getState, updateState, getTopicProgress, updateTopicProgress, addToVocabulary } from '../state.js';
 import { SYLLABUS, CONFIG } from '../config.js';
+import { sendP2PMessage, isP2PConnected, notifyTyping } from './p2p.js';
 
 const MAX_HISTORY = 30;
 
@@ -72,6 +73,18 @@ export function initChat() {
     if(chatInput) {
         chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendTextMsg();
+        });
+        
+        // Notificar cuando el usuario está escribiendo (solo en P2P)
+        let typingTimeout = null;
+        chatInput.addEventListener('input', () => {
+            if (isP2PConnected()) {
+                clearTimeout(typingTimeout);
+                notifyTyping();
+                typingTimeout = setTimeout(() => {
+                    // Dejar de notificar después de 1 segundo sin escribir
+                }, 1000);
+            }
         });
     }
     
@@ -251,6 +264,15 @@ async function sendTextMsg() {
     if (text.length > 500) {
         showToast('El mensaje es demasiado largo (máximo 500 caracteres)', 'warning');
         return;
+    }
+    
+    // Si hay conexión P2P activa, enviar por P2P en lugar de AI
+    if (isP2PConnected()) {
+        const sent = sendP2PMessage(text);
+        if (sent) {
+            input.value = '';
+            return; // No continuar con AI
+        }
     }
     
     addMessageToUI(text, 'user');

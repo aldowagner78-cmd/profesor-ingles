@@ -3,6 +3,7 @@ import { getApiKey, setApiKey } from './services/gemini.js';
 import { updateDailyStreak, getState, updateState } from './state.js';
 import { initChat } from './modules/chat.js';
 import { initProfile, renderProfile } from './modules/profile.js';
+import { initP2P } from './modules/p2p.js';
 import { showToast } from './utils/ui.js';
 import { initVoice } from './services/voice.js';
 
@@ -139,6 +140,7 @@ function initApp() {
     // Inicializar módulos críticos (NO camera todavía - lazy loading)
     initChat();
     initProfile();
+    initP2P(); // Inicializar P2P sin conectar todavía
     
     // Desbloquear audio en iOS/Mobile con la primera interacción
     const unlockAudio = () => {

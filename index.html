@@ -305,6 +305,9 @@
                     
                     <!-- Botones de Control -->
                     <div class="chat-control-buttons" style="display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap;">
+                        <button id="p2p-btn" class="btn btn-secondary" style="flex: 1; min-width: 120px; font-size: 0.75rem; padding: 0.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                            <span style="font-size: 0.875rem;">👥</span> Chat P2P
+                        </button>
                         <button id="clear-chat-btn" class="btn btn-secondary" style="flex: 1; min-width: 120px; font-size: 0.75rem; padding: 0.5rem;">
                             <i data-lucide="trash-2" style="width: 0.875rem; height: 0.875rem;"></i> Limpiar Chat
                         </button>
@@ -516,6 +519,7 @@
     <!-- Scripts Modulares -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script>
         // Inicializar Lucide cuando se carga
         document.addEventListener('DOMContentLoaded', () => {
