@@ -472,6 +472,8 @@ function handleLesson(data) {
             const container = document.getElementById(`audio-${ex.en.replace(/[^a-zA-Z]/g,'')}`);
             if(container) container.appendChild(createAudioButton(ex.en));
         });
+        // Inicializar iconos de Lucide para los botones recién añadidos
+        if (window.lucide) window.lucide.createIcons();
     }, 100);
 
     const state = getState();

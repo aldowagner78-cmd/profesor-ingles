@@ -540,11 +540,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             if (window.lucide) {
                 window.lucide.createIcons();
-                // Re-inicializar cada vez que se añade contenido dinámico
-                const observer = new MutationObserver(() => {
-                    window.lucide.createIcons();
-                });
-                observer.observe(document.body, { childList: true, subtree: true });
             }
         });
     </script>
