@@ -439,11 +439,11 @@ function handleLesson(data) {
             <p class="font-bold text-xs uppercase text-muted mb-2">Ejemplos:</p>
             ${data.examples.map(ex => `
                 <div class="mb-2 bg-white p-2 rounded border border-gray-100">
-                    <div class="flex items-center">
-                        <span class="font-bold text-primary text-sm">${ex.en}</span>
-                        <div id="audio-${ex.en.replace(/[^a-zA-Z]/g,'')}"></div>
+                    <div class="flex items-center gap-1">
+                        <span class="font-bold text-primary" style="font-size: 0.9375rem;">${ex.en}</span>
+                        <span id="audio-${ex.en.replace(/[^a-zA-Z]/g,'')}"></span>
                     </div>
-                    <span class="text-xs text-gray-500">(${ex.es})</span>
+                    <div class="mt-1" style="font-size: 0.6875rem; color: #64748B;">(${ex.es})</div>
                 </div>
             `).join('')}
         </div>
