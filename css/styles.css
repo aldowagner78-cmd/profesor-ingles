@@ -856,9 +856,9 @@ input, textarea {
 }
 
 .prev-btn, .next-btn {
-    background: #9ab3d3;
-    color: #1E40AF;
-    border: 1px solid #89b4e5;
+    background: #c1d7f5;
+    color: #476adc;
+    border: 1px solid #9ac9ff;
     width: 100%;
     padding: 0.5rem;
 }
