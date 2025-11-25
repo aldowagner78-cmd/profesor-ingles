@@ -9,6 +9,36 @@ const MAX_HISTORY = 30;
 
 // Estado interno para navegación
 let currentQuizData = null;
+
+// Control del avatar
+const avatarEmojis = {
+    idle: '🤖',
+    thinking: '🤔',
+    watching: '👀',
+    celebrating: '😄',
+    listening: '🎯',
+    sleeping: '💤'
+};
+
+function setAvatarState(state, tooltip = '') {
+    const avatarEl = document.getElementById('avatar-emoji');
+    const tooltipEl = document.getElementById('avatar-tooltip');
+    
+    if (avatarEl) {
+        avatarEl.textContent = avatarEmojis[state] || avatarEmojis.idle;
+        avatarEl.className = 'avatar-emoji';
+        
+        // Agregar clase de animación
+        if (state === 'thinking') avatarEl.classList.add('avatar-thinking');
+        else if (state === 'watching') avatarEl.classList.add('avatar-watching');
+        else if (state === 'celebrating') avatarEl.classList.add('avatar-celebrating');
+        else if (state === 'listening') avatarEl.classList.add('avatar-listening');
+    }
+    
+    if (tooltipEl && tooltip) {
+        tooltipEl.textContent = tooltip;
+    }
+}
 let lessonState = {
     currentPart: 1,
     totalParts: 3
@@ -69,6 +99,9 @@ export function initChat() {
     }
     
     checkRoleplayLock();
+    
+    // Inicializar avatar
+    setAvatarState('idle', 'Pregunta lo que quieras');
 }
 
 // Manejador centralizado de clicks en el chat (Event Delegation)
@@ -146,10 +179,12 @@ function toggleMicrophone() {
         micBtn.classList.remove('mic-active');
         micStatus.textContent = 'Toca para hablar';
         removeVoiceIndicator();
+        setAvatarState('idle', 'Pregunta lo que quieras');
     } else {
         micBtn.classList.add('mic-active');
         micStatus.textContent = 'Escuchando...';
         showVoiceIndicator();
+        setAvatarState('listening', 'Escuchando...');
         startListening((text) => {
             const input = document.getElementById('chat-input');
             if (input) input.value = text;
@@ -158,6 +193,7 @@ function toggleMicrophone() {
             micBtn.classList.remove('mic-active');
             micStatus.textContent = 'Toca para hablar';
             removeVoiceIndicator();
+            setAvatarState('idle');
         });
     }
 }
@@ -216,6 +252,7 @@ async function sendTextMsg() {
     const newHistory = [...state.chatHistory, { role: 'user', content: text }];
     updateState({ chatHistory: newHistory.slice(-MAX_HISTORY) });
 
+    setAvatarState('thinking', 'Pensando...');
     const loadingId = addMessageToUI('Thinking...', 'bot');
 
     try {
@@ -327,6 +364,8 @@ async function handleAction(action, param = null) {
     const currentLevel = SYLLABUS[state.levelIdx];
     const currentTopic = currentLevel.topics[state.topicIdx];
     
+    setAvatarState('thinking', 'Preparando...');
+    
     let loadingMsg = 'Iniciando...';
     
     if (action === 'lesson') {
@@ -416,6 +455,8 @@ async function handleAction(action, param = null) {
         if (data.type === 'lesson') handleLesson(data);
         else if (data.type === 'quiz') handleQuiz(data);
         else if (data.type === 'roleplay_start') handleRoleplay(data);
+        
+        setAvatarState('watching', 'Observando tu progreso');
 
     } catch (e) {
         document.getElementById(loadingId)?.remove();
@@ -648,6 +689,9 @@ function selectMatchInternal(text, id, btn) {
 function showResult(isCorrect) {
     const state = getState();
     if (isCorrect) {
+        setAvatarState('celebrating', '¡Genial!');
+        setTimeout(() => setAvatarState('watching', 'Observando tu progreso'), 2000);
+        
         quizState.correctAnswers = (quizState.correctAnswers || 0) + 1;
         updateState({ score: state.score + 15 });
         triggerConfetti();
