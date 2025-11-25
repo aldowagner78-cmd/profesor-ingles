@@ -302,15 +302,34 @@ async function sendTextMsg() {
             const updatedHistory = [...getState().chatHistory, { role: 'bot', content: data.reply }];
             updateState({ chatHistory: updatedHistory.slice(-MAX_HISTORY) });
             
-            let html = `<div class="text-primary font-bold mb-1">${data.reply}</div>`;
-            if(data.feedback) html += `<div class="text-secondary text-sm">${data.feedback}</div>`;
+            // Separar texto en inglés y traducción
+            const parts = data.reply.split('(');
+            const englishText = parts[0].trim();
+            const translation = parts[1] ? '(' + parts[1] : '';
+            
+            let html = `
+                <div class="flex items-center gap-1 mb-1">
+                    <span class="font-bold text-primary" style="font-size: 0.9375rem;">${englishText}</span>
+                    <span id="audio-chat-${Date.now()}"></span>
+                </div>
+                ${translation ? `<div style="font-size: 0.6875rem; color: #64748B;">${translation}</div>` : ''}
+            `;
+            
+            if(data.feedback) html += `<div class="text-secondary text-sm mt-2">${data.feedback}</div>`;
             
             const msgId = addMessageToUI(html, 'bot');
             
-            const englishText = data.reply.split('(')[0].trim();
-            const audioBtn = createAudioButton(englishText);
-            const msgEl = document.getElementById(msgId).querySelector('.message-bubble');
-            if(msgEl) msgEl.appendChild(audioBtn);
+            // Agregar botón de audio
+            const audioContainer = document.getElementById(`audio-chat-${Date.now()}`);
+            if (!audioContainer) {
+                const msgEl = document.getElementById(msgId);
+                const container = msgEl?.querySelector('[id^="audio-chat-"]');
+                if (container) {
+                    container.appendChild(createAudioButton(englishText));
+                    // Inicializar iconos de Lucide
+                    if (window.lucide) window.lucide.createIcons();
+                }
+            }
             
         } else if (data.type === 'correction') {
             let html = '';
