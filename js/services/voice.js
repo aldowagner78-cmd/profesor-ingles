@@ -28,30 +28,30 @@ let isSpeaking = false;
 
 export function speakText(text, lang = 'en-US', onStart = null, onEnd = null) {
     if (!text) return null;
-    
+
     // Añadir a la cola en lugar de cancelar inmediatamente
     audioQueue.push({ text, lang, onStart, onEnd });
     processQueue();
-    
+
     return null; // Ya no devolvemos el utterance directamente
 }
 
 function processQueue() {
     if (isSpeaking || audioQueue.length === 0) return;
-    
+
     isSpeaking = true;
     const { text, lang, onStart, onEnd } = audioQueue.shift();
     currentText = text;
-    
+
     // Crear utterance y asignarlo a la variable global
     const utterance = new SpeechSynthesisUtterance(text);
     currentUtterance = utterance; // MANTENER REFERENCIA VIVA
-    
+
     utterance.lang = lang;
     utterance.rate = speechRate;
     utterance.pitch = 1.0;
     utterance.volume = 1.0;
-    
+
     utterance.onend = () => {
         currentText = null;
         currentUtterance = null; // Limpiar referencia al terminar
@@ -59,7 +59,7 @@ function processQueue() {
         if (onEnd) onEnd(); // Callback de fin
         processQueue(); // Procesar siguiente en la cola
     };
-    
+
     utterance.onerror = (e) => {
         console.error("TTS Error:", e);
         currentText = null;
@@ -68,19 +68,19 @@ function processQueue() {
         if (onEnd) onEnd(); // Callback de fin (error)
         processQueue(); // Intentar siguiente incluso si hubo error
     };
-    
+
     // Seleccionar una voz apropiada si está disponible
     const voices = window.speechSynthesis.getVoices();
     const preferredVoice = voices.find(voice => voice.lang.startsWith(lang.split('-')[0]));
     if (preferredVoice) {
         utterance.voice = preferredVoice;
     }
-    
+
     // Pequeño timeout para asegurar estabilidad
     setTimeout(() => {
         if (onStart) onStart(); // Callback de inicio
         window.speechSynthesis.speak(utterance);
-        
+
         // Fix para Chrome: a veces se pausa indefinidamente si el texto es largo
         if (window.speechSynthesis.paused) {
             window.speechSynthesis.resume();
@@ -99,43 +99,60 @@ export function cancelAudio() {
 // Speech-to-Text
 let recognition = null;
 
-export function startListening(onResult, onEnd, lang = 'en-US') {
+export function startListening(onResult, onEnd, lang = 'es-ES') {
     // Verificar soporte
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
+
     if (!SpeechRecognition) {
-        console.error("Speech Recognition no soportado en este navegador");
+        console.error("❌ Speech Recognition no soportado en este navegador");
+        alert("Tu navegador no soporta reconocimiento de voz. Usa Chrome, Edge o Safari.");
         if (onEnd) onEnd();
         return;
     }
-    
+
     if (recognition) {
         recognition.stop();
     }
-    
+
     recognition = new SpeechRecognition();
     recognition.lang = lang;
     recognition.continuous = false;
     recognition.interimResults = false;
-    
+
+    console.log('🎤 Iniciando reconocimiento de voz...');
+    console.log('   Idioma:', lang);
+    console.log('   Continuous:', recognition.continuous);
+
     recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
+        console.log('✅ Voz reconocida:', transcript);
         if (onResult) onResult(transcript);
     };
-    
+
     recognition.onerror = (event) => {
-        console.error("Speech Recognition Error:", event.error);
+        console.error("❌ Speech Recognition Error:", event.error);
+        console.error("   Detalles:", event);
+
+        // Mensajes de error específicos
+        if (event.error === 'no-speech') {
+            console.warn('⚠️ No se detectó voz. Intenta hablar más fuerte.');
+        } else if (event.error === 'not-allowed') {
+            alert('⚠️ Permiso de micrófono denegado. Permite el acceso al micrófono en la configuración del navegador.');
+        }
+
         if (onEnd) onEnd();
     };
-    
+
     recognition.onend = () => {
+        console.log('🛑 Reconocimiento finalizado');
         if (onEnd) onEnd();
     };
-    
+
     try {
         recognition.start();
+        console.log('✅ Reconocimiento iniciado correctamente');
     } catch (e) {
-        console.error("Error starting recognition:", e);
+        console.error("❌ Error starting recognition:", e);
         if (onEnd) onEnd();
     }
 }

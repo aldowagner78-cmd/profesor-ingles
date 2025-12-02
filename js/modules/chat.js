@@ -25,25 +25,25 @@ function setAvatarState(state, tooltip = '') {
     const avatarEl = document.getElementById('avatar-emoji');
     const iconEl = document.getElementById('avatar-icon');
     const tooltipEl = document.getElementById('avatar-tooltip');
-    
+
     if (avatarEl) {
         // Robot siempre visible
         avatarEl.textContent = '🤖';
         avatarEl.className = 'avatar-emoji';
-        
+
         // Agregar clase de animación
         if (state === 'thinking') avatarEl.classList.add('avatar-thinking');
         else if (state === 'watching') avatarEl.classList.add('avatar-watching');
         else if (state === 'celebrating') avatarEl.classList.add('avatar-celebrating');
         else if (state === 'listening') avatarEl.classList.add('avatar-listening');
     }
-    
+
     // Mostrar ícono auxiliar
     if (iconEl) {
         iconEl.textContent = avatarIcons[state] || '';
         iconEl.style.opacity = avatarIcons[state] ? '1' : '0';
     }
-    
+
     if (tooltipEl && tooltip) {
         tooltipEl.textContent = tooltip;
     }
@@ -65,16 +65,16 @@ let quizState = {
 
 export function initChat() {
     console.log("Inicializando Chat Avanzado...");
-    
+
     const sendBtn = document.getElementById('send-btn');
-    if(sendBtn) sendBtn.addEventListener('click', sendTextMsg);
-    
+    if (sendBtn) sendBtn.addEventListener('click', sendTextMsg);
+
     const chatInput = document.getElementById('chat-input');
-    if(chatInput) {
+    if (chatInput) {
         chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendTextMsg();
         });
-        
+
         // Notificar cuando el usuario está escribiendo (solo en P2P)
         let typingTimeout = null;
         chatInput.addEventListener('input', () => {
@@ -87,10 +87,10 @@ export function initChat() {
             }
         });
     }
-    
+
     const micBtn = document.getElementById('mic-btn');
-    if(micBtn) micBtn.addEventListener('click', toggleMicrophone);
-    
+    if (micBtn) micBtn.addEventListener('click', toggleMicrophone);
+
     document.querySelectorAll('.action-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const action = btn.dataset.action;
@@ -100,17 +100,17 @@ export function initChat() {
 
     // Botones de control
     const clearBtn = document.getElementById('clear-chat-btn');
-    if(clearBtn) clearBtn.addEventListener('click', clearChat);
-    
+    if (clearBtn) clearBtn.addEventListener('click', clearChat);
+
     const restartBtn = document.getElementById('restart-lesson-btn');
-    if(restartBtn) restartBtn.addEventListener('click', restartLesson);
-    
+    if (restartBtn) restartBtn.addEventListener('click', restartLesson);
+
     const prevBtn = document.getElementById('prev-lesson-btn');
-    if(prevBtn) prevBtn.addEventListener('click', handlePrevTopic);
-    
+    if (prevBtn) prevBtn.addEventListener('click', handlePrevTopic);
+
     // EVENT DELEGATION: Escuchar clicks en todo el chat-area
     const chatArea = document.getElementById('chat-area');
-    if(chatArea) {
+    if (chatArea) {
         chatArea.addEventListener('click', handleChatClick);
     }
 
@@ -118,9 +118,9 @@ export function initChat() {
     if (state.chatHistory && state.chatHistory.length > 0) {
         state.chatHistory.forEach(msg => addMessageToUI(msg.content, msg.role, false));
     }
-    
+
     checkRoleplayLock();
-    
+
     // Inicializar avatar
     setAvatarState('idle', 'Pregunta lo que quieras');
 }
@@ -129,13 +129,13 @@ export function initChat() {
 function handleChatClick(e) {
     const target = e.target;
     const button = target.closest('button[data-quiz-action]');
-    
+
     if (!button) return;
-    
+
     const action = button.dataset.quizAction;
     const value = button.dataset.quizValue;
-    
-    switch(action) {
+
+    switch (action) {
         case 'submitQuiz':
             submitQuizInternal(value);
             break;
@@ -164,7 +164,7 @@ function checkRoleplayLock() {
     const state = getState();
     const progress = getTopicProgress(state.levelIdx, state.topicIdx);
     const roleplayBtn = document.querySelector('[data-action="roleplay"]');
-    
+
     if (roleplayBtn) {
         if (progress.isRoleplayUnlocked) {
             roleplayBtn.disabled = false;
@@ -194,28 +194,43 @@ function toggleMicrophone() {
     const micBtn = document.getElementById('mic-btn');
     const micStatus = document.getElementById('mic-status');
     const isActive = micBtn.classList.contains('mic-active');
-    
+
     if (isActive) {
         stopListening();
         micBtn.classList.remove('mic-active');
-        micStatus.textContent = 'Toca para hablar';
+        if (micStatus) micStatus.textContent = 'Toca para hablar';
         removeVoiceIndicator();
         setAvatarState('idle', 'Pregunta lo que quieras');
     } else {
         micBtn.classList.add('mic-active');
-        micStatus.textContent = 'Escuchando...';
+        if (micStatus) micStatus.textContent = 'Escuchando...';
         showVoiceIndicator();
         setAvatarState('listening', 'Escuchando...');
+
+        // MEJORA: Detectar idioma del navegador (soporta español e inglés)
+        const browserLang = navigator.language || navigator.userLanguage || 'es-ES';
+        // Si el idioma del navegador no es español ni inglés, usar español por defecto
+        let lang = browserLang;
+        if (!browserLang.startsWith('es') && !browserLang.startsWith('en')) {
+            lang = 'es-ES';
+        }
+
+        console.log('🎤 Micrófono activado');
+        console.log('   Idioma del navegador:', browserLang);
+        console.log('   Idioma para reconocimiento:', lang);
+
         startListening((text) => {
+            console.log('✅ Texto reconocido:', text);
             const input = document.getElementById('chat-input');
             if (input) input.value = text;
             sendTextMsg();
         }, () => {
+            console.log('🛑 Micrófono detenido');
             micBtn.classList.remove('mic-active');
-            micStatus.textContent = 'Toca para hablar';
+            if (micStatus) micStatus.textContent = 'Toca para hablar';
             removeVoiceIndicator();
             setAvatarState('idle');
-        });
+        }, lang); // Pasar el idioma detectado
     }
 }
 
@@ -223,7 +238,7 @@ function showVoiceIndicator() {
     // Agregar indicador visual de voz
     const micBtn = document.getElementById('mic-btn');
     if (!micBtn) return;
-    
+
     const indicator = document.createElement('div');
     indicator.id = 'voice-wave-indicator';
     indicator.className = 'voice-indicator';
@@ -236,13 +251,13 @@ function showVoiceIndicator() {
         border-radius: 8px;
         padding: 4px 8px;
     `;
-    
+
     for (let i = 0; i < 5; i++) {
         const bar = document.createElement('div');
         bar.className = 'voice-wave-bar';
         indicator.appendChild(bar);
     }
-    
+
     const parent = micBtn.parentElement;
     if (parent) {
         parent.style.position = 'relative';
@@ -259,13 +274,13 @@ async function sendTextMsg() {
     const input = document.getElementById('chat-input');
     const text = input.value.trim();
     if (!text) return;
-    
+
     // Validación de longitud
     if (text.length > 500) {
         showToast('El mensaje es demasiado largo (máximo 500 caracteres)', 'warning');
         return;
     }
-    
+
     // Si hay conexión P2P activa, enviar por P2P en lugar de AI
     if (isP2PConnected()) {
         const sent = sendP2PMessage(text);
@@ -274,10 +289,10 @@ async function sendTextMsg() {
             return; // No continuar con AI
         }
     }
-    
+
     addMessageToUI(text, 'user');
     input.value = '';
-    
+
     const state = getState();
     const newHistory = [...state.chatHistory, { role: 'user', content: text }];
     updateState({ chatHistory: newHistory.slice(-MAX_HISTORY) });
@@ -288,47 +303,106 @@ async function sendTextMsg() {
     try {
         const currentLevel = SYLLABUS[state.levelIdx];
         const currentTopic = currentLevel.topics[state.topicIdx];
-        
-        // Detectar si es una meta-pregunta (sobre la app, cómo usar, etc)
-        const metaKeywords = ['cómo usar', 'como usar', 'cómo funciona', 'como funciona', 'qué hago', 'que hago', 'ayuda', 'help', 'instrucciones', 'explicar app', 'usar app', 'usar esta app', 'dime como', 'explica como'];
-        const isMeta = metaKeywords.some(keyword => text.toLowerCase().includes(keyword));
-        
+
+        // MEJORA: Detectar intención del usuario
+        const intent = detectIntent(text);
         let prompt = '';
-        
-        if (isMeta) {
-            // Pregunta sobre cómo usar la aplicación
-            prompt = `
-                El usuario pregunta sobre cómo usar la aplicación de aprendizaje de inglés.
-                Pregunta: "${text}"
-                
-                Responde en JSON explicando en ESPAÑOL cómo funcionar la app:
-                {
-                    "type": "chat",
-                    "reply": "Explicación clara en ESPAÑOL sobre cómo usar la app (sin traducción al inglés)",
-                    "feedback": "Consejos adicionales en ESPAÑOL"
-                }
-                
-                La app tiene: Lecciones (botón 📖), Quiz (botón 📝), Roleplay (botón 🎭 que se desbloquea con 75% en quiz), Cámara (para reconocer objetos), y Chat libre para practicar.
-            `;
-        } else {
-            // Detectar idioma del usuario (simple: contar palabras en español vs inglés)
-            const isSpanish = detectLanguage(text);
-            
-            if (isSpanish) {
+
+        switch (intent) {
+            case 'appHelp':
+                // Pregunta sobre cómo usar la aplicación
+                prompt = `
+                    Eres un asistente amigable del Profesor IA.
+                    Usuario pregunta: "${text}"
+                    
+                    Responde en ESPAÑOL de forma clara y amistosa explicando cómo usar la app.
+                    
+                    La app tiene:
+                    - 📚 Lecciones: Para aprender gramática y vocabulario paso a paso
+                    - 📝 Quiz: 5 tipos diferentes (opción múltiple, verdadero/falso, completar, ordenar, emparejar)
+                    - 🎭 Roleplay: Conversaciones simuladas (se desbloquea sacando 75%+ en quiz)
+                    - 📷 Cámara: Reconoce objetos del mundo real y enseña su nombre en inglés
+                    - 💬 Chat: Aquí mismo, para practicar conversación libre
+                    
+                    JSON: { "type": "chat", "reply": "Explicación amistosa y útil" }
+                `;
+                break;
+
+            case 'camera':
+                // Pregunta sobre el módulo de cámara
+                prompt = `
+                    Explica al usuario cómo funciona el módulo de Cámara del Profesor IA.
+                    Usuario pregunta: "${text}"
+                    
+                    La Cámara tiene 2 modos:
+                    1. **Modo Juego**: Apunta la cámara a objetos cotidianos. La IA identificará el objeto y te dirá su nombre en inglés y español. ¡Ganás puntos por cada objeto nuevo!
+                    2. **Modo Traducir**: (Próximamente) Captura texto de carteles o libros y traduce automáticamente.
+                    
+                    Para acceder: Click en el ícono 📷 Cámara en la barra inferior.
+                    
+                    Responde en ESPAÑOL de forma clara y motivadora.
+                    JSON: { "type": "chat", "reply": "Explicación sobre cámara" }
+                `;
+                break;
+
+            case 'translation':
+                // Traducción rápida
+                prompt = `
+                    Usuario quiere una traducción rápida: "${text}"
+                    Nivel: ${currentLevel.name}
+                    
+                    Identifica qué palabra/frase quiere traducir y proporciona:
+                    1. Traducción directa al inglés
+                    2. Ejemplo de uso en contexto
+                    
+                    IMPORTANTE: Formato de respuesta "Texto en INGLÉS (Traducción en español)"
+                    
+                    JSON: {
+                        "type": "chat",
+                        "reply": "English translation (Traducción en español)",
+                        "feedback": "Ejemplo en INGLÉS (Traducción en español)"
+                    }
+                `;
+                break;
+
+            case 'casual':
+                // Conversación casual
+                prompt = `
+                    Conversación casual amistosa. Usuario dice: "${text}"
+                    Nivel del estudiante: ${currentLevel.name}
+                    
+                    Responde de forma natural, amistosa y educativa.
+                    Aprovecha para enseñar algo útil relacionado al saludo/frase.
+                    
+                    IMPORTANTE: Formato de respuesta "Texto en INGLÉS (Traducción en español)"
+                    
+                    JSON: {
+                        "type": "chat",
+                        "reply": "English response (Respuesta en español)",
+                        "feedback": "Tip en INGLÉS (Tip en español)"
+                    }
+                `;
+                break;
+
+            case 'spanish':
                 // Usuario escribe en español → Lección/Respuesta en inglés
                 prompt = `
                     Eres un Profesor de Inglés para hispanohablantes. 
                     Nivel: ${currentLevel.name}. Tema: ${currentTopic}.
                     Usuario dice (en ESPAÑOL): "${text}".
                     
+                    IMPORTANTE: Formato de respuesta "Texto en INGLÉS (Traducción en español)"
+                    
                     Responde en JSON: 
                     { 
                         "type": "chat", 
-                        "reply": "Respuesta en INGLÉS relevante al tema (con traducción en español entre paréntesis)", 
-                        "feedback": "Consejo o explicación en ESPAÑOL"
+                        "reply": "English response (Respuesta en español)", 
+                        "feedback": "Consejo en INGLÉS (Consejo en español)"
                     }
                 `;
-            } else {
+                break;
+
+            case 'english':
                 // Usuario escribe en inglés → Corrección/Feedback
                 prompt = `
                     Eres un Tutor de Inglés. El usuario está practicando.
@@ -344,54 +418,88 @@ async function sendTextMsg() {
                         "example": "Ejemplo adicional en INGLÉS (traducción)"
                     }
                 `;
-            }
+                break;
         }
-        
+
         const data = await callGemini(prompt);
         document.getElementById(loadingId)?.remove();
-        
+
         if (data.type === 'chat' && data.reply) {
             const updatedHistory = [...getState().chatHistory, { role: 'bot', content: data.reply }];
             updateState({ chatHistory: updatedHistory.slice(-MAX_HISTORY) });
-            
-            // Verificar si es una respuesta en español (meta-pregunta)
-            const isSpanishResponse = !data.reply.includes('(') || isMeta;
-            
+
+            // Verificar si es una respuesta en español (sin traducción entre paréntesis)
+            const isSpanishResponse = !data.reply.includes('(') || intent === 'appHelp' || intent === 'camera';
+
             if (isSpanishResponse) {
                 // Respuesta completamente en español (sin audio)
                 let html = `<div class="text-secondary" style="font-size: 0.9375rem;">${data.reply}</div>`;
-                if(data.feedback) html += `<div class="text-secondary text-sm mt-2">${data.feedback}</div>`;
+                if (data.feedback) html += `<div class="text-secondary text-sm mt-2">${data.feedback}</div>`;
                 addMessageToUI(html, 'bot');
             } else {
-                // Separar texto en inglés y traducción
+                // NUEVO: Separar inglés y español, mostrar español primero
                 const parts = data.reply.split('(');
                 const englishText = parts[0].trim();
-                const translation = parts[1] ? '(' + parts[1] : '';
-                
+                const spanishText = parts[1] ? parts[1].replace(')', '').trim() : '';
+
                 let html = `
-                    <div class="flex items-center gap-1 mb-1">
-                        <span class="font-bold text-primary" style="font-size: 0.9375rem;">${englishText}</span>
-                        <span id="audio-chat-${Date.now()}"></span>
+                    <div class="text-gray-900 mb-2" style="font-size: 0.9375rem;">${spanishText}</div>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="font-bold text-gray-500" style="font-size: 0.8125rem;">(${englishText})</span>
+                        <span id="audio-reply-${Date.now()}"></span>
                     </div>
-                    ${translation ? `<div style="font-size: 0.6875rem; color: #64748B;">${translation}</div>` : ''}
                 `;
-                
-                if(data.feedback) html += `<div class="text-secondary text-sm mt-2">${data.feedback}</div>`;
-                
+
+                // NUEVO: Procesar feedback con el mismo formato si contiene traducción
+                if (data.feedback) {
+                    if (data.feedback.includes('(')) {
+                        // Feedback tiene formato bilingüe
+                        const feedbackParts = data.feedback.split('(');
+                        const feedbackEnglish = feedbackParts[0].trim();
+                        const feedbackSpanish = feedbackParts[1] ? feedbackParts[1].replace(')', '').trim() : '';
+
+                        html += `
+                            <div class="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <div class="text-gray-900 text-sm mb-2">${feedbackSpanish}</div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-gray-500" style="font-size: 0.75rem;">(${feedbackEnglish})</span>
+                                    <span id="audio-feedback-${Date.now()}"></span>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // Feedback solo en español
+                        html += `<div class="text-secondary text-sm mt-3">${data.feedback}</div>`;
+                    }
+                }
+
                 const msgId = addMessageToUI(html, 'bot');
-                
-                // Agregar botón de audio
+
+                // Agregar botones de audio
                 setTimeout(() => {
                     const msgEl = document.getElementById(msgId);
-                    const container = msgEl?.querySelector('[id^="audio-chat-"]');
-                    if (container) {
-                        container.appendChild(createAudioButton(englishText));
-                        // Inicializar iconos de Lucide
-                        if (window.lucide) window.lucide.createIcons();
+
+                    // Audio para la respuesta principal
+                    const replyContainer = msgEl?.querySelector('[id^="audio-reply-"]');
+                    if (replyContainer) {
+                        replyContainer.appendChild(createAudioButton(englishText));
                     }
+
+                    // Audio para el feedback si tiene formato bilingüe
+                    if (data.feedback && data.feedback.includes('(')) {
+                        const feedbackContainer = msgEl?.querySelector('[id^="audio-feedback-"]');
+                        if (feedbackContainer) {
+                            const feedbackParts = data.feedback.split('(');
+                            const feedbackEnglish = feedbackParts[0].trim();
+                            feedbackContainer.appendChild(createAudioButton(feedbackEnglish));
+                        }
+                    }
+
+                    // Inicializar iconos de Lucide
+                    if (window.lucide) window.lucide.createIcons();
                 }, 100);
             }
-            
+
         } else if (data.type === 'correction') {
             let html = '';
             if (data.is_correct) {
@@ -401,13 +509,13 @@ async function sendTextMsg() {
             }
             if (data.explanation) html += `<div class="text-secondary text-sm">${data.explanation}</div>`;
             if (data.example) html += `<div class="text-primary text-sm italic mt-1">Ejemplo: ${data.example}</div>`;
-            
+
             const msgId = addMessageToUI(html, 'bot');
-            
+
             if (!data.is_correct && data.corrected_sentence) {
                 const audioBtn = createAudioButton(data.corrected_sentence.split('(')[0].trim());
                 const msgEl = document.getElementById(msgId).querySelector('.message-bubble');
-                if(msgEl) msgEl.appendChild(audioBtn);
+                if (msgEl) msgEl.appendChild(audioBtn);
             }
         }
 
@@ -417,23 +525,53 @@ async function sendTextMsg() {
     }
 }
 
+// MEJORA: Detector de intención del usuario
+function detectIntent(text) {
+    const lower = text.toLowerCase();
+
+    // Prioridad: específico → general
+
+    // Cámara
+    if (/cámara|camara|foto|reconocer.*objeto|juego.*cámara|como.*jueg|modo.*juego/i.test(text)) {
+        return 'camera';
+    }
+
+    // Traducción
+    if (/cómo se dice|como se dice|traducir|traduce|en inglés|in english|significa|se escribe|cómo digo|como digo/i.test(text)) {
+        return 'translation';
+    }
+
+    // Ayuda con la app
+    if (/cómo usar|como usar|ayuda|help|qué hago|que hago|instrucciones|funciona.*app|usar.*app|explica.*app/i.test(text)) {
+        return 'appHelp';
+    }
+
+    // Casual/Saludos
+    if (/^(hola|hi|hello|hey|buenos días|buenas tardes|buenas noches|good morning|good afternoon|good evening|gracias|thanks|thank you|adiós|bye|goodbye|chau)/i.test(text.trim())) {
+        return 'casual';
+    }
+
+    // Default: detectar idioma para aprendizaje
+    return detectLanguage(text) ? 'spanish' : 'english';
+}
+
 // Detector de idioma simple (basado en palabras comunes)
 function detectLanguage(text) {
-    const spanishWords = ['el', 'la', 'los', 'las', 'un', 'una', 'de', 'en', 'que', 'es', 'por', 'para', 'con', 'como', 'está', 'qué', 'cómo', 'dónde', 'cuándo', 'yo', 'tú', 'él', 'ella'];
-    const englishWords = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'on', 'at', 'to', 'of', 'for', 'with', 'this', 'that', 'what', 'how', 'where', 'when', 'I', 'you', 'he', 'she'];
-    
-    const words = text.toLowerCase().split(/\\s+/);
+    const spanishWords = ['el', 'la', 'los', 'las', 'un', 'una', 'de', 'en', 'que', 'es', 'por', 'para', 'con', 'como', 'está', 'qué', 'cómo', 'dónde', 'cuándo', 'yo', 'tú', 'él', 'ella', 'tengo', 'quiero', 'puedo', 'estoy'];
+    const englishWords = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'on', 'at', 'to', 'of', 'for', 'with', 'this', 'that', 'what', 'how', 'where', 'when', 'I', 'you', 'he', 'she', 'have', 'want', 'can', 'am'];
+
+    const words = text.toLowerCase().split(/\s+/);
     let spanishCount = 0;
     let englishCount = 0;
-    
+
     words.forEach(word => {
         if (spanishWords.includes(word)) spanishCount++;
         if (englishWords.includes(word)) englishCount++;
     });
-    
+
     // Si hay acentos o ñ, probablemente es español
     if (/[áéíóúñ¿¡]/i.test(text)) spanishCount += 3;
-    
+
     return spanishCount > englishCount;
 }
 
@@ -443,11 +581,11 @@ async function handleAction(action, param = null) {
     const state = getState();
     const currentLevel = SYLLABUS[state.levelIdx];
     const currentTopic = currentLevel.topics[state.topicIdx];
-    
+
     setAvatarState('thinking', 'Preparando...');
-    
+
     let loadingMsg = 'Iniciando...';
-    
+
     if (action === 'lesson') {
         if (typeof param === 'number' && param > 0) {
             lessonState.currentPart = param;
@@ -475,7 +613,7 @@ async function handleAction(action, param = null) {
 
     try {
         let prompt = "";
-        
+
         if (action === 'lesson') {
             prompt = `
                 Genera la parte ${lessonState.currentPart} de ${lessonState.totalParts} de una lección CORTA de inglés sobre "${currentTopic}" (${currentLevel.name}).
@@ -496,7 +634,7 @@ async function handleAction(action, param = null) {
         } else if (action === 'quiz') {
             // CORRECCIÓN: Incluir historial en el prompt para evitar repeticiones
             const avoidedQuestions = quizState.usedQuestions.join(" | ");
-            
+
             prompt = `
                 Eres un profesor de Inglés. Genera una pregunta de quiz sobre "${currentTopic}" (${currentLevel.name}).
                 Pregunta ${quizState.currentQuestion} de ${quizState.totalQuestions}.
@@ -535,7 +673,7 @@ async function handleAction(action, param = null) {
         if (data.type === 'lesson') handleLesson(data);
         else if (data.type === 'quiz') handleQuiz(data);
         else if (data.type === 'roleplay_start') handleRoleplay(data);
-        
+
         setAvatarState('watching', 'Observando tu progreso');
 
     } catch (e) {
@@ -562,7 +700,7 @@ function handleLesson(data) {
                 <div class="mb-2 bg-white p-2 rounded border border-gray-100">
                     <div class="flex items-center gap-1">
                         <span class="font-bold text-primary" style="font-size: 0.9375rem;">${ex.en}</span>
-                        <span id="audio-${ex.en.replace(/[^a-zA-Z]/g,'')}"></span>
+                        <span id="audio-${ex.en.replace(/[^a-zA-Z]/g, '')}"></span>
                     </div>
                     <div class="mt-1" style="font-size: 0.6875rem; color: #64748B;">(${ex.es})</div>
                 </div>
@@ -583,17 +721,17 @@ function handleLesson(data) {
             ` : '<div></div>'}
         </div>
         
-        ${data.part >= lessonState.totalParts ? 
-            `<button onclick="document.querySelector('[data-action=\\'quiz\\']').click()" class="mt-4 w-full py-3 bg-success text-white rounded-lg font-bold text-sm shadow-md animate-pulse">¡Lección Completada! Ir al Quiz 📝</button>` 
+        ${data.part >= lessonState.totalParts ?
+            `<button onclick="document.querySelector('[data-action=\\'quiz\\']').click()" class="mt-4 w-full py-3 bg-success text-white rounded-lg font-bold text-sm shadow-md animate-pulse">¡Lección Completada! Ir al Quiz 📝</button>`
             : ''}
     `;
-    
+
     addMessageToUI(html, 'bot');
-    
+
     setTimeout(() => {
         data.examples.forEach(ex => {
-            const container = document.getElementById(`audio-${ex.en.replace(/[^a-zA-Z]/g,'')}`);
-            if(container) container.appendChild(createAudioButton(ex.en));
+            const container = document.getElementById(`audio-${ex.en.replace(/[^a-zA-Z]/g, '')}`);
+            if (container) container.appendChild(createAudioButton(ex.en));
         });
         // Inicializar iconos de Lucide para los botones recién añadidos
         if (window.lucide) window.lucide.createIcons();
@@ -609,11 +747,11 @@ function handleQuiz(data) {
     currentQuizData = data;
     if (data.total_questions) quizState.totalQuestions = data.total_questions;
     if (data.question_number) quizState.currentQuestion = data.question_number;
-    
+
     // CORRECCIÓN: Guardar pregunta en historial
     const questionId = data.question || data.statement || data.sentence_start;
     if (questionId) quizState.usedQuestions.push(questionId);
-    
+
     // NUEVO: Aleatorizar opciones para multiple_choice
     if (data.quiz_type === 'multiple_choice' && data.options && data.answer_index !== undefined) {
         const correctAnswer = data.options[data.answer_index];
@@ -621,9 +759,9 @@ function handleQuiz(data) {
         data.options = shuffled;
         data.answer_index = shuffled.indexOf(correctAnswer);
     }
-    
+
     let html = `<div class="quiz-container">`;
-    
+
     html += `<div class="flex items-center gap-2 mb-3"><span class="bg-accent text-white px-2 py-1 rounded text-xs font-bold uppercase">Quiz</span></div>`;
 
     if (data.quiz_type === 'true_false') {
@@ -660,15 +798,15 @@ function handleQuiz(data) {
             </div>`;
     } else if (data.quiz_type === 'matching') {
         quizState.selectedPair = null; quizState.correctMatches = 0;
-        const left = data.pairs.map((p,i)=>({v:p.en,id:i})).sort(()=>Math.random()-0.5);
-        const right = data.pairs.map((p,i)=>({v:p.es,id:i})).sort(()=>Math.random()-0.5);
+        const left = data.pairs.map((p, i) => ({ v: p.en, id: i })).sort(() => Math.random() - 0.5);
+        const right = data.pairs.map((p, i) => ({ v: p.es, id: i })).sort(() => Math.random() - 0.5);
         html += `<p class="text-xs text-center text-gray-400 mb-3 uppercase font-bold">Empareja las palabras</p>
-        <div class="grid grid-cols-2 gap-2">${left.map(l=>`<button data-quiz-action="selectMatch" data-quiz-value="${l.v}" data-match-id="${l.id}" class="match-btn text-primary text-sm" data-side="left">${l.v}</button>`).join('')} ${right.map(r=>`<button data-quiz-action="selectMatch" data-quiz-value="${r.v}" data-match-id="${r.id}" class="match-btn text-gray-600 text-sm" data-side="right">${r.v}</button>`).join('')}</div>`;
+        <div class="grid grid-cols-2 gap-2">${left.map(l => `<button data-quiz-action="selectMatch" data-quiz-value="${l.v}" data-match-id="${l.id}" class="match-btn text-primary text-sm" data-side="left">${l.v}</button>`).join('')} ${right.map(r => `<button data-quiz-action="selectMatch" data-quiz-value="${r.v}" data-match-id="${r.id}" class="match-btn text-gray-600 text-sm" data-side="right">${r.v}</button>`).join('')}</div>`;
     } else {
         html += `<p class="font-bold mb-4 text-lg text-primary leading-snug">${data.question || "Question?"}</p>
-        <div class="flex flex-col gap-2">${(data.options||[]).map((opt, idx) => `<button data-quiz-action="submitQuiz" data-quiz-value="${idx}" class="quiz-option-btn">${opt}</button>`).join('')}</div>`;
+        <div class="flex flex-col gap-2">${(data.options || []).map((opt, idx) => `<button data-quiz-action="submitQuiz" data-quiz-value="${idx}" class="quiz-option-btn">${opt}</button>`).join('')}</div>`;
     }
-    
+
     html += `
         <div class="flex items-center justify-between pt-3 mt-3 border-t border-gray-200">
             ${quizState.currentQuestion > 1 ? `
@@ -680,7 +818,7 @@ function handleQuiz(data) {
             ` : '<div></div>'}
         </div>
     </div>`;
-    
+
     addMessageToUI(html, 'bot');
 }
 
@@ -692,9 +830,9 @@ function submitQuizInternal(answer) {
     if (data.quiz_type === 'true_false') isCorrect = (answer === 'true') === data.is_true;
     else if (data.quiz_type === 'fill_blank') {
         isCorrect = answer === data.hidden_word;
-        if(isCorrect) {
+        if (isCorrect) {
             const blankEl = document.getElementById('blank-space');
-            if(blankEl) blankEl.innerText = answer;
+            if (blankEl) blankEl.innerText = answer;
         }
     }
     else isCorrect = parseInt(answer) === data.answer_index;
@@ -706,7 +844,7 @@ function addToSentenceInternal(word, btnId) {
     quizState.constructedSentence.push(word);
     const btn = document.getElementById(btnId);
     if (btn) btn.style.display = 'none';
-    
+
     const builder = document.getElementById('sentence-builder');
     if (builder) {
         const wordSpan = document.createElement('span');
@@ -753,7 +891,7 @@ function selectMatchInternal(text, id, btn) {
             btn.disabled = true;
             quizState.correctMatches++;
             quizState.selectedPair = null;
-            if(quizState.correctMatches >= 2) showResult(true);
+            if (quizState.correctMatches >= 2) showResult(true);
         } else {
             first.btn.classList.add('incorrect');
             btn.classList.add('incorrect');
@@ -771,19 +909,22 @@ function showResult(isCorrect) {
     if (isCorrect) {
         setAvatarState('celebrating', '¡Genial!');
         setTimeout(() => setAvatarState('watching', 'Observando tu progreso'), 2000);
-        
+
         quizState.correctAnswers = (quizState.correctAnswers || 0) + 1;
         updateState({ score: state.score + 15 });
         triggerConfetti();
         addMessageToUI(`<div class="text-green-600 font-black text-center text-xl p-2">¡Correcto! 🎉 <br><span class="text-sm font-medium text-gray-400">+15 Puntos</span></div>`, 'bot');
-        
+
         // Calcular porcentaje real basado en respuestas correctas
         const percentage = Math.round((quizState.correctAnswers / quizState.totalQuestions) * 100);
         const progress = getTopicProgress(state.levelIdx, state.topicIdx);
         const newScore = Math.max(progress.highestQuizScore || 0, percentage);
-        
-        updateTopicProgress(state.levelIdx, state.topicIdx, { quizScore: newScore });
-        
+
+        updateTopicProgress(state.levelIdx, state.topicIdx, {
+            quizScore: newScore,
+            highestQuizScore: newScore  // FIX: Actualizar highestQuizScore para desbloquear roleplay
+        });
+
         // NUEVO: Verificar si completó todas las preguntas
         if (quizState.currentQuestion >= quizState.totalQuestions) {
             const PASSING_SCORE = 75;
@@ -799,6 +940,9 @@ function showResult(isCorrect) {
                             </button>
                         </div>
                     `, 'bot');
+
+                    // FIX: Refrescar estado del botón roleplay después de completar quiz
+                    checkRoleplayLock();
                 }, 1000);
             } else {
                 setTimeout(() => {
@@ -812,7 +956,7 @@ function showResult(isCorrect) {
                 }, 1000);
             }
         }
-        
+
         checkRoleplayLock();
     } else {
         addMessageToUI(`<div class="text-red-500 font-bold text-center p-2">Incorrecto 😅</div>`, 'bot');
@@ -823,7 +967,7 @@ function addMessageToUI(html, role, animate = true) {
     const div = document.createElement('div');
     div.className = `flex gap-3 ${animate ? 'fade-in-up' : ''} mb-4`;
     div.id = 'msg-' + Date.now();
-    
+
     const content = `
         <div class="${role === 'bot' ? 'w-8 h-8 bg-primary' : 'hidden'} rounded-full flex items-center justify-center text-white flex-shrink-0 shadow-md">
             ${role === 'bot' ? '🤖' : ''}
@@ -834,7 +978,7 @@ function addMessageToUI(html, role, animate = true) {
     `;
     div.innerHTML = content;
     const area = document.getElementById('chat-area');
-    if(area) {
+    if (area) {
         area.appendChild(div);
         // Auto-scroll suave al final
         setTimeout(() => {
@@ -895,7 +1039,7 @@ function restartLesson() {
 function handlePrevTopic() {
     const state = getState();
     const currentLevel = SYLLABUS[state.levelIdx];
-    
+
     if (state.topicIdx > 0) {
         showConfirmModal(
             '¿Ir al Tema Anterior?',
@@ -913,7 +1057,7 @@ function handlePrevTopic() {
             '¿Ir al Nivel Anterior?',
             `Cambiarás a: ${prevLevel.name} (último tema)`,
             () => {
-                updateState({ 
+                updateState({
                     levelIdx: state.levelIdx - 1,
                     topicIdx: prevLevel.topics.length - 1
                 });
